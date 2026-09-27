@@ -135,14 +135,29 @@ def main():
         if mt: print('      決まった文言が無い: %s' % ' / '.join(mt))
         if mc: print('      共通部品が無い    : %s' % ' '.join(mc))
         if nc: print('      CSS に定義が無い  : %s' % ' '.join(nc[:12]) + ('…' if len(nc) > 12 else ''))
-    #=== 1.7.0 の図の部品（data-rl）をまだ使っていない頁。★合わせてでは直らない。
-    #===   共通ファイルが新しくなっても、頁の中身は書き直さないと見た目は変わらない
-    noviz = [os.path.basename(f) for f in sorted(glob.glob(os.path.join(loops, 'L*.html')))
-             if 'data-rl' not in open(f, encoding='utf-8').read()]
-    if noviz:
-        print('  ○ 図の部品をまだ使っていない頁: %s' % ' '.join(noviz))
-        print('      「合わせて」では直りません。**頁を作り直すとこの版の図と文になります**')
-        print('      1ループ 20〜30 分。ループごとに子を1つ、同時に走らせれば全部でも同じくらい')
+    #=== 版が上がっても「合わせて」では直らないもの。★共通ファイルは新しくなるが、
+    #===   頁の markup は書き直さないと変わらない。黙って終えると「更新したのに何も変わらない」
+    #===   になる（1.7.0 で実際に起きた）。ここで気づけるように、頁を1つずつ見て名前で出す
+    OLD_PAGE = (
+        ('data-rl', False, '図の部品をまだ使っていない',
+         'この版の図（ブレット・横棒・ファネルなど）になります'),
+        ('tid-pill', False, '施策のIDを画面に出していない',
+         '本文の「T09」が何を指すか読む人に分かるようになります'),
+        ('done-tag', True, '施策に「完了」が残っている',
+         'RECORD は全件が完了なので、外して ID に置き換えます'),
+    )
+    pages = sorted(glob.glob(os.path.join(loops, 'L*.html')))
+    found = False
+    for mark, want_present, what, why in OLD_PAGE:
+        hit = [os.path.basename(f) for f in pages
+               if (mark in open(f, encoding='utf-8').read()) == want_present]
+        if hit:
+            found = True
+            print('  ○ %s頁: %s' % (what, ' '.join(hit)))
+            print('      → %s' % why)
+    if found:
+        print('      ★「合わせて」では直りません。**頁を作り直すとこの版の形になります**')
+        print('        1ループ 20〜30 分。ループごとに子を1つ、同時に走らせれば全部でも同じくらい')
     if old:
         for name, got in old:
             print('  ⚠ %s: ループ頁の構造が古い（schema %s → %s）。この版の移行手順を SKILL.md で確認してください'

@@ -418,6 +418,18 @@
   .record-item:first-of-type{border-top:0;padding-top:0}
   .record-top{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
   .record-top h3{margin:0;font-size:20px;font-weight:700;line-height:1.6;color:var(--ink);flex:1 1 260px}
+  /*=== 施策のID。★本文が「T09 が入るまで」と書くので、見出しに出して結びつける。
+       出さないと T09 は AI の内部の番号でしかなく、読む人には何のことか分からない。
+       一覧の .lid-pill と同じ形（ループは L05、施策は T09）===*/
+  .tid-pill{display:inline-block;margin-right:11px;padding:3px 13px;border-radius:999px;
+    border:1px solid #54604d;background:var(--good);color:#fff;
+    font:700 13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;
+    white-space:nowrap;vertical-align:3px}
+  /* 本文の中で施策を指すとき。押すとその施策まで飛ぶ */
+  a.tid-ref{color:var(--good);text-decoration:none;border-bottom:1px dotted var(--good);
+    font:700 .94em ui-monospace,SFMono-Regular,Menlo,monospace}
+  a.tid-ref:hover{background:var(--good);color:#fff;border-bottom-color:var(--good);
+    border-radius:4px;padding:0 3px;margin:0 -3px}
   .record-item p{margin:10px 0;color:var(--sub)}
   .record-item .record-meta{font-size:13px;color:var(--sub)}
   .record-item .record-assessment{font-size:16px;font-weight:700;color:var(--ink)}
