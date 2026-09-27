@@ -21,6 +21,16 @@ COMMON = (('rising.css', 'rising.css'), ('rising.js', 'rising.js'), ('chat-pane.
           ('loopdata.py', 'update/common.py'))
 
 
+#=== 殻の使い方の帯に出る版。**テンプレに直書きしない。** 直書きだと VERSION を上げても
+#===   殻は古い番号を出しつづける（1.7.0 を入れたのに v1.6.1 と出て、ユーザーが混乱した）
+def put_version(html):
+    v = open(os.path.join(os.path.dirname(ASSETS), 'VERSION'), encoding='utf-8').read().strip()
+    out, n = re.subn(r'(<span class="ver">)v?[0-9][0-9.]*(</span>)', r'\1v%s\2' % v, html)
+    if not n:
+        print('  ⚠ 殻に版の置き場（<span class="ver">）がありません')
+    return out, v
+
+
 def block(html, name):
     """<!-- NAME:BEGIN --> 〜 <!-- NAME:END --> の中身。無ければ None"""
     b, e = '<!-- %s:BEGIN -->' % name, '<!-- %s:END -->' % name
@@ -43,8 +53,10 @@ def put(html, name, body):
 #===   ★ 判断に使えるものだけを見る。雛形の見本にある部品（ファネル・チェックリスト等）は
 #===     そのループが使っていないだけなので、無くても「古い」ではない。
 #=== どの頁にも必ずある共通部品（これが欠けていたら古い）
+#=== ★ progress-track / progress-fill は 1.7.0 で外した。ゴールの帯は data-rl の bullet に
+#===   置き換わるので、無くても古くない（置き換えた頁を「古い」と誤って報告していた）
 MUST_CLASSES = ('page', 'screen', 'flow', 'section', 'sec-tab', 'sec-right', 'back', 'cmt', 'upd', 'do',
-                'goal-name', 'number-block', 'progress-track', 'progress-fill', 'record-set', 'trial')
+                'goal-name', 'number-block', 'record-set', 'trial')
 #=== 決まった文言（変わったら頁が古い）
 FIXED_TEXTS = ('指示する', 'コメント', 'TRIAL に移す', 'ループ一覧')
 
@@ -123,6 +135,14 @@ def main():
         if mt: print('      決まった文言が無い: %s' % ' / '.join(mt))
         if mc: print('      共通部品が無い    : %s' % ' '.join(mc))
         if nc: print('      CSS に定義が無い  : %s' % ' '.join(nc[:12]) + ('…' if len(nc) > 12 else ''))
+    #=== 1.7.0 の図の部品（data-rl）をまだ使っていない頁。★合わせてでは直らない。
+    #===   共通ファイルが新しくなっても、頁の中身は書き直さないと見た目は変わらない
+    noviz = [os.path.basename(f) for f in sorted(glob.glob(os.path.join(loops, 'L*.html')))
+             if 'data-rl' not in open(f, encoding='utf-8').read()]
+    if noviz:
+        print('  ○ 図の部品をまだ使っていない頁: %s' % ' '.join(noviz))
+        print('      「合わせて」では直りません。**頁を作り直すとこの版の図と文になります**')
+        print('      1ループ 20〜30 分。ループごとに子を1つ、同時に走らせれば全部でも同じくらい')
     if old:
         for name, got in old:
             print('  ⚠ %s: ループ頁の構造が古い（schema %s → %s）。この版の移行手順を SKILL.md で確認してください'
@@ -134,10 +154,31 @@ def main():
 
     tpl = open(os.path.join(ASSETS, 'index.html'), encoding='utf-8').read()
     out = put(put(tpl, 'CONST', const), 'LOOPS', loopsblk)
+    out, ver = put_version(out)
+
+    #=== ★ マーカーの外にある独自コードは、この入れ替えで消える。
+    #===   黙って消さない。捨てるものを名前で出してから書く
+    lost = []
+    for m in re.finditer(r'<script\b(?![^>]*\bsrc=)[^>]*>', cur):
+        if m.group(0) not in out and 'CONST:BEGIN' not in cur[m.end():m.end() + 200]:
+            lost.append('独自の <script>（%d 行目あたり）' % (cur.count('\n', 0, m.start()) + 1))
+    for m in re.finditer(r'\bid="([\w-]+)"', cur):
+        if ('id="%s"' % m.group(1)) not in out:
+            lost.append('id="%s"' % m.group(1))
+    if lost:
+        print('  ⚠ この入れ替えで**消えるもの**（マーカーの外にあるため）:')
+        for x in sorted(set(lost))[:12]:
+            print('      %s' % x)
+        print('      残したいものは、入れ替えのあとに雛形から作り直した殻へ移してください')
+        print('      元の殻は下の退避に丸ごと残ります')
 
     tmp = os.path.join(loops, '.tmp')
     os.makedirs(tmp, exist_ok=True)
-    shutil.copy2(path, os.path.join(tmp, 'index-before-update.html'))
+    #=== ★ 退避を上書きしない。2回走らせると1回目の出力で原本が消える
+    keep, i = os.path.join(tmp, 'index-before-update.html'), 1
+    while os.path.exists(keep):
+        keep = os.path.join(tmp, 'index-before-update-%d.html' % i); i += 1
+    shutil.copy2(path, keep)
     open(path, 'w', encoding='utf-8').write(out)
     for src, dst in COMMON:
         d = os.path.join(loops, dst)
@@ -145,7 +186,8 @@ def main():
         shutil.copy2(os.path.join(ASSETS, src), d)
 
     print('\n上書き: index.html（殻）, %s' % ', '.join(dst for _, dst in COMMON))
-    print('退避: %s' % os.path.join(tmp, 'index-before-update.html'))
+    print('殻の版表示: v%s' % ver)
+    print('退避: %s' % keep)
 
 
 if __name__ == '__main__':

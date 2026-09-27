@@ -33,8 +33,9 @@
       <div class="goal-numbers">
         <div class="number-block"><div class="number-label" data-goal-when="L01">いま</div><div class="number"><span data-goal-now="L01">1,750</span><small> 円</small></div><div class="number-money" data-goal-money="L01">7件</div></div>
         <div class="progress-wrap">
-          <div class="progress-track"><div class="progress-fill" data-goal-fill="L01" style="width:12%"></div></div>
-          <div class="progress-meta"><span>はじめた頃 0円</span><span data-goal-diff="L01">—</span></div>
+          <!-- ★値は LOOP_DATA から引く（@…）。数字を焼き込むと、次の計測で上の大きい数字と食い違う -->
+          <div class="rl" data-rl='{"t":"bullet","unit":"@hist.unit","max":"@hist.target","now":"@hist.points.last.value","aim":"@hist.target","was":"@metric.start","wasLabel":"はじめた頃","lg":false}'></div>
+          <div class="progress-meta"><span data-goal-diff="L01">—</span></div>
         </div>
         <div class="number-block" style="text-align:right"><div class="number-label">目標</div><div class="number">15,000<small> 円</small></div><div class="number-money">60件</div></div>
       </div>

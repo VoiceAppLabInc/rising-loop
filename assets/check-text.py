@@ -209,10 +209,23 @@ def work(path, limit):
         items.append(dict(id=len(items) + 1, kind='段落', chars=len(text), line=line,
                           where=where, place=_near(src, s0), folded=_folded(src, s0),
                           js=False, old=src[s0:e0], new=''))
+    #=== ★ LOOP_DATA は「文字列リテラル1本＝1項目」にまとめる。
+    #===   in_data は行ごとに返すので、そのまま項目にすると old が重複し、
+    #===   1件目がリテラル全体を置き換え、2件目は「見つからない」で黙って捨てられる
+    #===   （note の2行目が消えて、終了コードは0のままだった）
+    by_lit = {}
     for _, line, where, text, s0, e0 in in_data(src, limit):
-        items.append(dict(id=len(items) + 1, kind='段落（LOOP_DATA）', chars=len(text), line=line,
-                          where=where, place='LOOP_DATA', folded=False,
-                          js=True, old=src[s0 + 1:e0 - 1], new=''))
+        lit = src[s0 + 1:e0 - 1]
+        it = by_lit.get(lit)
+        if it is None:
+            it = by_lit[lit] = dict(id=0, kind='段落（LOOP_DATA）', chars=0, line=line,
+                                    where=where, place='LOOP_DATA', folded=False,
+                                    js=True, old=lit, new='', lines=[])
+        it['lines'].append(text)
+        it['chars'] = max(it['chars'], len(text))
+    for it in by_lit.values():
+        it['id'] = len(items) + 1
+        items.append(it)
     for _, line, cls, n, first, s0, e0 in lists(src):
         items.append(dict(id=len(items) + 1, kind='箇条書き %d行' % n, chars=n, line=line,
                           where='<ul %s>' % cls, place=_near(src, s0), folded=_folded(src, s0),
@@ -252,8 +265,15 @@ def apply_work(job):
         src = src.replace(it['old'], new)
         done += 1
     if done:
-        open(path + '.bak', 'w', encoding='utf-8').write(open(path, encoding='utf-8').read())
-        open(path, 'w', encoding='utf-8').write(src)
+        #=== ★ .bak を上書きしない。2回流し込むと、1回目の出力で原本が消える
+        bak, i = path + '.bak', 1
+        while os.path.exists(bak):
+            bak = '%s.bak%d' % (path, i); i += 1
+        open(bak, 'w', encoding='utf-8').write(open(path, encoding='utf-8').read())
+        #=== 書き込みは一時ファイル経由。途中で落ちても原本が切り詰められない
+        tmp = path + '.writing'
+        open(tmp, 'w', encoding='utf-8').write(src)
+        os.replace(tmp, path)
     return done, skip
 
 
@@ -280,10 +300,11 @@ def main():
     if '--apply' in sys.argv:
         job = json.load(open(sys.argv[sys.argv.index('--apply') + 1], encoding='utf-8'))
         d, skip = apply_work(job)
-        print('流し込み %d 件%s' % (d, '（%s.bak に退避）' % os.path.basename(job['file']) if d else ''))
+        print('流し込み %d 件%s' % (d, '（%s.bak* に退避）' % os.path.basename(job['file']) if d else ''))
         for m in skip:
             print('  ★ 入れなかった: %s' % m)
-        return
+        #=== ★入らなかったものがあれば 0 で終わらない。黙って成功に見せない
+        sys.exit(1 if skip else 0)
     nlong = nlist = nseq = 0
     marked = []
     for f in files:

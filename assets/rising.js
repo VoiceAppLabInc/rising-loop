@@ -648,7 +648,8 @@ if (!IS_SHELL) (function(){
     function drawFunnel(box, d){
       var st = d.stages, n = st.length;
       var rate = st.map(function(s,i){ return i === 0 ? null : Math.round(s.value / st[i-1].value * 100); });
-      var label = function(i){ return st[i].value + st[i].unit; };
+      //=== ★ fmt を通す。通さないと同じ頁で rank は「2,585件」なのにファネルは「2944人」になる
+      var label = function(i){ return fmt(st[i].value) + (st[i].unit || ''); };
 
       //=== D3 が読めなかったとき（オフライン等）。数字だけは必ず出す
       if (!window.d3) {
@@ -741,6 +742,10 @@ if (!IS_SHELL) (function(){
 
     //=== ★画面に出る文字はここを必ず通す。data-rl は AI が書くので、
     //===   単位やラベルに < や " が混ざると markup が壊れる。' も属性に入るので落とす
+    //=== ★ラベルのキーを揃える。LOOP_DATA の days[] は d、部品は k。
+    //===   揃えないと "@hist.days[]" をそのまま渡せず、写しを作るはめになる
+    function lab(x){ return x && (x.k != null ? x.k : x.d); }
+
     function esc(s){
       return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -806,7 +811,7 @@ if (!IS_SHELL) (function(){
       return ttl(d.title) + '<div class="rv-h">' + rows.map(function(r, i){
         var v = n0(r.v);
         //=== 先頭だけ濃い緑、あとは薄い（.rv-h に赤は無いので bad は見ない）
-        return '<div class="k">' + esc(r.k) + '</div>'
+        return '<div class="k">' + esc(lab(r)) + '</div>'
              + '<div class="t"><i class="' + (i === 0 && v ? '' : 'dim') + '" style="width:'
              + pc(v, max).toFixed(1) + '%"></i></div>'
              + '<div class="v">' + fmt(v) + esc(d.unit || '') + '</div>';
@@ -844,7 +849,7 @@ if (!IS_SHELL) (function(){
       var max = d.max != null ? d.max : mx(rows.reduce(function(a, r){ return a.concat([n0(r.a), n0(r.b)]); }, []));
       return ttl(d.title) + rows.map(function(r){
         var A = pc(r.a, max), B = pc(r.b, max), up = n0(r.b) >= n0(r.a);
-        return '<div class="r' + (up ? ' up' : '') + '"><span class="k">' + esc(r.k) + '</span>'
+        return '<div class="r' + (up ? ' up' : '') + '"><span class="k">' + esc(lab(r)) + '</span>'
              + '<span class="tr"><i class="ln" style="left:' + Math.min(A, B).toFixed(1)
              + '%;width:' + Math.abs(B - A).toFixed(1) + '%"></i>'
              + '<i class="a" style="left:' + A.toFixed(1) + '%"></i>'
@@ -865,7 +870,7 @@ if (!IS_SHELL) (function(){
                  + '<i style="height:' + pc(v, max).toFixed(1) + '%"></i></div>';
           }).join('') + '</div>'
         + '<div class="rv-labels">' + bins.map(function(b){
-            return '<span' + (max && n0(b.v) === max ? ' class="on"' : '') + '>' + esc(b.k) + '</span>';
+            return '<span' + (max && n0(b.v) === max ? ' class="on"' : '') + '>' + esc(lab(b)) + '</span>';
           }).join('') + '</div>'
         + note(d.note);
     }
@@ -920,10 +925,14 @@ if (!IS_SHELL) (function(){
     }
 
     /* ── 11. treemap（面積で内訳）大きさの差が激しいとき ── */
-    //=== d3.treemap（矩形の敷き詰め）を使う。d3 は loop.html が必ず読むので退避は持たない
+    //=== d3.treemap（矩形の敷き詰め）を使う。
+    //===   ★ d3 が読めないときは横棒に落とす。落とさないとここで例外になり、
+    //===     同じ頁の以降の図が全部消える（オフラインで L08 の5図中4図が空白になった）
     function treemap(d){
       var cells = (d.cells || []).filter(function(c){ return n0(c.v) > 0; });
       if (!cells.length) return '<div class="rl-none">まだ数字がありません</div>';
+      if (!window.d3 || !d3.treemap || !d3.hierarchy)
+        return rank({ title: d.title, unit: d.unit, rows: d.cells, note: d.note });
       var W = 300, H = 150;
       var root = d3.hierarchy({ children: cells }).sum(function(x){ return n0(x.v); })
                    .sort(function(a, b){ return b.value - a.value; });
@@ -1054,10 +1063,45 @@ if (!IS_SHELL) (function(){
       funnel:'stages', pie:'slices', treemap:'cells', area:'series', slope:'rows', scatter:'pts'
     };
 
+    //=== ★値を LOOP_DATA から引く。"@hist.points.last.value" のように書く。
+    //===   こうしないと図の数字が「手で保守する写し」になり、次の計測で
+    //===   上の大きい数字と下の図が食い違う（1.7.0 で実際に起きた）。
+    //===   使える形: @a.b.c ／ 途中の last ＝配列の最後 ／ @a.b[].c ＝配列から c を集める
+    function dig(o, path){
+      var parts = path.split('.');
+      for (var i = 0; i < parts.length; i++){
+        if (o == null) return undefined;
+        var p = parts[i], m = /^(\w+)\[\]$/.exec(p);
+        if (p === 'last'){ o = o[o.length - 1]; continue; }
+        if (m){
+          var arr = o[m[1]];
+          if (!arr || !arr.length) return undefined;
+          var rest = parts.slice(i + 1).join('.');
+          return arr.map(function(x){ return rest ? dig(x, rest) : x; });
+        }
+        o = o[p];
+      }
+      return o;
+    }
+    function deref(v){
+      if (typeof v === 'string' && v.charAt(0) === '@'){
+        var got = dig(DATA, v.slice(1));
+        //=== 引けなかったら書いたとおりの文字を残す。黙って空にしない
+        return got === undefined ? v : got;
+      }
+      if (Array.isArray(v)) return v.map(deref);
+      if (v && typeof v === 'object'){
+        var o = {};
+        for (var k in v) if (Object.prototype.hasOwnProperty.call(v, k)) o[k] = deref(v[k]);
+        return o;
+      }
+      return v;
+    }
+
     function drawViz(){
       document.querySelectorAll('.rl[data-rl]').forEach(function(el){
         var spec;
-        try { spec = JSON.parse(el.getAttribute('data-rl')); }
+        try { spec = deref(JSON.parse(el.getAttribute('data-rl'))); }
         catch (e){
           //=== 黙って空にしない。JSON が壊れていることが画面で分かるようにする
           el.className = 'rl';
@@ -1068,7 +1112,8 @@ if (!IS_SHELL) (function(){
         if (spec && spec.t === 'funnel' && window.RL_FUNNEL){
           el.className = 'rl rl-funnel';
           el.innerHTML = '';
-          window.RL_FUNNEL(el, funnelSpec(spec));
+          try { window.RL_FUNNEL(el, funnelSpec(spec)); }
+          catch (err){ el.innerHTML = '<div class="rl-none">図を描けませんでした（' + esc(err.message) + '）</div>'; }
           return;
         }
         var f = KINDS[spec && spec.t];
@@ -1084,9 +1129,15 @@ if (!IS_SHELL) (function(){
                        + '<div class="rl-none">まだ数字がありません</div>';
           return;
         }
-        //=== クラスは毎回組み直す。t を書き換えたときに前の見た目が残らない
-        el.className = 'rl rl-' + spec.t;
-        el.innerHTML = f(spec);
+        //=== ★1個が例外を投げても、残りの図は描く。
+        //===   包まないと、壊れた data-rl が1つあるだけで頁じゅうの図が消える
+        try {
+          el.className = 'rl rl-' + spec.t;
+          el.innerHTML = f(spec);
+        } catch (err){
+          el.className = 'rl';
+          el.innerHTML = '<div class="rl-none">図を描けませんでした（' + esc(err.message) + '）</div>';
+        }
       });
     }
     drawViz();
