@@ -767,11 +767,13 @@ if (!IS_SHELL) (function(){
       }).join('') + '</div>';
     }
     //=== 目盛りの値。刻みは 4 が既定（0 と max を含めて5本）
+    //=== ★両端の札は端に寄せる。中央寄せのままだと半分が枠の外に出て、隣の欄と重なる
     function ticks(max, n, unit){
       var out = '';
       for (var i = 0; i <= n; i++){
         var v = max * i / n;
-        out += '<span style="left:' + (i / n * 100) + '%">' + (i ? num(v, unit) : '0') + '</span>';
+        var cls = i === 0 ? ' class="e0"' : i === n ? ' class="e1"' : '';
+        out += '<span' + cls + ' style="left:' + (i / n * 100) + '%">' + (i ? num(v, unit) : '0') + '</span>';
       }
       return out;
     }
@@ -787,11 +789,14 @@ if (!IS_SHELL) (function(){
       //=== ★札は印の真ん中に置くので、0% や 100% ぴったりだと半分が枠の外に出る。
       //===   両端を 1〜99% に寄せる（右端は 1.6.x の頁で、左端は was:0 で実際にはみ出した）
       var edge = function(v){ return Math.max(1, Math.min(99, pc(v, max))).toFixed(1); };
+      //=== ★札は印の真ん中に置くので、端に近いと外にはみ出す。
+      //===   左寄り（12%未満）は左端に、右寄り（88%超）は右端に揃える
+      var side = function(v){ var x = pc(v, max); return x < 12 ? ' e0' : x > 88 ? ' e1' : ''; };
       if (d.was != null)
-        h += '<i class="was" style="left:' + edge(d.was) + '%"><em>'
+        h += '<i class="was' + side(d.was) + '" style="left:' + edge(d.was) + '%"><em>'
            + esc(d.wasLabel || 'まえ') + ' ' + num(d.was, d.unit) + '</em></i>';
       if (d.aim != null)
-        h += '<i class="aim" style="left:' + edge(d.aim) + '%"><em>'
+        h += '<i class="aim' + side(d.aim) + '" style="left:' + edge(d.aim) + '%"><em>'
            + esc(d.aimLabel || '目標') + ' ' + num(d.aim, d.unit) + '</em></i>';
       h += '</div>';
       //=== ★ゴールの枠のように、いまと目標が図の左右に大きく出ている場所では lg:false で凡例を消す。

@@ -583,6 +583,9 @@
   .rl-bullet .ax{position:relative;height:14px;margin-bottom:3px}
   .rl-bullet .ax span{position:absolute;transform:translateX(-50%);white-space:nowrap;
     color:var(--dim);font:10.5px ui-monospace,SFMono-Regular,Menlo,monospace}
+  /* ★両端の札は端に寄せる。中央寄せだと半分が外に出て、隣の欄と重なる */
+  .rl-bullet .ax span.e0{transform:none}
+  .rl-bullet .ax span.e1{transform:translateX(-100%)}
   .rl-bullet .tr{position:relative;height:30px;border-radius:5px;
     background:var(--surface-2);border:1px solid var(--line-soft)}
   .rl-bullet .g{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft)}
@@ -593,6 +596,11 @@
   .rl-bullet .was em,.rl-bullet .aim em{position:absolute;bottom:-17px;left:50%;
     transform:translateX(-50%);white-space:nowrap;font-style:normal;
     font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim)}
+  /* 端に寄った印の札も、枠の中に収める */
+  .rl-bullet .was.e0 em,.rl-bullet .aim.e0 em{left:0;transform:none}
+  .rl-bullet .was.e1 em,.rl-bullet .aim.e1 em{left:auto;right:0;transform:none}
+  /* それでも収まらないときのため、図ぜんぶを枠の中で切る */
+  .rl-bullet{overflow:hidden}
   .rl-bullet .aim em{color:var(--ink);font-weight:700}
   /* ★凡例を出さない（lg:false）ときも、まえ・目標の札のぶんだけ下を空ける。
      空けないと次の行と重なる（L01 のゴールで実際に重なった） */
