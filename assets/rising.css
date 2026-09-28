@@ -175,6 +175,21 @@
   .loop-row{display:grid;grid-template-columns:1fr 168px 100px 18px;gap:16px;padding:17px 18px;background:var(--surface);
     align-items:center;border:0;width:100%;text-align:left;cursor:pointer;font:inherit;color:inherit}
   .loop-row:hover{background:#f7faf2}
+  /*=== ★行の左の帯。**はじめより上がったか下がったか**を先に見せる（1.7.4）。
+       色は rising.js が行の中のブレットから決めて data-tone に入れる（ブレットと同じ決まり）。
+       背景は塗らない。塗ると一覧が重くなり、帯の意味が薄れる ===*/
+  .loop-row{position:relative}
+  .loop-row[data-tone]::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px}
+  .loop-row[data-tone="ok"]::before{background:var(--good)}
+  .loop-row[data-tone="bad"]::before{background:var(--bad)}
+  .loop-row[data-tone] .loop-num b{color:var(--ink)}
+  .loop-row[data-tone="bad"] .loop-num b{color:var(--bad)}
+  /* 「↑ はじめより +75%」。文字も rising.js が入れる */
+  .loop-delta{margin-top:4px;font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap;color:var(--dim)}
+  .loop-delta:empty{display:none}
+  .loop-delta.ok{color:var(--good)}
+  .loop-delta.bad{color:var(--bad)}
+  .loop-num .rl{margin-top:6px}
   .loop-row.dimmed{background:var(--surface-2)}
   .loop-row.dimmed:hover{background:var(--surface-3)}
   .loop-name{font-size:17px;font-weight:650;line-height:1.5}
@@ -589,8 +604,10 @@
   .rl-bullet .tr{position:relative;height:30px;border-radius:5px;
     background:var(--surface-2);border:1px solid var(--line-soft)}
   .rl-bullet .g{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft)}
-  .rl-bullet .val{position:absolute;top:8px;bottom:8px;left:0;border-radius:3px;background:var(--bad)}
+  /* 色: はじめより悪くなっていたら赤（.bad）、それ以外は緑（.ok）、はじめが無ければ中立 */
+  .rl-bullet .val{position:absolute;top:8px;bottom:8px;left:0;border-radius:3px;background:#8d9891}
   .rl-bullet .val.ok{background:var(--good)}
+  .rl-bullet .val.bad{background:var(--bad)}
   .rl-bullet .was{position:absolute;top:-3px;bottom:-3px;width:2px;background:#9aa79c}
   .rl-bullet .aim{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--ink);border-radius:2px}
   .rl-bullet .was em,.rl-bullet .aim em{position:absolute;bottom:-17px;left:50%;
@@ -601,13 +618,23 @@
   .rl-bullet .was.e1 em,.rl-bullet .aim.e1 em{left:auto;right:0;transform:none}
   /* それでも収まらないときのため、図ぜんぶを枠の中で切る */
   .rl-bullet{overflow:hidden}
+  /* 一覧の行など、幅が狭い場所むけ。高さを詰め、札を小さくする */
+  .rl-tight.rl-bullet,.rl-tight.rl{margin-top:6px}
+  .rl-tight.rl-bullet .tr{height:20px}
+  .rl-tight.rl-bullet .val{top:5px;bottom:5px}
+  /* ★狭い場所では印の札を出さない。168px に「はじめ 248人/日」と「目標 3,300人/日」は並ばず、
+     重なるか切れる（一覧で実際に重なった）。印の意味は行の中の文字（はじめより +75%）が言う */
+  .rl-tight.rl-bullet .was em,.rl-tight.rl-bullet .aim em{display:none}
+  .rl-tight.rl-bullet{padding-bottom:0}
+  .rl-tight.rl-bullet .lg{margin-top:19px;font-size:11.5px}
   .rl-bullet .aim em{color:var(--ink);font-weight:700}
   /* ★凡例を出さない（lg:false）ときも、まえ・目標の札のぶんだけ下を空ける。
      空けないと次の行と重なる（L01 のゴールで実際に重なった） */
   .rl-bullet{padding-bottom:20px}
   .rl-bullet .lg{margin-top:22px;margin-bottom:-20px;color:var(--sub);font-size:12.5px;line-height:1.7}
-  .rl-bullet .lg b{font:700 15px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--bad)}
+  .rl-bullet .lg b{font:700 15px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink)}
   .rl-bullet .lg b.ok{color:var(--good)}
+  .rl-bullet .lg b.bad{color:var(--bad)}
 
   /* ── stack（帯100%）2つ以上に分ける。帯を並べると前後が見える ── */
   .rl-stack .rl-band{display:flex;height:32px;border-radius:6px;overflow:hidden;margin-top:4px}

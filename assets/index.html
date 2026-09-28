@@ -9,9 +9,8 @@
      ループの画面は LXX.html（assets/loop.html から作る）。この殻は iframe で出すだけ。
      CSS と JS は rising.css / rising.js（共通部品。中身を書かない）。
 
-     実物にコピーしたら、この注記を下の2行に差し替えること:
-     「この殻の一覧は、各ループ頁の LOOP_DATA の写しです。
-       1つのループを直したら、同じターンでここも直します。」
+     この殻の一覧は、各ループ頁の LOOP_DATA の写しです。
+     1つのループを直したら、同じターンでここも直します。
 
      詳しくは ../references/HTML生成.md
      ═══════════════════════════════════════════════════════════════ -->
@@ -45,6 +44,13 @@
 
 <div class="page">
 <!-- LOOPS:BEGIN -->
+<!-- ★一覧の行（1.7.4）: .loop-num の中は3つだけ。
+     <b>いま</b> / 目標 単位
+     <div class="loop-delta"></div>           ← 空のまま。rising.js が「↑ はじめより +75%」を入れる
+     <div class="rl rl-tight" data-rl='{"t":"bullet","unit":…,"max":目標,"now":いま,"aim":目標,"was":はじめ,"axis":false,"lg":false}'></div>
+     行の左の帯（緑／赤）と数字の色は rising.js がブレットから決める。**百分率を自分で書かない。**
+     上限の目標（コストなど）は "aimLabel":"上限" を足すと、上がったときが赤になる -->
+
 <!-- ═════════ 一覧 ═════════ -->
 <section class="screen" id="s-list">
   <div class="flow">
@@ -85,7 +91,7 @@
             <div class="loop-name"><span class="lid-pill">L01</span>有料チケットの売上を、月 15,000円 に</div>
             <div class="loop-sub">鍵をタップする人は増えているのに、買う人が増えていない<br>施策評価：購入は発生。ボタン単独の効果は評価待ち。</div>
           </div>
-          <div class="loop-num"><b>1,750</b> / 15,000円<div class="loop-bar"><i style="width:12%"></i></div></div>
+          <div class="loop-num"><b>1,750</b> / 15,000円<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"円","max":15000,"now":1750,"aim":15000,"was":900,"axis":false,"lg":false}'></div></div>
           <div class="state"><div class="st run"><span class="st-dot"></span><span class="st-n">2</span><span class="st-lb">実行中</span></div><div class="st rev"><span class="st-dot"></span><span class="st-n">1</span><span class="st-lb">評価中</span></div></div>
           <div class="chev">→</div>
         </button>
@@ -95,7 +101,7 @@
             <div class="loop-name"><span class="lid-pill">L02</span>来た人が、次の日もまた来る割合を 30% に</div>
             <div class="loop-sub">初日ごとの振れが極端（18/4/7/19/14%）。翌日が揃った3日なら14%</div>
           </div>
-          <div class="loop-num"><b>11</b> / 30%<div class="loop-bar"><i style="width:37%"></i></div></div>
+          <div class="loop-num"><b>11</b> / 30%<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"%","max":30,"now":11,"aim":30,"was":14,"axis":false,"lg":false}'></div></div>
           <div class="state"><div class="st idle"><span class="st-dot"></span>施策待ち</div></div>
           <div class="chev">→</div>
         </button>

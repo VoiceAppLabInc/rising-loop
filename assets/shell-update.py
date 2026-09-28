@@ -31,6 +31,33 @@ def put_version(html):
     return out, v
 
 
+def ver_of():
+    return open(os.path.join(os.path.dirname(ASSETS), 'VERSION'), encoding='utf-8').read().strip()
+
+
+def plain_block(found, plain, npages, ver, dry=False):
+    """★マーケターにそのまま見せる欄。AI は言い換えない。
+    用語・ファイル名を入れない。聞くのは「作り直すか」の1問だけで、所要時間と
+    「数字や施策の記録は消えません」を必ず添える"""
+    bar = '━' * 40
+    head = '\n%s\nマーケター向け（この欄を言い換えずに、そのまま見せる）%s\n%s\n' % (
+        bar, '　※ --dry-run なので、まだ入れ替えていない' if dry else '', bar)
+    if not found:
+        return head + '最新版（%s）にしました。画面を再読み込みしてください。\n%s' % (ver, bar)
+    #=== ★所要時間は「古いものだけ」で見積もる。一覧だけなら数分（全頁と言うと過大に見えて断られる）
+    #===   頁は子が同時に作り直すので、数が増えても長くならない（1.7.4 の試しで6頁が10分かからなかった）
+    if npages == 0:
+        what, took = 'ループ一覧の見た目が、まだ前の形です。直すとこう変わります。', '数分で終わります。'
+    else:
+        what = '各ページの中身が、まだ前の形です。作り直すとこう変わります。'
+        took = '10分ほどかかります。'
+    lines = ['最新版（%s）にしました。画面の枠は新しくなっています。' % ver, '', what]
+    lines += ['- ' + x for x in (plain or ['いまの版の見た目と書き方になる'])]
+    lines += ['', '数字や施策の記録は消えません。' + took,
+              'いま直しますか。', '- 直す', '- あとで（次に「更新」するときにまた聞きます）']
+    return head + '\n'.join(lines) + '\n' + bar
+
+
 def block(html, name):
     """<!-- NAME:BEGIN --> 〜 <!-- NAME:END --> の中身。無ければ None"""
     b, e = '<!-- %s:BEGIN -->' % name, '<!-- %s:END -->' % name
@@ -74,8 +101,10 @@ def stale(page_html, tpl_html, css):
     pc = _classes(page_html)
     miss_cls = [c for c in MUST_CLASSES if c in tpl_html and c not in pc]
     miss_txt = [t for t in FIXED_TEXTS if t in tpl_html and t not in page_html]
-    #=== 使っているのに定義が無い＝rising.css が新しくなって名前が変わった可能性
-    nocss = sorted(c for c in pc if ('.' + c) not in css)
+    #=== 使っているのに定義が無い＝rising.css が新しくなって名前が変わった可能性。
+    #===   ★見本の頁も使っている名前は外す（record-section のような目印用。毎回全頁に出て、誰も直せなかった）
+    tc = _classes(tpl_html)
+    nocss = sorted(c for c in pc if ('.' + c) not in css and c not in tc)
     return miss_cls, miss_txt, nocss
 
 
@@ -138,44 +167,63 @@ def main():
     #=== 版が上がっても「合わせて」では直らないもの。★共通ファイルは新しくなるが、
     #===   頁の markup は書き直さないと変わらない。黙って終えると「更新したのに何も変わらない」
     #===   になる（1.7.0 で実際に起きた）。ここで気づけるように、頁を1つずつ見て名前で出す
+    #=== (目印, あれば古いか, AI 向けの説明, ★マーケター向けの一文)。
+    #===   ★マーケター向けの文は「画面で何が変わるか」だけを言う。ファイル名・用語を入れない。
+    #===     AI はこの文を言い換えずに見せる（言い換えると用語が漏れる。1.7.1 で実際に漏れた）
     OLD_PAGE = (
         ('data-rl', False, '図の部品をまだ使っていない',
-         'この版の図（ブレット・横棒・ファネルなど）になります'),
-        ('tid-pill', False, '施策のIDを画面に出していない',
-         '本文の「T09」が何を指すか読む人に分かるようになります'),
-        ('done-tag', True, '施策に「完了」が残っている',
-         'RECORD は全件が完了なので、外して ID に置き換えます'),
+         'グラフが見やすい図になり、長い文が短くなる'),
+        ('tid-pill', False, '施策の番号を画面に出していない',
+         '施策に番号が付き、本文から飛べる'),
+        ('done-tag', True, '施策に「完了」が残っている', None),
     )
+    #=== 実行中の施策に飛び先（id="trial-…"）が無い頁。実行中の施策がある頁だけ見る
+    TRIAL_ID = ('実行中の施策に飛び先が無い', '実行中の施策にも、本文の番号から飛べる')
     pages = sorted(glob.glob(os.path.join(loops, 'L*.html')))
-    found = False
-    for mark, want_present, what, why in OLD_PAGE:
+    found, plain, oldpages = False, [], set()
+    for mark, want_present, what, say in OLD_PAGE:
         hit = [os.path.basename(f) for f in pages
                if (mark in open(f, encoding='utf-8').read()) == want_present]
         if hit:
             found = True
+            oldpages.update(hit)
             print('  ○ %s頁: %s' % (what, ' '.join(hit)))
-            print('      → %s' % why)
-    if found:
-        print('      ★「合わせて」では直りません。**頁を作り直すとこの版の形になります**')
-        print('        1ループ 20〜30 分。ループごとに子を1つ、同時に走らせれば全部でも同じくらい')
+            if say and say not in plain:
+                plain.append(say)
+    hit = [os.path.basename(f) for f in pages
+           if 'class="trial"' in open(f, encoding='utf-8').read()
+           and 'id="trial-' not in open(f, encoding='utf-8').read()]
+    if hit:
+        found = True
+        oldpages.update(hit)
+        print('  ○ %s頁: %s' % (TRIAL_ID[0], ' '.join(hit)))
+        plain.append(TRIAL_ID[1])
+    #=== 一覧の行は LOOPS ブロックごと引き継ぐので、古い形のまま残る。これも知らせる
+    if 'loop-bar' in loopsblk and 'data-rl' not in loopsblk:
+        found = True
+        print('  ○ 一覧の行が古い形（帯だけで、目盛りも向きも無い）')
+        plain.insert(0, 'ループ一覧で、はじめより下がったループが赤で分かる')
+    #=== 構造が古い頁（1.4.x 以前）も作り直しの中で移す。マーケターに版の話はしない
     if old:
+        found = True
         for name, got in old:
-            print('  ⚠ %s: ループ頁の構造が古い（schema %s → %s）。この版の移行手順を SKILL.md で確認してください'
-                  % (name, got, want))
-
-    if dry:
-        print('\n--dry-run のため書いていません。')
-        return
-
+            oldpages.add(name)
+            print('  ○ %s: 構造が古い（schema %s → %s）。作り直しの中で移す' % (name, got, want))
     tpl = open(os.path.join(ASSETS, 'index.html'), encoding='utf-8').read()
     out = put(put(tpl, 'CONST', const), 'LOOPS', loopsblk)
     out, ver = put_version(out)
 
     #=== ★ マーカーの外にある独自コードは、この入れ替えで消える。
-    #===   黙って消さない。捨てるものを名前で出してから書く
+    #===   黙って消さない。捨てるものを名前で出す。--dry-run でも出す（書く前に分からないと意味がない）
+    #===   スクリプトは開始タグでなく中身で比べる。`<script>` は雛形にもあるので、タグでは独自のものが見えない
+    squash = lambda t: re.sub(r'\s+', '', t)
+    sout = squash(out)
     lost = []
-    for m in re.finditer(r'<script\b(?![^>]*\bsrc=)[^>]*>', cur):
-        if m.group(0) not in out and 'CONST:BEGIN' not in cur[m.end():m.end() + 200]:
+    for m in re.finditer(r'<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>', cur, re.S):
+        body = m.group(1)
+        if 'CONST:BEGIN' in body or not body.strip():
+            continue                     # 雛形の CONST 入りのスクリプト。中身は CONST だけ引き継ぐ
+        if squash(body) not in sout:
             lost.append('独自の <script>（%d 行目あたり）' % (cur.count('\n', 0, m.start()) + 1))
     for m in re.finditer(r'\bid="([\w-]+)"', cur):
         if ('id="%s"' % m.group(1)) not in out:
@@ -187,6 +235,11 @@ def main():
         print('      残したいものは、入れ替えのあとに雛形から作り直した殻へ移してください')
         print('      元の殻は下の退避に丸ごと残ります')
 
+    if dry:
+        print(plain_block(found, plain, len(oldpages), ver_of(), dry=True))
+        print('\n--dry-run のため書いていません。')
+        return
+
     tmp = os.path.join(loops, '.tmp')
     os.makedirs(tmp, exist_ok=True)
     #=== ★ 退避を上書きしない。2回走らせると1回目の出力で原本が消える
@@ -194,6 +247,15 @@ def main():
     while os.path.exists(keep):
         keep = os.path.join(tmp, 'index-before-update-%d.html' % i); i += 1
     shutil.copy2(path, keep)
+    #=== ★共通ファイルも控える。殻だけ控えていて「元の枠は控えに残る」と合わなかった
+    ckeep, i = os.path.join(tmp, 'common-before-update'), 1
+    while os.path.exists(ckeep):
+        ckeep = os.path.join(tmp, 'common-before-update-%d' % i); i += 1
+    for _, dst in COMMON:
+        d = os.path.join(loops, dst)
+        if os.path.isfile(d):
+            os.makedirs(os.path.dirname(os.path.join(ckeep, dst)), exist_ok=True)
+            shutil.copy2(d, os.path.join(ckeep, dst))
     open(path, 'w', encoding='utf-8').write(out)
     for src, dst in COMMON:
         d = os.path.join(loops, dst)
@@ -202,7 +264,9 @@ def main():
 
     print('\n上書き: index.html（殻）, %s' % ', '.join(dst for _, dst in COMMON))
     print('殻の版表示: v%s' % ver)
+    print(plain_block(found, plain, len(oldpages), ver))
     print('退避: %s' % keep)
+    print('退避（共通ファイル）: %s' % ckeep)
 
 
 if __name__ == '__main__':
