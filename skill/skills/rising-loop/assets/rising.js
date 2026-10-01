@@ -2,7 +2,7 @@
    rising.js — 殻（index.html）とループ頁（LXX.html）の共通 JS
 
    1本のファイルを両方が読む。先頭の IS_SHELL で、自分がどちらかを見分ける。
-     殻   : #loop-frame を持つ → 画面の切り替え・モーダル・トースト・コピー・右ペイン・使い方
+     殻   : #loop-frame を持つ → 画面の切り替え・モーダル・指示文を送る・右ペイン・使い方
      ループ頁 : 持たない       → ボタンを postMessage に変換・グラフの描画
 
    ★ このファイルは共通部品です。中身（ループ名・数字・パス）を書かないこと。
@@ -26,7 +26,7 @@ function pickAction(target){
   if ((el = target.closest('.ins')))       return { kind:'ins',  d:{ id: el.getAttribute('data-id'), text: el.getAttribute('data-text') } };
   if ((el = target.closest('.do')))        return { kind:'do',   d:{ id: el.getAttribute('data-id'), no: el.getAttribute('data-no'), text: el.getAttribute('data-text') } };
   if ((el = target.closest('.cmt')))       return { kind:'cmt',  d:{ id: el.getAttribute('data-id'), loop: el.getAttribute('data-loop'), sec: el.getAttribute('data-sec') } };
-  if ((el = target.closest('[data-copy]')))return { kind:'copy', d:{ text: el.getAttribute('data-copy'), foot: el.getAttribute('data-foot') } };
+  if ((el = target.closest('[data-copy]')))return { kind:'copy', d:{ text: el.getAttribute('data-copy') } };
   if ((el = target.closest('[data-go]')))  return { kind:'go',   d:{ id: el.getAttribute('data-go') } };
   return null;
 }
@@ -48,51 +48,28 @@ if (IS_SHELL) (function(){
   document.title = 'ライジング・ループ — ' + SERVICE;
   var listTitle = document.querySelector('#s-list h1.goal-name');
   if (listTitle) listTitle.textContent = SERVICE + 'ライジング・ループ';
-  //=== #cc-help の起動コマンド。文言（claude / codex）は data-cmd に置いてある
-  Array.prototype.forEach.call(document.querySelectorAll('#cc-help .h-cmd'), function(b){
-    var cmd = 'sh ' + PDIR + '/loops/chat-pane.sh ' + b.getAttribute('data-cmd');
-    b.setAttribute('data-copy', cmd);
-    var code = b.querySelector('code'); if (code) code.textContent = cmd;
-  });
 
-  /* ── トースト ── */
-  var toast=document.getElementById('toast'), toastBody=document.getElementById('toast-body'), toastT;
-  function showToast(text, ok, foot){
-    toast.classList.toggle('err', !ok);
-    toast.querySelector('.t-head').textContent = ok ? 'COPIED' : 'コピーできませんでした';
-    //=== foot は貼り先の案内。既定はチャット、右ペインの起動コマンドだけターミナル
-    //=== ★貼り先がチャットなら、右ペインを開いて矢印で指す（右ペインの起動コマンドだけは foot が来るので開かない）
-    var toChat = ok && !foot;
-    toast.querySelector('.t-foot-text').textContent = ok ? (foot || '右のチャットに貼って Enter（⌘V → Enter）') : '下の文をコピーして、AIに伝えてください。';
-    toast.classList.toggle('to-chat', toChat);
-    if(toChat && window.LOOP_OPEN_PANE) window.LOOP_OPEN_PANE();
-    toastBody.textContent = text;
-    toast.classList.add('on');
-    clearTimeout(toastT);
-    toastT = setTimeout(function(){ toast.classList.remove('on'); }, ok ? (toChat ? 7000 : 4200) : 9000);
-  }
-  toast.addEventListener('click', function(e){ e.stopPropagation(); toast.classList.remove('on'); clearTimeout(toastT); });
-
-  /* ── コピー ── */
+  /* ── 指示文を送る ── */
+  //=== 指示文をクリップボードに書く。アプリがそれを受け取り、右のチャットに貼って Enter まで押す。
+  //===   ★送り先が見えるように、先に右ペインを開く
   //=== ★ iframe 内のクリックによる user activation は親フレームに伝わるので、
   //===   「頁クリック → postMessage → 殻が writeText」は仕様上通る。
   //===   通らない環境のために legacyCopy を残す
-  function copyText(text, foot){
+  function copyText(text){
+    if(window.LOOP_OPEN_PANE) window.LOOP_OPEN_PANE();
     if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(text).then(function(){ showToast(text,true,foot); },
-                                              function(){ legacyCopy(text,foot); });
-    } else { legacyCopy(text,foot); }
+      navigator.clipboard.writeText(text).then(function(){}, function(){ legacyCopy(text); });
+    } else { legacyCopy(text); }
   }
-  function legacyCopy(text, foot){
+  function legacyCopy(text){
     try{
       var ta=document.createElement('textarea');
       ta.value=text; ta.setAttribute('readonly','');
       ta.style.cssText='position:fixed;top:0;left:0;opacity:0';
       document.body.appendChild(ta); ta.select();
-      var ok=document.execCommand('copy');
+      document.execCommand('copy');
       document.body.removeChild(ta);
-      showToast(text, ok, foot);
-    }catch(e){ showToast(text,false,foot); }
+    }catch(e){}
   }
 
   /* ── 画面の切り替え ── */
@@ -184,7 +161,7 @@ if (IS_SHELL) (function(){
   });
 
   /* ── 指示文の組み立て。殻に1つだけ置く（用途が増えても分岐が増えない） ── */
-  //=== コピーする文言は、貼った先で読める形に固定する。
+  //=== 送る文言は、チャットで読める形に固定する。
   //===   ★ target は「その項目についての指示」のときだけ出す。セクションへのコメントには出さない
   //===     （画面ぜんたいを見て言っているのに、勝手に対象を狭めないため）
   var SEC = { 'ゴール':'GOAL', 'ボトルネック':'BOTTLENECK', '施策の実行':'TRIAL',
@@ -242,7 +219,7 @@ if (IS_SHELL) (function(){
         compose:function(v){ return block(cid, kickOf(csec), mt ? mt[1] : '', v); } });
       return;
     }
-    if (kind === 'copy'){ copyText(d.text, d.foot); return; }
+    if (kind === 'copy'){ copyText(d.text); return; }
     if (kind === 'go'){ location.hash = d.id; return; }
   }
 
@@ -268,7 +245,7 @@ if (IS_SHELL) (function(){
     show(location.hash.replace('#','') || 's-list');
   });
 
-  /* ── 右ペイン（ttyd を iframe で出すだけ。ここでは入力を受けない） ── */
+  /* ── 右ペイン（アプリが出すチャットを iframe で置くだけ。ここでは入力を受けない） ── */
   (function(){
     var pane = document.getElementById('cc'), btn = document.getElementById('cc-toggle'),
         stack = pane.querySelector('.cc-stack'),
@@ -283,7 +260,7 @@ if (IS_SHELL) (function(){
         var f = document.createElement('iframe');
         f.title = 'Claude Code'; f.setAttribute('allow', 'fullscreen');
         //=== 渡すのは2つだけ: プロジェクトのパス / 画面ID。
-        //===   どの AI を出すかは、ターミナルで chat-pane.sh に渡した引数で決まる
+        //===   アプリがこの読み込みを受けてチャットを出す。どの AI を出すかはアプリが決める
         f.src = BASE + id;
         stack.appendChild(f);
         frames[id] = f;
@@ -312,26 +289,10 @@ if (IS_SHELL) (function(){
     function howtoOn(on){ howto.classList.toggle('on', on); if(!on){ try{ localStorage.setItem('howto-seen','1'); }catch(e){} } }
     document.getElementById('howto-btn').addEventListener('click', function(){ howtoOn(true); });
     document.getElementById('howto-close').addEventListener('click', function(){ howtoOn(false); });
-    //=== アップデート（帯のボタン）はコピー後に使い方を閉じる。開いたままだとトースト（z 96）がダイアログ（z 97）の下に隠れる
-    var updBtn = document.getElementById('rl-update');
-    if(updBtn) updBtn.addEventListener('click', function(){ setTimeout(function(){ howtoOn(false); }, 0); });
     howto.addEventListener('click', function(e){ if(e.target === howto) howtoOn(false); });
     document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && howto.classList.contains('on')) howtoOn(false); });
     try{ if(localStorage.getItem('howto-seen') !== '1') howtoOn(true); }catch(e){}
     window.addEventListener('hashchange', sync);
-
-    //=== 「15秒たってもチャットが出ない？」の説明。コピー自体は [data-copy] の共通処理に任せる。
-    //===   ★トースト(z-index 96)はこのダイアログ(97)より下なので、押したら先に閉じる
-    var help = document.getElementById('cc-help');
-    function helpOn(on){ help.classList.toggle('on', on); }
-    document.getElementById('cc-ask').addEventListener('click', function(){ helpOn(true); });
-    document.getElementById('cc-help-close').addEventListener('click', function(){ helpOn(false); });
-    help.addEventListener('click', function(e){
-      if(e.target === help || e.target.closest('.h-cmd')) helpOn(false);
-    });
-    document.addEventListener('keydown', function(e){
-      if(e.key === 'Escape' && help.classList.contains('on')) helpOn(false);
-    });
   })();
 
   //=== 最初の1回。hashchange は飛ばないので直に呼ぶ
@@ -434,7 +395,6 @@ if (!IS_SHELL) (function(){
     //=== 棒＝その日の数字 ／ 折れ線＝計測点（その窓の最終日の位置に置く）。
     //===   ★折れ線だけだと 44→37→37→39 が 0〜60 の縦軸の中で潰れて水平線に見える。
     //===     棒を下敷きにすると 0 からの高さが出て、日ごとの動きも同じ絵で読める。
-    //===   ★3案を並べて比べたモックは docs/260904_UIモック-計測グラフ案.html（A案を採用）
     //=== ★棒が「1日ぶんの実額」で、ゴールが月額のときは、目標線と折れ線も1日ぶんに直す
     //===   （dayTarget と各点の dayValue）。棒だけ月換算にすると「6470円」のような
     //===   実在しない額が並んで読めなくなる（2026-09-05 のフィードバック）。

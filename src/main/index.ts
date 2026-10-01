@@ -4,7 +4,8 @@ import { screenOfUrl } from '@shared/intercept'
 import type { Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
 import { Chats } from './chat'
 import { windowChrome } from './platform'
-import { addProject, loadState, saveState, selectProject } from './projects'
+import { KICKOFF } from './launch'
+import { addProject, loadState, markKickoff, saveState, selectProject } from './projects'
 import { ProjectViews, hasLoops, type PaneOpen } from './views'
 
 // テストでは、データ置き場を一時フォルダに変える
@@ -35,12 +36,48 @@ function snapshot(): ProjectsSnapshot {
   return { ...state, hasLoops: hasLoopsMap }
 }
 
+const current = () => state.projects.find((p) => p.id === state.currentId) ?? null
+
 function commit(next: ProjectsState): void {
   state = next
   saveState(projectsFile(), state)
-  views?.show(state.projects.find((p) => p.id === state.currentId) ?? null)
+  views?.show(current())
   win?.webContents.send('projects:changed', snapshot())
+  kickoff()
 }
+
+/** ループが無いプロジェクトを初めて開いたら、全面のチャットに最初の依頼を送る（プロジェクトごとに1回だけ） */
+function kickoff(): void {
+  const p = current()
+  if (!p || p.kickoffAt || hasLoops(p.folder)) return
+  state = markKickoff(state, p.id, new Date().toISOString())
+  saveState(projectsFile(), state)
+  chats.send(p, 's-list', 'claude', KICKOFF)
+}
+
+/**
+ * ループが無いプロジェクトに loops/index.html ができたら、書き終わるのを待って通常の形に切り替える。
+ * 見つけてから、もう一度見ても有るときに切り替える（その後の書き換えは自動の読み込み直しが受け持つ）
+ */
+const seen = new Map<string, number>()
+setInterval(() => {
+  if (!state) return
+  let changed = false
+  for (const p of state.projects) {
+    if (!views?.isSetup(p.id)) continue
+    if (!hasLoops(p.folder)) {
+      seen.delete(p.id)
+      continue
+    }
+    const at = seen.get(p.id)
+    if (at == null) seen.set(p.id, Date.now())
+    else if (Date.now() - at >= 1500) {
+      seen.delete(p.id)
+      changed = true
+    }
+  }
+  if (changed) commit(state)
+}, 500)
 
 function createWindow(): void {
   const chrome = windowChrome(process.platform)
@@ -63,7 +100,10 @@ function createWindow(): void {
   })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
-  win.webContents.once('did-finish-load', () => views?.show(state.projects.find((p) => p.id === state.currentId) ?? null))
+  win.webContents.once('did-finish-load', () => {
+    views?.show(current())
+    kickoff()
+  })
   win.on('closed', () => {
     views?.dispose()
     win = null

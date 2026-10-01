@@ -7,6 +7,8 @@ export interface Project {
   /** プロジェクトのフォルダの絶対パス。loops/ はこの下にある */
   folder: string
   addedAt: string
+  /** ループが無いときに、最初の依頼をチャットへ送った日時。プロジェクトごとに1回だけ送る */
+  kickoffAt?: string
 }
 
 export interface ProjectsState {

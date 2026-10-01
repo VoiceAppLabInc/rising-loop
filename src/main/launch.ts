@@ -4,9 +4,12 @@
 export const CLAUDE_PROMPT = `rising-loop のスキルは、プラグインの rising-loop:rising-loop を使う。~/.claude/skills などほかの場所にある rising-loop は使わない。「/rising-loop を呼び出して」と言われたら rising-loop:rising-loop を呼ぶ。
 この会話は Rising Loop App の右のチャットとして動いている。`
 
+/** ループが無いプロジェクトで、最初にチャットへ送る依頼。claude と codex のどちらにも通じるよう、スラッシュコマンドにしない */
+export const KICKOFF = 'rising-loop を始めます。まず /rising-loop を呼び出して最新の手順を読み、それに従ってください。'
+
 /** codex にはスキルの場所を足す手段が無いので、起動時の指示で場所を伝える */
 export function codexInstructions(skillDir: string): string {
-  return `rising-loop のスキルは ${skillDir} にある。「/rising-loop を呼び出して」と言われたら、まずこのフォルダの SKILL.md を読んで従う。同じフォルダの references/ と assets/ もこのスキルの一部。ほかの場所にある rising-loop は使わない。
+  return `rising-loop のスキルは ${skillDir} にある。「/rising-loop を呼び出して」と言われたら、まずこのフォルダの SKILL.md を読んで従う。同じフォルダの references/ と assets/ もこのスキルの一部。SKILL.md などに出てくる <スキル> は、このフォルダのこと。ほかの場所にある rising-loop は使わない。
 この会話は Rising Loop App の右のチャットとして動いている。`
 }
 

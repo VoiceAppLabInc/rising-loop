@@ -107,7 +107,7 @@ test('タブを切り替えても、ループの画面は読み込み直さな�
   await nextFolder(noLoops)
   await win.getByRole('button', { name: 'プロジェクトを追加' }).click()
   await expect(win.getByRole('tab', { name: 'new-service' })).toHaveAttribute('aria-selected', 'true')
-  await expect(win.getByText('このフォルダには、まだループがありません。')).toBeVisible()
+  await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeVisible()
 
   await win.getByRole('tab', { name: 'yoga app' }).click()
   await expect(win.getByRole('tab', { name: 'yoga app' })).toHaveAttribute('aria-selected', 'true')

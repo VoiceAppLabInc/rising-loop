@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, emptyState, loadState, parseState, saveState, selectProject } from '../../src/main/projects'
+import { addProject, emptyState, loadState, markKickoff, parseState, saveState, selectProject } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -90,5 +90,24 @@ describe('loadState / saveState', () => {
     const s = addProject(loadState(file), '/a/one', NOW).state
     saveState(file, s)
     expect(JSON.parse(readFileSync(file, 'utf8')).projects).toHaveLength(1)
+  })
+})
+
+describe('markKickoff', () => {
+  it('最初の依頼を送った日時を記録する', () => {
+    const s = addProject(emptyState(), '/a/one', NOW).state
+    const next = markKickoff(s, 'p1', '2026-10-01T11:00:00.000Z')
+    expect(next.projects[0].kickoffAt).toBe('2026-10-01T11:00:00.000Z')
+    expect(s.projects[0].kickoffAt).toBeUndefined()
+  })
+
+  it('無い ID なら変えない', () => {
+    const s = addProject(emptyState(), '/a/one', NOW).state
+    expect(markKickoff(s, 'p9', NOW)).toBe(s)
+  })
+
+  it('保存して読み戻しても残る', () => {
+    const s = markKickoff(addProject(emptyState(), '/a/one', NOW).state, 'p1', NOW)
+    expect(parseState(JSON.stringify(s)).projects[0].kickoffAt).toBe(NOW)
   })
 })

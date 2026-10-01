@@ -9,6 +9,8 @@ import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
 export const TAB_H = 40
+/** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
+export const SETUP_HEAD_H = 112
 
 /** 変更が止まってから読み込み直すまでの時間（AI が書いている途中の画面を出さない） */
 const QUIET_MS = 1500
@@ -36,6 +38,8 @@ const PANE_ASSETS: Record<string, { file: () => string; type: string }> = {
 
 export class ProjectViews {
   private views = new Map<string, WebContentsView>()
+  /** ループが無いプロジェクトの、全面のチャット（右の窓と同じページ） */
+  private setups = new Map<string, WebContentsView>()
   private watchers: FSWatcher[] = []
   private shownId: string | null = null
   private ses: Session
@@ -60,20 +64,34 @@ export class ProjectViews {
     win.on('resize', () => this.layout())
   }
 
-  /** 見せるプロジェクトを切り替える。loops/ が無ければ何も重ねない（下のアプリの画面が見える） */
+  /**
+   * 見せるプロジェクトを切り替える。loops/ があればループの画面、無ければ全面のチャットを出す。
+   * loops/ ができたら全面のチャットを閉じる（AI は main の側で動き続け、会話は一覧のチャットとして続く）
+   */
   show(p: Project | null): void {
     this.shownId = p?.id ?? null
-    if (p && !this.views.has(p.id) && hasLoops(p.folder)) this.views.set(p.id, this.create(p))
+    if (p && hasLoops(p.folder)) {
+      this.closeSetup(p.id)
+      if (!this.views.has(p.id)) this.views.set(p.id, this.create(p))
+    } else if (p && !this.setups.has(p.id)) {
+      this.setups.set(p.id, this.createSetup(p))
+    }
     for (const [id, v] of this.views) v.setVisible(id === this.shownId)
+    for (const [id, v] of this.setups) v.setVisible(id === this.shownId)
     this.layout()
   }
 
+  /** 全面のチャットを出しているか（ループがまだ無い） */
+  isSetup(id: string): boolean {
+    return this.setups.has(id)
+  }
+
   projectOf(webContentsId: number): string | null {
-    for (const [id, v] of this.views) if (v.webContents.id === webContentsId) return id
+    for (const m of [this.views, this.setups]) for (const [id, v] of m) if (v.webContents.id === webContentsId) return id
     return null
   }
 
-  private create(p: Project): WebContentsView {
+  private newView(): WebContentsView {
     const v = new WebContentsView({
       webPreferences: {
         partition: PARTITION,
@@ -86,9 +104,28 @@ export class ProjectViews {
       }
     })
     this.win.contentView.addChildView(v)
+    return v
+  }
+
+  private create(p: Project): WebContentsView {
+    const v = this.newView()
     void v.webContents.loadFile(loopsIndex(p.folder))
     this.watch(p.folder, v)
     return v
+  }
+
+  private createSetup(p: Project): WebContentsView {
+    const v = this.newView()
+    void v.webContents.loadURL(`http://localhost:${PANE_PORT}/?arg=${encodeURIComponent(p.folder)}&arg=s-list`)
+    return v
+  }
+
+  private closeSetup(id: string): void {
+    const v = this.setups.get(id)
+    if (!v) return
+    this.setups.delete(id)
+    this.win.contentView.removeChildView(v)
+    v.webContents.close()
   }
 
   dispose(): void {
@@ -148,6 +185,8 @@ export class ProjectViews {
   private layout(): void {
     const [width, height] = this.win.getContentSize()
     for (const v of this.views.values()) v.setBounds({ x: 0, y: TAB_H, width, height: height - TAB_H })
+    const top = TAB_H + SETUP_HEAD_H
+    for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
   }
 }
 

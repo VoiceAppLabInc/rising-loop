@@ -1,6 +1,7 @@
 /* 上のタブの列の高さは main/views.ts の TAB_H と合わせる */
 :root {
   --tab-h: 40px;
+  --setup-h: 112px; /* main/views.ts の SETUP_HEAD_H と合わせる */
   --fg: #1d1e22;
   --sub: #6b6e76;
   --line: #e6e7ea;
@@ -51,3 +52,13 @@ body { background: #fff; }
 .empty h1 { margin: 0; font-size: 16px; font-weight: 600; }
 .empty p { margin: 0 0 8px; color: var(--sub); }
 .primary { justify-self: center; padding: 7px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font: inherit; }
+.setup-head {
+  height: var(--setup-h);
+  padding: 22px 28px 0;
+  background: #16171a;
+  color: #e6e6e6;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.setup-head p { margin: 0; }
+.setup-head .sub { color: #8b8d94; font-size: 12px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

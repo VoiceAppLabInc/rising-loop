@@ -48,3 +48,9 @@ describe('codex', () => {
     expect(parseCodexThreadId('{"type":"error"}\nnot json\n')).toBeNull()
   })
 })
+
+describe('codexInstructions', () => {
+  it('SKILL.md の <スキル> がどこを指すかを伝える', () => {
+    expect(codexInstructions('/app/skill/skills/rising-loop')).toContain('<スキル> は、このフォルダのこと')
+  })
+})

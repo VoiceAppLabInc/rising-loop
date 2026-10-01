@@ -5,7 +5,7 @@
 
 いまの殻から保存する2か所（CONST ブロック・LOOPS ブロック）を取り、
 assets/index.html の同じマーカーの中に入れて書き直す。
-共通ファイル rising.css / rising.js / chat-pane.sh / update/common.py（assets/loopdata.py の写し）は assets/ のもので上書きする
+共通ファイル rising.css / rising.js / update/common.py（assets/loopdata.py の写し）は assets/ のもので上書きする
 （loops/update/ が無ければ作る。ループごとの update/LXX.py はプロジェクトのものなので触らない）。
 ループ頁 LXX.html は触らない。ただし雛形と突き合わせて「古いところ」を一覧で出す
 （構造版 data-page-schema・雛形にあって頁に無いクラスとデータ属性・雛形の決まった文言・
@@ -17,8 +17,11 @@ import glob, os, re, shutil, sys
 
 ASSETS = os.path.dirname(os.path.abspath(__file__))
 #=== 共通ファイル。値を埋めずに、そのままコピーする（assets/ 側の名前, loops/ 側の置き場所）
-COMMON = (('rising.css', 'rising.css'), ('rising.js', 'rising.js'), ('chat-pane.sh', 'chat-pane.sh'),
+#===   chat-pane.sh は配らない（右のチャットはアプリが出す）。プロジェクトに残っている loops/chat-pane.sh は消さない
+COMMON = (('rising.css', 'rising.css'), ('rising.js', 'rising.js'),
           ('loopdata.py', 'update/common.py'))
+#=== 2.0.0 で雛形から消した部品の id（ttyd の説明・アップデートのボタン・コピーの知らせ）。移し直させないので「消えるもの」に出さない
+DROPPED_IDS = {'cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body'}
 
 
 #=== 殻の使い方の帯に出る版。**テンプレに直書きしない。** 直書きだと VERSION を上げても
@@ -44,7 +47,7 @@ def plain_block(found, plain, npages, ver, dry=False):
     head = '\n%s\nマーケター向け（この欄を言い換えずに、そのまま見せる）%s\n%s\n' % (
         bar, '　※ --dry-run なので、まだ入れ替えていない' if dry else '', bar)
     if not found:
-        return head + '最新版（%s）にしました。画面を再読み込みしてください。\n%s' % (ver, bar)
+        return head + '最新版（%s）にしました。\n%s' % (ver, bar)
     #=== ★所要時間は「古いものだけ」で見積もる。一覧だけなら数分（全頁と言うと過大に見える）
     #===   頁は子が同時に作り直すので、数が増えても長くならない（1.7.4 の試しで6頁が10分かからなかった）
     took = '数分' if npages == 0 else '10分ほど'
@@ -223,7 +226,7 @@ def main():
         if squash(body) not in sout:
             lost.append('独自の <script>（%d 行目あたり）' % (cur.count('\n', 0, m.start()) + 1))
     for m in re.finditer(r'\bid="([\w-]+)"', cur):
-        if ('id="%s"' % m.group(1)) not in out:
+        if m.group(1) not in DROPPED_IDS and ('id="%s"' % m.group(1)) not in out:
             lost.append('id="%s"' % m.group(1))
     if lost:
         print('  ⚠ この入れ替えで**消えるもの**（マーカーの外にあるため）:')

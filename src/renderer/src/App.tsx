@@ -42,9 +42,11 @@ export function App() {
             </button>
           </div>
         ) : !snap.hasLoops[current.id] ? (
-          <div className="empty">
-            <h1>{current.name}</h1>
-            <p>このフォルダには、まだループがありません。</p>
+          // ループが無いあいだは、この下に全面のチャット（main が重ねる）を出す
+          <div className="setup-head">
+            <p>「{current.name}」をプロジェクトにしました。</p>
+            <p className="sub">フォルダ：{current.folder}</p>
+            <p>まず、このプロジェクトの目標を決めましょう。</p>
           </div>
         ) : null}
       </main>
