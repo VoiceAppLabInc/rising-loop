@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, saveState, selectProject } from '../../src/main/projects'
+import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, saveState, selectProject, setMigration } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -124,5 +124,15 @@ describe('markNotice', () => {
   it('無い ID なら変えない', () => {
     const s = addProject(emptyState(), '/a/one', NOW).state
     expect(markNotice(s, 'p9', 'x')).toBe(s)
+  })
+})
+
+describe('setMigration', () => {
+  const m = { at: NOW, backup: '/data/backups/p1/20261001-100000', from: '1.7.5', lost: ['id="x"'] }
+  it('新しい形にしたことを記録し、元に戻したら消す', () => {
+    const s = setMigration(addProject(emptyState(), '/a/one', NOW).state, 'p1', m)
+    expect(s.projects[0].migration).toEqual(m)
+    expect(parseState(JSON.stringify(s)).projects[0].migration).toEqual(m)
+    expect(setMigration(s, 'p1', undefined).projects[0].migration).toBeUndefined()
   })
 })

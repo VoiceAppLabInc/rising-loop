@@ -43,3 +43,11 @@ export function screenOfUrl(url: string): string {
 export function pasteForTerminal(text: string): string {
   return '\x1b[200~' + text.replace(/\x1b/g, '').replace(/\r?\n/g, '\r') + '\x1b[201~'
 }
+
+/**
+ * 前の版の画面の「⬆ アップデート」が組む指示文か。アプリはこれを AI に渡さず、［新しい形にする］のダイアログに読み替える
+ * （新しい形にするのはアプリの決まった処理。AI に install.sh や合わせる手順を走らせない）
+ */
+export function isUpdateRequest(text: string): boolean {
+  return text.includes('rising-loop を最新版に更新して')
+}

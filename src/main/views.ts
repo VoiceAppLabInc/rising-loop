@@ -43,6 +43,7 @@ export class ProjectViews {
   /** ループが無いプロジェクトの、全面のチャット（右の窓と同じページ） */
   private setups = new Map<string, WebContentsView>()
   private watchers: FSWatcher[] = []
+  private changed: () => void = () => undefined
   private shownId: string | null = null
   /** タブの下の帯の分だけ、ループの画面を下げる */
   private barH = 0
@@ -142,6 +143,11 @@ export class ProjectViews {
     v.webContents.close()
   }
 
+  /** loops/ を読み込み直したあとに呼ぶ */
+  onLoopsChanged(cb: () => void): void {
+    this.changed = cb
+  }
+
   dispose(): void {
     for (const w of this.watchers) w.close()
     this.watchers = []
@@ -161,6 +167,7 @@ export class ProjectViews {
           const m = mergeChanges(changes)
           changes = []
           if (m && !v.webContents.isDestroyed()) void this.reload(v, m)
+          if (m) this.changed()
         }, QUIET_MS)
       })
       w.on('error', () => w.close())

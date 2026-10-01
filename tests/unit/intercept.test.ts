@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isInstruction, parsePaneUrl, pasteForTerminal, screenOfUrl } from '../../src/shared/intercept'
+import { isInstruction, isUpdateRequest, parsePaneUrl, pasteForTerminal, screenOfUrl } from '../../src/shared/intercept'
 
 describe('parsePaneUrl', () => {
   it('右の窓の URL から、フォルダと画面IDを取り出す', () => {
@@ -53,5 +53,15 @@ describe('pasteForTerminal', () => {
   })
   it('文の中の ESC は取り除く（貼り付けの終わりを偽装させない）', () => {
     expect(pasteForTerminal('a\x1b[201~b')).toBe('\x1b[200~a[201~b\x1b[201~')
+  })
+})
+
+describe('isUpdateRequest', () => {
+  it('前の版の「⬆ アップデート」の指示文を見分ける', () => {
+    const t = '---\nloop: all\nsection: ALL\nrule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと\ntask: |\n  rising-loop を最新版に更新して、このループを合わせて\n---'
+    expect(isUpdateRequest(t)).toBe(true)
+  })
+  it('ほかの指示文は違う', () => {
+    expect(isUpdateRequest('---\nloop: all\nsection: ALL\ntask: |\n  loops/ の全ループを更新して\n---')).toBe(false)
   })
 })

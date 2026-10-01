@@ -11,7 +11,7 @@ import { pasteForTerminal } from '@shared/intercept'
 import type { AiKind, Project } from '@shared/types'
 import { CLAUDE_PROMPT, claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from './launch'
 import { childEnv, findCli, killTree } from './platform'
-import { findSession, loadBook, readChatSessions, recordSession, saveBook } from './sessions'
+import { findSession, loadBook, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
 
 /** 1つのターミナルが持っておく出力の上限（開き直したときに出す分） */
 const KEEP = 2 * 1024 * 1024
@@ -21,6 +21,13 @@ const QUIET_MS = 800
 const ENTER_DELAY_MS = 200
 /** 指示文を送れないまま待つ上限 */
 const SEND_TIMEOUT_MS = 60_000
+/**
+ * 起動してから貼り付けを受け付けるまでの時間。起動直後の claude は入力を黙って捨てる（2026-10-02 に本物で確かめた）。
+ * 会話を始めるときの文は起動時の引数で渡すので、これは起動中に続けて届いた文のためのもの
+ */
+const STARTUP_MS = 4000
+/** 最後の出力からこの時間内なら、AI は作業中とみなす */
+const BUSY_MS = 5000
 
 interface Term {
   proc: pty.IPty | null
@@ -29,9 +36,10 @@ interface Term {
   starting: boolean
   cols: number
   rows: number
-  /** いまのプロセスが何か出力したか、最後に出力した時刻 */
+  /** いまのプロセスが何か出力したか、最後に出力した時刻、起動した時刻 */
   started: boolean
   lastOut: number
+  spawnedAt: number
   /** まだ送っていない指示文 */
   queue: { text: string; at: number }[]
   flushing: boolean
@@ -44,6 +52,10 @@ export interface ChatPaths {
   pluginDir: string
   /** スキル本体（SKILL.md がある所）。codex に場所を伝える */
   skillDir: string
+  /** 同梱のスキルの版。会話に記録し、版が変わったら新しい会話にする */
+  skillVersion: string
+  /** その版の CHANGELOG の要点。版が変わって新しい会話にしたとき、最初に出す */
+  changes: string[]
 }
 
 /** claude の設定の置き場所。CLAUDE_CONFIG_DIR があればそこ（テストでも使う） */
@@ -71,6 +83,8 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 export class Chats {
   private terms = new Map<string, Term>()
+  /** 刷新のために止めたプロセス（「終了しました」を出さない） */
+  private killed = new WeakSet<pty.IPty>()
   private promptFile: string
   private bookFile: string
 
@@ -108,6 +122,36 @@ export class Chats {
     else if (!t.starting && data.includes('\r')) restart()
   }
 
+  /**
+   * ［新しい形にする］のとき、そのプロジェクトのチャットを刷新する。動いている AI を止め、会話の記録を消してから、
+   * 開いている右の窓は新しい会話で起動し直す（古い会話の中身は消さない。続けなくなるだけ）
+   */
+  renewProject(project: Project, ai: AiKind, first?: { screen: string; text: string }): void {
+    saveBook(this.bookFile, renewFolder(loadBook(this.bookFile), project.folder))
+    // 新しい会話で最初に送る文（作り直しの作業など）。起動時の引数で渡すので、起動の前に積んでおく
+    if (first) this.term(project.id, first.screen, 100, 30).queue.unshift({ text: first.text, at: Date.now() })
+    for (const [key, t] of this.terms) {
+      if (!key.startsWith(`${project.id}:`)) continue
+      const p = t.proc
+      t.proc = null
+      if (p) {
+        this.killed.add(p)
+        killTree(p.pid, () => p.kill())
+      }
+      // 画面に残った前の会話を消してから始める
+      t.buf = ''
+      this.toPane(t, '\x1bc')
+      if (!t.starting) void this.start(t, project, key.slice(project.id.length + 1), ai)
+    }
+  }
+
+  /** その画面の AI が作業中か（起動中・送る文が残っている・少し前まで出力していた） */
+  busy(projectId: string, screen: string): boolean {
+    const t = this.terms.get(`${projectId}:${screen}`)
+    if (!t) return false
+    return t.starting || t.queue.length > 0 || (!!t.proc && Date.now() - t.lastOut < BUSY_MS)
+  }
+
   /** 終了したターミナルを開き直す */
   restart(project: Project, screen: string, ai: AiKind): void {
     const t = this.terms.get(`${project.id}:${screen}`)
@@ -138,7 +182,7 @@ export class Chats {
     const key = `${projectId}:${screen}`
     let t = this.terms.get(key)
     if (!t) {
-      t = { proc: null, buf: '', frame: null, starting: false, cols, rows, started: false, lastOut: 0, queue: [], flushing: false }
+      t = { proc: null, buf: '', frame: null, starting: false, cols, rows, started: false, lastOut: 0, spawnedAt: 0, queue: [], flushing: false }
       this.terms.set(key, t)
     }
     return t
@@ -150,7 +194,8 @@ export class Chats {
     try {
       while (t.queue.length) {
         const next = t.queue[0]
-        const ready = t.proc && t.started && Date.now() - t.lastOut >= QUIET_MS
+        const now = Date.now()
+        const ready = t.proc && t.started && now - t.lastOut >= QUIET_MS && now - t.spawnedAt >= STARTUP_MS
         if (!ready) {
           if (Date.now() - next.at > SEND_TIMEOUT_MS) {
             t.queue.shift()
@@ -196,35 +241,48 @@ export class Chats {
       }
       const env = await childEnv()
       const book = loadBook(this.bookFile)
-      let id = findSession(book, readChatSessions(project.folder), project.folder, screen, ai)
-      let args: string[]
-      if (ai === 'claude') {
-        id ??= randomUUID()
-        args = claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel() })
-      } else {
-        const instructions = codexInstructions(this.paths.skillDir)
-        if (!id) {
-          this.out(t, 'codex の会話を作っています（30秒ほど）…\r\n')
-          id = await this.createCodexThread(cmd.file, cmd.args, project, screen, instructions, env)
-          if (!id) {
-            this.out(t, 'codex の会話を作れませんでした。codex にログインしているかを確かめて、Enter を押してください。\r\n')
-            return
-          }
-        }
-        args = codexArgs({ threadId: id, instructions })
+      let id = findSession(book, readChatSessions(project.folder), project.folder, screen, ai, this.paths.skillVersion)
+      // スキルの版が変わって新しい会話にするときは、何が変わったかを先に出す
+      const prev = book[project.folder]?.screens[screen]?.[ai]?.skill
+      if (!id && prev && prev !== this.paths.skillVersion) {
+        const lines = [`スキルが ${this.paths.skillVersion} になりました。`, ...this.paths.changes.slice(0, 5).map((c) => `・${c}`)]
+        this.out(t, lines.map((l) => `\x1b[1m${l}\x1b[0m\r\n`).join('') + '\r\n')
       }
-      saveBook(this.bookFile, recordSession(loadBook(this.bookFile), project.folder, screen, ai, id))
+      // 新しい会話を始めるときは、そう出す（版が変わった・刷新した・初めて）
+      if (!id) this.out(t, `\x1b[2m新しい会話を始めます（スキル ${this.paths.skillVersion}）\x1b[0m\r\n`)
+      const instructions = codexInstructions(this.paths.skillDir)
+      if (ai === 'claude') id ??= randomUUID()
+      else if (!id) {
+        this.out(t, 'codex の会話を作っています（30秒ほど）…\r\n')
+        id = await this.createCodexThread(cmd.file, cmd.args, project, screen, instructions, env)
+        if (!id) {
+          this.out(t, 'codex の会話を作れませんでした。codex にログインしているかを確かめて、Enter を押してください。\r\n')
+          return
+        }
+      }
+      saveBook(this.bookFile, recordSession(loadBook(this.bookFile), project.folder, screen, ai, id, this.paths.skillVersion))
 
+      // 会話を始めるときに送る文は、貼り付けずに起動時の引数で渡す（起動直後の貼り付けは捨てられる）。
+      // 起動の準備のあいだに積まれた文も含めて、ここで1つ拾う
+      const prompt = t.queue.shift()?.text
+      const args =
+        ai === 'claude'
+          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel(), prompt })
+          : codexArgs({ threadId: id, instructions, prompt })
       const proc = pty.spawn(cmd.file, [...cmd.args, ...args], { name: 'xterm-256color', cols: t.cols, rows: t.rows, cwd: project.folder, env: env as Record<string, string> })
       t.proc = proc
       t.started = false
+      t.spawnedAt = Date.now()
       proc.onData((d) => {
+        // 刷新のために止めたプロセスの残りの出力は、新しい会話の画面に出さない
+        if (this.killed.has(proc)) return
         t.started = true
         t.lastOut = Date.now()
         this.out(t, d)
       })
       proc.onExit(() => {
         if (t.proc === proc) t.proc = null
+        if (this.killed.has(proc)) return
         this.out(t, '\r\n\x1b[2m終了しました。Enter で開き直します。\x1b[0m\r\n')
       })
     } finally {

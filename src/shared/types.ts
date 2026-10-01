@@ -11,6 +11,22 @@ export interface Project {
   kickoffAt?: string
   /** 古い形を知らせた、その形（「1.5-1.7:1.6.1」など）。同じ形について知らせるのは1回だけ */
   noticedForm?: string
+  /** 新しい形にしたときの記録。［元に戻す］に使う。元に戻したら消す */
+  migration?: Migration
+}
+
+export interface Migration {
+  at: string
+  /** 控えのフォルダ（アプリのデータ置き場の backups/<プロジェクト>/<日時>）。中に loops/ がある */
+  backup: string
+  /** 新しくする前の形の呼び名 */
+  from: string
+  /** 新しくする前の版（台帳を数え始める版）。印の無い頁と一覧は、ここから数える */
+  fromVersion?: string
+  /** 入れ替えで殻から消えた独自の部品（AI が移し直す） */
+  lost: string[]
+  /** 帯の「新しい形にしました」を閉じた */
+  closed?: boolean
 }
 
 export interface ProjectsState {
@@ -22,6 +38,15 @@ export interface ProjectsState {
 export interface FormInfo {
   /** いまの形か（読めないときも true） */
   current: boolean
+  /**
+   * unsupported: 1.5 より前の形（アプリでは新しい形にできない）／old: 前の版（アプリ以前の形か、殻の版がスキルの版より古い）／
+   * rework: 殻は新しいが、台帳の項目を AI がまだ反映していない頁・一覧か、まだ移していない消えた部品がある／current: いまの形
+   */
+  stage: 'unsupported' | 'old' | 'rework' | 'current'
+  /** rework のとき、まだ反映していない頁 */
+  reworkPages: string[]
+  /** rework のとき、一覧のチャットの AI が作業中か */
+  aiWorking: boolean
   /** 画面に出す呼び名（「1.6.1」「1.5〜1.7 の形」など） */
   label: string
   /** 知らせを判定する鍵（era と版） */

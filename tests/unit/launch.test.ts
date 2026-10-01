@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from '../../src/main/launch'
+import { CLAUDE_PROMPT, claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from '../../src/main/launch'
 
 describe('claudeArgs', () => {
   const base = { pluginDir: '/app/skill', promptFile: '/data/claude-prompt.md', model: null }
@@ -52,5 +52,26 @@ describe('codex', () => {
 describe('codexInstructions', () => {
   it('SKILL.md の <スキル> がどこを指すかを伝える', () => {
     expect(codexInstructions('/app/skill/skills/rising-loop')).toContain('<スキル> は、このフォルダのこと')
+  })
+})
+
+describe('起動時の指示', () => {
+  it('claude にも codex にも、画面の再読み込みを頼まないと伝える（古い会話の決まりを打ち消す）', () => {
+    expect(CLAUDE_PROMPT).toContain('「画面を再読み込みしてください」と頼まない')
+    expect(codexInstructions('/x')).toContain('「画面を再読み込みしてください」と頼まない')
+  })
+})
+
+describe('会話を始めるときに送る文（起動時の引数で渡す）', () => {
+  const base = { sessionId: 'abc', exists: false, pluginDir: '/p', promptFile: '/f', model: null }
+  it('claude は、いちばん最後に -- を挟んで渡す（--- で始まる文をオプションと間違えさせない）', () => {
+    const a = claudeArgs({ ...base, prompt: '---\nloop: all\n---' })
+    expect(a.slice(-2)).toEqual(['--', '---\nloop: all\n---'])
+  })
+  it('文が無ければ渡さない', () => {
+    expect(claudeArgs(base)).not.toContain('--')
+  })
+  it('codex は resume <ID> のあとに -- を挟んで渡す', () => {
+    expect(codexArgs({ threadId: 't1', instructions: 'x', prompt: '---\na\n---' }).slice(2)).toEqual(['resume', 't1', '--', '---\na\n---'])
   })
 })

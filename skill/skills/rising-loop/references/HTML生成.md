@@ -114,7 +114,9 @@ README にも `index.html` にも写しを持たせない（写しがあると�
 
 そのループ1つぶんの画面と、そのループのグラフのデータだけ。
 
-- `<html lang="ja" data-page-schema="2">`。⚠️ `data-page-schema` は**構造の連番で、スキルの版とは別物**。「合わせて」では頁を触らず、**この番号が上がった版だけ**、その版の手順で直す
+- `<html lang="ja" data-page-schema="2" data-loop-ver="2.0.0">`。
+  - `data-loop-ver` は、この頁が**どの版の作りか**の印（台帳 `migrations.json` の項目をどこまで反映したか）。新しく作るときは雛形のまま残す。版を上げる作り直しで台帳の項目を反映したら、その版に書き換える。アプリはこの印で、まだ作り直していない頁を見分ける
+  - `data-page-schema` は値の持ち方の連番（1.5.0 で 2 になった）。いまは変えない
 - 読むものは3つ: `rising.css` / D3（**UMD 版を `<script src>` で**。`type="module"` と `fetch('./*.json')` は file:// で使えない）/ `rising.js`
 - 中身は `<section class="screen" id="s-LXX">` **1つだけ**。上に `← ループ一覧`（`data-go="s-list"`）
 - 値は `var LOOP_DATA = {…}` の1か所（下の「`LOOP_DATA` の定義」）。**ループIDで引く形にしない**（頁にはそのループしか無い）
@@ -184,7 +186,7 @@ var LOOP_DATA = {
 
 ```
 loops/update/
-  common.py    スキルの assets/loopdata.py の写し。load / save / merge_days / add_point。「合わせて」（shell-update.py）で上書きされる。★プロジェクト側で書き換えない
+  common.py    スキルの assets/loopdata.py の写し。load / save / merge_days / add_point。アプリの［新しい形にする］で上書きされる。★プロジェクト側で書き換えない
   L01.py       L01 の計算。README のコマンドを subprocess で叩き、LOOP_DATA の値（days[] line[] points[] metric updated）を書き換える。★このプロジェクトのもの。「合わせて」は触らない
 ```
 
@@ -261,6 +263,7 @@ loops/update/
 |---|---|
 | そのループの数字・本文 | `loops/LXX.html`（**そのループの子が直接直す**。殻と他の頁は開かない）。**先に `LOOP_DATA`、次に散文**。`loops/update/LXX.py` があれば `LOOP_DATA` の値はそれが書き、子は散文だけ |
 | 一覧の行・ゲージ・`.loop-sub`・合算 `.rev` | 殻の `<!-- LOOPS:BEGIN -->` 〜 `<!-- LOOPS:END -->` の中だけ |
+| 一覧の作りの印 `<!-- list-ver: X -->` | LOOPS ブロックの1行目。一覧を作るとき・直すときも消さない。版を上げる作り直しで台帳の一覧の項目を反映したら、その版に書き換える |
 | 共通の見た目・挙動 | `assets/` の `rising.css` `rising.js` を直してから配る。**プロジェクト側で直さない** |
 
 ★ **差し替えたら、タグの開閉が揃っているか数える。見た目では気づけない。**

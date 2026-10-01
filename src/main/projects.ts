@@ -2,7 +2,7 @@
 // プロジェクトのフォルダ（loops/ を含む）には何も書かない。
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
-import type { Project, ProjectsState } from '@shared/types'
+import type { Migration, Project, ProjectsState } from '@shared/types'
 
 export function emptyState(): ProjectsState {
   return { projects: [], currentId: null }
@@ -32,6 +32,18 @@ export function markKickoff(s: ProjectsState, id: string, now: string): Projects
 export function markNotice(s: ProjectsState, id: string, formKey: string): ProjectsState {
   if (!s.projects.some((p) => p.id === id)) return s
   return { ...s, projects: s.projects.map((p) => (p.id === id ? { ...p, noticedForm: formKey } : p)) }
+}
+
+export function setMigration(s: ProjectsState, id: string, m: Migration | undefined): ProjectsState {
+  if (!s.projects.some((p) => p.id === id)) return s
+  return {
+    ...s,
+    projects: s.projects.map((p) => {
+      if (p.id !== id) return p
+      const { migration: _old, ...rest } = p
+      return m ? { ...rest, migration: m } : rest
+    })
+  }
 }
 
 function isProject(v: unknown): v is Project {

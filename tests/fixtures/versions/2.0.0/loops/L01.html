@@ -3,15 +3,16 @@
      rising-loop のループ頁（LXX.html）のテンプレート
 
      この頁は殻（index.html）の <iframe id="loop-frame"> の中に出ます。
-     モーダル・トースト・右ペインは持ちません。ボタンは押された事実を
+     モーダル・右の窓は持ちません。ボタンは押された事実を
      postMessage で殻に渡すだけ（rising.js のループ頁側）。
 
-     data-page-schema は**構造の連番**（スキルの版とは別物）。
-     構造が変わる版だけ、CHANGELOG の移行手順に従って直します。
+     data-loop-ver は、この頁がどの版の作りかの印（台帳 migrations.json の項目をどこまで反映したか）。
+     新しく作るときはこのまま残し、版を上げる作り直しで台帳の項目を反映したら、その版に書き換える。
+     data-page-schema は値の持ち方の連番（1.5.0 で 2 になった。いまは変えない）。
 
      詳しくは ../references/HTML生成.md
      ═══════════════════════════════════════════════════════════════ -->
-<html lang="ja" data-page-schema="2">
+<html lang="ja" data-page-schema="2" data-loop-ver="2.0.0">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
