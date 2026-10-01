@@ -1,0 +1,53 @@
+/* 上のタブの列の高さは main/views.ts の TAB_H と合わせる */
+:root {
+  --tab-h: 40px;
+  --fg: #1d1e22;
+  --sub: #6b6e76;
+  --line: #e6e7ea;
+  --bg-bar: #f4f5f7;
+  --accent: #2f6fde;
+  font: 13px -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  color: var(--fg);
+}
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body { background: #fff; }
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.tabs {
+  height: var(--tab-h);
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 8px;
+  background: var(--bg-bar);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+}
+.controls-left .tabs { padding-left: 80px; } /* Mac の閉じる・最小化ボタンの分 */
+.controls-right .tabs { padding-right: 150px; } /* Windows の最小化・最大化・閉じるボタンの分 */
+.tabs button { -webkit-app-region: no-drag; font: inherit; cursor: default; }
+.tab {
+  height: 32px;
+  max-width: 200px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--sub);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab:hover { color: var(--fg); }
+.tab[aria-selected='true'] { background: #fff; border-color: var(--line); color: var(--fg); margin-bottom: -1px; height: 33px; }
+.tab-add { align-self: center; width: 26px; height: 26px; border: none; border-radius: 5px; background: transparent; color: var(--sub); }
+.tab-add:hover { background: #e9eaed; color: var(--fg); }
+
+.body { flex: 1; position: relative; }
+.empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; }
+.empty h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.empty p { margin: 0 0 8px; color: var(--sub); }
+.primary { justify-self: center; padding: 7px 14px; border: none; border-radius: 6px; background: var(--accent); color: #fff; font: inherit; }
