@@ -29,6 +29,11 @@ export function markKickoff(s: ProjectsState, id: string, now: string): Projects
   return { ...s, projects: s.projects.map((p) => (p.id === id ? { ...p, kickoffAt: now } : p)) }
 }
 
+export function markNotice(s: ProjectsState, id: string, formKey: string): ProjectsState {
+  if (!s.projects.some((p) => p.id === id)) return s
+  return { ...s, projects: s.projects.map((p) => (p.id === id ? { ...p, noticedForm: formKey } : p)) }
+}
+
 function isProject(v: unknown): v is Project {
   const p = v as Project
   return !!p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.folder === 'string' && typeof p.addedAt === 'string'

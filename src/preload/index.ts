@@ -8,6 +8,8 @@ const api = {
   getProjects: (): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:get'),
   addProject: (): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:add'),
   selectProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:select', id),
+  noticed: (id: string, formKey: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:noticed', id, formKey),
+  setCovered: (on: boolean): void => ipcRenderer.send('ui:covered', on),
   onProjects: (cb: (s: ProjectsSnapshot) => void): (() => void) => {
     const h = (_e: IpcRendererEvent, s: ProjectsSnapshot) => cb(s)
     ipcRenderer.on('projects:changed', h)

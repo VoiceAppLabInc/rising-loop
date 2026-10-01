@@ -1,5 +1,5 @@
 import { join, resolve } from 'node:path'
-import { _electron as electron, type ElectronApplication } from '@playwright/test'
+import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 
 export const SAMPLE = resolve('tests/fixtures/sample-project')
 export const FAKE_AI = resolve('tests/fixtures/fake-ai.mjs')
@@ -12,6 +12,8 @@ export function launch(root: string, extraEnv: Record<string, string> = {}): Pro
       ...process.env,
       // ウィンドウを出さず Dock にも出さない（操作中の画面を奪わない）
       RISING_LOOP_APP_HIDDEN: '1',
+      // ログインシェルの環境変数は読まない（テスト用の AI は絶対パスで呼ぶ）
+      RISING_LOOP_APP_SKIP_SHELL_ENV: '1',
       RISING_LOOP_APP_DATA_DIR: join(root, 'data'),
       RISING_LOOP_APP_CLAUDE_PATH: FAKE_AI,
       RISING_LOOP_APP_CODEX_PATH: FAKE_AI,
@@ -63,3 +65,14 @@ export const paneText = (app: ElectronApplication, screen: string): Promise<stri
       return out
     })()`
   ) as Promise<string | null>
+
+/**
+ * 古い形のプロジェクトを開くと出る知らせに「あとで」と答える。
+ * 見本の loops/（スキル 1.7.6 の写し）は古い形なので、知らせとは関係の無いテストではこれで閉じる
+ */
+export async function later(win: Page): Promise<void> {
+  const d = win.getByRole('dialog')
+  await d.waitFor({ timeout: 5000 })
+  await d.getByRole('button', { name: 'あとで' }).click()
+  await d.waitFor({ state: 'hidden' })
+}

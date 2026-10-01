@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, emptyState, loadState, markKickoff, parseState, saveState, selectProject } from '../../src/main/projects'
+import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, saveState, selectProject } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -109,5 +109,20 @@ describe('markKickoff', () => {
   it('保存して読み戻しても残る', () => {
     const s = markKickoff(addProject(emptyState(), '/a/one', NOW).state, 'p1', NOW)
     expect(parseState(JSON.stringify(s)).projects[0].kickoffAt).toBe(NOW)
+  })
+})
+
+describe('markNotice', () => {
+  it('古い形を知らせたことを、その形ごとに記録する', () => {
+    const s = addProject(emptyState(), '/a/one', NOW).state
+    const next = markNotice(s, 'p1', '1.5-1.7:1.6.1')
+    expect(next.projects[0].noticedForm).toBe('1.5-1.7:1.6.1')
+    expect(s.projects[0].noticedForm).toBeUndefined()
+    expect(parseState(JSON.stringify(next)).projects[0].noticedForm).toBe('1.5-1.7:1.6.1')
+  })
+
+  it('無い ID なら変えない', () => {
+    const s = addProject(emptyState(), '/a/one', NOW).state
+    expect(markNotice(s, 'p9', 'x')).toBe(s)
   })
 })

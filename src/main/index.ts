@@ -1,12 +1,14 @@
+import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { BrowserWindow, app, dialog, ipcMain } from 'electron'
 import { screenOfUrl } from '@shared/intercept'
-import type { Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
+import { detectForm, formLabel } from '@shared/loopsForm'
+import type { FormInfo, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
 import { Chats } from './chat'
-import { windowChrome } from './platform'
+import { loadShellEnv, windowChrome } from './platform'
 import { KICKOFF } from './launch'
-import { addProject, loadState, markKickoff, saveState, selectProject } from './projects'
-import { ProjectViews, hasLoops, type PaneOpen } from './views'
+import { addProject, loadState, markKickoff, markNotice, saveState, selectProject } from './projects'
+import { BAR_H, ProjectViews, hasLoops, type PaneOpen } from './views'
 
 // テストでは、データ置き場を一時フォルダに変える
 if (process.env.RISING_LOOP_APP_DATA_DIR) app.setPath('userData', process.env.RISING_LOOP_APP_DATA_DIR)
@@ -30,10 +32,45 @@ const paneDir = () => join(resourceRoot(), 'resources', 'pane')
 const received = { panes: [] as PaneOpen[], instructions: [] as { projectId: string | null; text: string }[] }
 ;(globalThis as { __rla?: typeof received }).__rla = received
 
+const readText = (f: string) => {
+  try {
+    return readFileSync(f, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+/** loops/ の形（殻と各ループの頁を読んで見分ける） */
+function formOf(folder: string): FormInfo {
+  const dir = join(folder, 'loops')
+  let names: string[] = []
+  try {
+    names = readdirSync(dir).filter((n) => /^L\d+\.html$/.test(n))
+  } catch {
+    // loops/ が無い
+  }
+  const f = detectForm({ indexHtml: readText(join(dir, 'index.html')), pages: names.map((n) => readText(join(dir, n)) ?? '') })
+  return { current: f.current, label: formLabel(f), key: `${f.era}:${f.shown ?? ''}` }
+}
+
+const skillVersion = () => (readText(join(pluginDir(), 'skills', 'rising-loop', 'VERSION')) ?? '').trim()
+
 function snapshot(): ProjectsSnapshot {
   const hasLoopsMap: Record<string, boolean> = {}
-  for (const p of state.projects) hasLoopsMap[p.id] = hasLoops(p.folder)
-  return { ...state, hasLoops: hasLoopsMap }
+  const forms: Record<string, FormInfo> = {}
+  for (const p of state.projects) {
+    hasLoopsMap[p.id] = hasLoops(p.folder)
+    forms[p.id] = formOf(p.folder)
+  }
+  return { ...state, hasLoops: hasLoopsMap, forms, skillVersion: skillVersion() }
+}
+
+/** 古い形のプロジェクトでは、タブの下に帯を出す分だけループの画面を下げる */
+function showCurrent(snap = snapshot()): ProjectsSnapshot {
+  const p = current()
+  views?.setBar(p && snap.hasLoops[p.id] && !snap.forms[p.id].current ? BAR_H : 0)
+  views?.show(p)
+  return snap
 }
 
 const current = () => state.projects.find((p) => p.id === state.currentId) ?? null
@@ -41,8 +78,7 @@ const current = () => state.projects.find((p) => p.id === state.currentId) ?? nu
 function commit(next: ProjectsState): void {
   state = next
   saveState(projectsFile(), state)
-  views?.show(current())
-  win?.webContents.send('projects:changed', snapshot())
+  win?.webContents.send('projects:changed', showCurrent())
   kickoff()
 }
 
@@ -101,7 +137,7 @@ function createWindow(): void {
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
   win.webContents.once('did-finish-load', () => {
-    views?.show(current())
+    showCurrent()
     kickoff()
   })
   win.on('closed', () => {
@@ -123,6 +159,13 @@ ipcMain.handle('projects:select', (_e, id: string) => {
   commit(selectProject(state, id))
   return snapshot()
 })
+// 古い形を知らせたことを記録する（同じ形について知らせるのは1回だけ）
+ipcMain.handle('projects:noticed', (_e, id: string, formKey: string) => {
+  commit(markNotice(state, id, formKey))
+  return snapshot()
+})
+// アプリのダイアログを出しているあいだは、重ねた画面を隠す
+ipcMain.on('ui:covered', (_e, on: boolean) => views?.setCovered(!!on))
 
 // ループの画面がクリップボードに書いた指示文（preload/loops.ts が --- で囲まれた文だけを送る）
 // 送り先は、指示文を出したループの画面でいま見えている画面ID（#s-L01 など）のチャット
@@ -153,6 +196,8 @@ ipcMain.on('pane:resize', (e, m: PaneMsg) => {
 
 app.whenReady().then(() => {
   if (hidden && process.platform === 'darwin') app.setActivationPolicy('accessory')
+  // ログインシェルの環境変数は読むのに数秒かかるので、起動してすぐ読み始める（最初のチャットを待たせない）
+  void loadShellEnv()
   state = loadState(projectsFile())
   const skill = pluginDir()
   chats = new Chats({ dataDir: app.getPath('userData'), pluginDir: skill, skillDir: join(skill, 'skills', 'rising-loop') })

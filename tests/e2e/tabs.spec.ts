@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, stat
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { SAMPLE, inFrame, inLoops as inLoopsOf, launch, nextFolder as nextFolderOf } from './helpers'
+import { SAMPLE, inFrame, inLoops as inLoopsOf, later, launch, nextFolder as nextFolderOf } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -45,6 +45,7 @@ test('フォルダを開くとタブができ、スキルの画面がそのま�
   await expect(win.getByText('プロジェクトのフォルダを開きましょう')).toBeVisible()
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await expect(win.getByRole('tab', { name: 'yoga app' })).toHaveAttribute('aria-selected', 'true')
   await expect.poll(async () => (await inLoops(withLoops, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
 })
@@ -52,6 +53,7 @@ test('フォルダを開くとタブができ、スキルの画面がそのま�
 test('右の窓（localhost:7681）をアプリが受け、画面IDが分かる', async () => {
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await expect.poll(async () => (await received()).panes.map((p) => p.screen)).toContain('s-list')
   const p = (await received()).panes[0]
   expect(p.projectId).toBe('p1')
@@ -75,6 +77,7 @@ test('右の窓（localhost:7681）をアプリが受け、画面IDが分かる'
 test('指示文はアプリが受け取り、ほかのコピーは受け取らない', async () => {
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await expect.poll(async () => (await inLoops(withLoops, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
 
   // 一覧の「全ループ更新」
@@ -101,6 +104,7 @@ test('指示文はアプリが受け取り、ほかのコピーは受け取ら�
 test('タブを切り替えても、ループの画面は読み込み直さない', async () => {
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await expect.poll(async () => (await inLoops(withLoops, '!!document.querySelector("button.upd")'))?.value).toBe(true)
   const before = (await inLoops(withLoops, 'window.__mark = "まだ同じ頁"; 1'))!
 
@@ -119,6 +123,7 @@ test('タブを切り替えても、ループの画面は読み込み直さな�
 test('同じフォルダを選んでもタブは増えず、開き直してもタブが残る', async () => {
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await nextFolder(noLoops)
   await win.getByRole('button', { name: 'プロジェクトを追加' }).click()
   await nextFolder(withLoops + '/')
@@ -137,6 +142,7 @@ test('アプリはプロジェクトのフォルダに何も書かない', async
   const before = listing(withLoops)
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win) // 見本は古い形なので、知らせに「あとで」と答える
   await expect.poll(async () => (await inLoops(withLoops, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
   await inLoops(withLoops, 'document.querySelector("button.upd[data-upd=all]").click()')
   await inLoops(withLoops, 'document.querySelector(\'[data-go="s-L01"]\').click()')

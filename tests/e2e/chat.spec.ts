@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, wri
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { SAMPLE, inFrame, inLoops, launch, nextFolder, paneText } from './helpers'
+import { SAMPLE, inFrame, inLoops, later, launch, nextFolder, paneText } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -22,6 +22,7 @@ const typeInPane = (screen: string, data: string) => inFrame(app, '&arg=' + scre
 async function open(): Promise<void> {
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win)
 }
 
 test.beforeEach(async () => {

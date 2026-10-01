@@ -37,7 +37,7 @@
   //=== ★サービス名。<title> と一覧の見出しに入る
   var SERVICE_NAME = '（サービス名）';
   //=== ★右ペインを立てる画面IDの一覧。ループを足したらここにも足す（右ペイン専用。画面の切り替えは見ない）。
-  //===   セッションIDはここに持たない。アプリが loops/.chat-sessions を見る
+  //===   セッションIDはここに持たない。loops/chat-pane.sh が loops/.chat-sessions を見る
   var PANES = ['s-list','s-L01','s-L02'];
 </script>
 <!-- CONST:END -->
@@ -125,26 +125,45 @@
     <div class="m-chips" id="m-chips" hidden></div>
     <div class="m-actions">
       <button class="button button-secondary" id="m-cancel">キャンセル</button>
-      <button class="button button-primary" id="m-ok">送る</button>
+      <button class="button button-primary" id="m-ok">コピーする</button>
     </div>
     <div class="m-hint">⌘/Ctrl + Enter でも確定します</div>
   </div>
 </div>
 
+<div id="toast" role="status" aria-live="polite">
+  <div class="t-head">COPIED</div>
+  <div class="t-body" id="toast-body"></div>
+  <div class="t-foot"><span class="arrow">▶</span><span class="t-foot-text">AIに貼って伝えてください。</span></div>
+</div>
 <!-- ═════════ Claude Code / codex の右ペイン ═════════
-     右の窓はアプリが出す。rising.js が ?arg=<プロジェクトの絶対パス>&arg=<画面ID> を読み込み、
-     アプリがこの読み込みを受けてチャットを出す。セッションIDは画面が持たない（アプリが loops/.chat-sessions を見る） -->
+     起動（どちらか一方。どちらを立てるかで道具が決まる。同じ 7681 番なので両方は立てない）:
+       Claude Code: sh /絶対パス/プロジェクト/loops/chat-pane.sh claude
+       codex:       sh /絶対パス/プロジェクト/loops/chat-pane.sh codex
+           （?arg=<プロジェクトの絶対パス>&arg=<画面ID> の2つが chat-pane.sh に渡る。
+             セッションIDは画面が持たない。ランチャーが loops/.chat-sessions を見て、
+             無ければその場で作る。ttyd は全プロジェクトで1本を共有）
+     見えるだけ（file:// からは iframe の中へ送れない）。真っ黒なときの出し方は #cc-help に出す -->
 <div id="cc">
+  <div class="cc-bar">
+    <button class="cc-ask" id="cc-ask">💡 15秒たってもチャットが出ない？</button>
+  </div>
   <div class="cc-stack"></div>
 </div>
 <div id="topbtns"><button id="howto-btn">? 使い方</button><button id="cc-toggle">AI ◂</button></div>
 
-<!-- この画面の使い方。★仕組みは3つだけ: 見るだけの画面／指示文を右のチャットに送るボタン／送ると AI が画面を書き換える -->
+<!-- この画面の使い方。★仕組みは3つだけ: 見るだけの画面／指示文をコピーするボタン／貼ると AI が画面を書き換える -->
 <div id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-t">
   <div class="h-panel">
-    <h3 id="howto-t"><span>ライジング・ループの使い方</span><span class="brand-wrap"><span class="brand"><b>RISING LOOP</b><i><span class="ver">v2.0.0</span> · Created by Voice App Lab</i></span></span></h3>
+    <h3 id="howto-t"><span>ライジング・ループの使い方</span><span class="brand-wrap"><button type="button" class="upd-btn" id="rl-update" data-copy="---
+loop: all
+section: ALL
+rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと
+task: |
+  rising-loop を最新版に更新して、このループを合わせて
+---" title="最新版に更新して、このループを合わせる">⬆ アップデート</button><span class="brand"><b>RISING LOOP</b><i><span class="ver">v0.0.0</span> · Created by Voice App Lab</i></span></span></h3>
     <p class="lede">ライジング・ループは、ひとつの指標を計測し、その数字を上げるためのあらゆる施策を AI と共に進めるループシステムです。</p>
-    <p class="lede">この画面は<b>見るだけ</b>です。ボタンを押すと<b>指示文が右のチャットに送られ</b>、AI が動いてこの画面を書き換えます。</p>
+    <p class="lede">この画面は<b>見るだけ</b>です。ボタンを押しても何も実行されません。<b>指示文を作ってコピーする</b>だけ。それを<b>右のチャットに貼る</b>と AI が動き、この画面を書き換えます。</p>
     <div class="cols">
       <svg class="howto-fig" viewBox="0 0 260 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ゴール → 数字を測る → ボトルネック → 施策案から1つ選ぶ → 施策 → 期間をおいて測る → 評価 → 数字が動く → ゴールへ戻る。回すたびにゴールに近づく">
         <defs><marker id="hw-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52751f"/></marker></defs>
@@ -188,8 +207,8 @@
       <div>
     
     <ol class="steps">
-      <li><div><b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「TRIAL に移す」</b>を選んで送る。<br>実装が全部 ✅ になったら、同じ「指示する」から<b>「完了にして（評価に移す）」</b></div></li>
-      <li><div><b>ボタンはぜんぶ、押すと指示文が右のチャットに送られます。</b>コメント・更新・指示、どれも AI がそれを読んで動きます</div></li>
+      <li><div><b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「TRIAL に移す」</b>を選び、コピー。右のチャットに貼って Enter。<br>実装が全部 ✅ になったら、同じ「指示する」から<b>「完了にして（評価に移す）」</b></div></li>
+      <li><div><b>ボタンはぜんぶ指示文を作るだけ。</b>コメント・更新・指示、どれも右のチャットに貼って初めて動きます</div></li>
       <li><div><b>ループの期間を決めて</b>（1日1回、週1回、など）、都度「更新」を押して AI に指示。全体のステータスが更新されるので、次の施策に進みます</div></li>
     </ol>
     <div class="free">
@@ -207,6 +226,27 @@
       <span class="h-note">右上の「? 使い方」でいつでも開けます</span>
       <button class="button button-primary" id="howto-close">わかった</button>
     </div>
+  </div>
+</div>
+
+<!-- 真っ黒なときの説明。コマンドは Claude Code と codex の2つから選ぶ（どちらも同じ 7681 番） -->
+<div id="cc-help" role="dialog" aria-modal="true" aria-labelledby="cc-help-t">
+  <div class="h-panel">
+    <h3 id="cc-help-t">15秒たってもチャットが出ない？</h3>
+    <p>右のチャットは、ターミナルで動いている Claude Code（または codex）を映しているだけです。動いていないと真っ黒になります。</p>
+    <div class="h-step">① 使う方をターミナルに貼って実行</div>
+    <div class="h-who">Claude Code を使う人</div>
+    <!-- コマンドは JS が CONST の PROJECT_DIR から埋める（data-cmd が claude / codex の別） -->
+    <button class="h-cmd" data-cmd="claude" data-foot="ターミナルに貼って実行してください。">
+      <code></code>
+    </button>
+    <div class="h-who">codex を使う人</div>
+    <button class="h-cmd" data-cmd="codex" data-foot="ターミナルに貼って実行してください。">
+      <code></code>
+    </button>
+    <div class="h-step">② このページをリロード</div>
+    <p>出るまで15秒ほどかかることがあります。</p>
+    <div class="h-actions"><button class="button button-secondary" id="cc-help-close">閉じる</button></div>
   </div>
 </div>
 

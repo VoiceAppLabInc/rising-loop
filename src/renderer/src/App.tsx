@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ProjectsSnapshot } from '@shared/types'
+import { OldFormBar, OldFormDialog } from './OldForm'
 
 export function App() {
   const [snap, setSnap] = useState<ProjectsSnapshot | null>(null)
@@ -9,8 +10,17 @@ export function App() {
     return window.rla.onProjects(setSnap)
   }, [])
 
+  const current = snap?.projects.find((p) => p.id === snap.currentId) ?? null
+  const form = current && snap?.hasLoops[current.id] ? snap.forms[current.id] : null
+  // 古い形は、そのプロジェクトを開いたときに知らせる（同じ形について1回だけ）。あとは帯で出し続ける
+  const notice = !!(current && form && !form.current && current.noticedForm !== form.key)
+
+  // ダイアログを出しているあいだは、main が重ねている画面を隠す（ダイアログが下に隠れるため）
+  useEffect(() => {
+    window.rla.setCovered(notice)
+  }, [notice])
+
   if (!snap) return null
-  const current = snap.projects.find((p) => p.id === snap.currentId) ?? null
   const add = () => void window.rla.addProject().then(setSnap)
 
   return (
@@ -32,6 +42,7 @@ export function App() {
           ＋
         </button>
       </header>
+      {current && form && !form.current && <OldFormBar label={form.label} />}
       <main className="body">
         {!current ? (
           <div className="empty">
@@ -50,6 +61,14 @@ export function App() {
           </div>
         ) : null}
       </main>
+      {notice && current && form && (
+        <OldFormDialog
+          name={current.name}
+          label={form.label}
+          latest={snap.skillVersion}
+          onLater={() => void window.rla.noticed(current.id, form.key).then(setSnap)}
+        />
+      )}
     </div>
   )
 }

@@ -9,6 +9,8 @@ import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
 export const TAB_H = 40
+/** 古い形のプロジェクトで、タブの下に出す帯の高さ。画面（renderer）の CSS の --bar-h と合わせる */
+export const BAR_H = 36
 /** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
 export const SETUP_HEAD_H = 112
 
@@ -42,6 +44,10 @@ export class ProjectViews {
   private setups = new Map<string, WebContentsView>()
   private watchers: FSWatcher[] = []
   private shownId: string | null = null
+  /** タブの下の帯の分だけ、ループの画面を下げる */
+  private barH = 0
+  /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
+  private covered = false
   private ses: Session
 
   constructor(
@@ -76,8 +82,16 @@ export class ProjectViews {
     } else if (p && !this.setups.has(p.id)) {
       this.setups.set(p.id, this.createSetup(p))
     }
-    for (const [id, v] of this.views) v.setVisible(id === this.shownId)
-    for (const [id, v] of this.setups) v.setVisible(id === this.shownId)
+    this.layout()
+  }
+
+  setBar(h: number): void {
+    this.barH = h
+    this.layout()
+  }
+
+  setCovered(on: boolean): void {
+    this.covered = on
     this.layout()
   }
 
@@ -184,7 +198,10 @@ export class ProjectViews {
 
   private layout(): void {
     const [width, height] = this.win.getContentSize()
-    for (const v of this.views.values()) v.setBounds({ x: 0, y: TAB_H, width, height: height - TAB_H })
+    for (const [id, v] of this.views) v.setVisible(!this.covered && id === this.shownId)
+    for (const [id, v] of this.setups) v.setVisible(!this.covered && id === this.shownId)
+    const y = TAB_H + this.barH
+    for (const v of this.views.values()) v.setBounds({ x: 0, y, width, height: Math.max(0, height - y) })
     const top = TAB_H + SETUP_HEAD_H
     for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
   }

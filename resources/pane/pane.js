@@ -24,7 +24,8 @@
     try { fit.fit() } catch (e) { return }
     api.resize(screen, term.cols, term.rows)
   }
-  try { fit.fit() } catch (e) {}
+  // 隠れた状態で開かれたとき（アプリのダイアログの最中など）は大きさを測れないので、決まった大きさで始め、見えたときに合わせる
+  if (document.body.clientWidth && document.body.clientHeight) { try { fit.fit() } catch (e) {} }
   api.attach(screen, term.cols, term.rows)
   new ResizeObserver(refit).observe(document.body)
   term.focus()

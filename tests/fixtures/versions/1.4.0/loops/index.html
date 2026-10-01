@@ -9,8 +9,9 @@
      ループの画面は LXX.html（assets/loop.html から作る）。この殻は iframe で出すだけ。
      CSS と JS は rising.css / rising.js（共通部品。中身を書かない）。
 
-     この殻の一覧は、各ループ頁の LOOP_DATA の写しです。
-     1つのループを直したら、同じターンでここも直します。
+     実物にコピーしたら、この注記を下の2行に差し替えること:
+     「このファイルは loops/*.md と loops/logs/*.md から作られています。
+       直接編集しないでください。md を直して、ここを更新します。」
 
      詳しくは ../references/HTML生成.md
      ═══════════════════════════════════════════════════════════════ -->
@@ -37,20 +38,13 @@
   //=== ★サービス名。<title> と一覧の見出しに入る
   var SERVICE_NAME = '（サービス名）';
   //=== ★右ペインを立てる画面IDの一覧。ループを足したらここにも足す（右ペイン専用。画面の切り替えは見ない）。
-  //===   セッションIDはここに持たない。アプリが loops/.chat-sessions を見る
+  //===   セッションIDはここに持たない。loops/chat-pane.sh が loops/.chat-sessions を見る
   var PANES = ['s-list','s-L01','s-L02'];
 </script>
 <!-- CONST:END -->
 
 <div class="page">
 <!-- LOOPS:BEGIN -->
-<!-- ★一覧の行（1.7.4）: .loop-num の中は3つだけ。
-     <b>いま</b> / 目標 単位
-     <div class="loop-delta"></div>           ← 空のまま。rising.js が「↑ はじめより +75%」を入れる
-     <div class="rl rl-tight" data-rl='{"t":"bullet","unit":…,"max":目標,"now":いま,"aim":目標,"was":はじめ,"axis":false,"lg":false}'></div>
-     行の左の帯（緑／赤）と数字の色は rising.js がブレットから決める。**百分率を自分で書かない。**
-     上限の目標（コストなど）は "aimLabel":"上限" を足すと、上がったときが赤になる -->
-
 <!-- ═════════ 一覧 ═════════ -->
 <section class="screen" id="s-list">
   <div class="flow">
@@ -63,13 +57,11 @@
           <button class="cmt" data-sec="ループ一覧" data-loop="ループ一覧">コメント</button>
         </div>
       </div>
-      <!--=== 主要な数字。このサービスで一番の数字を大きく1つ、内訳を小さく2〜4個、いつ時点かを1行。必ず置く（消さない）。
-           何を置くかは AI が決める（references/HTML生成.md「主要な数字」）。決めた理由を次の行のコメントに1行残す ===-->
-      <!--=== なぜこの数字: 売上がこの店の目的で、README の visits で毎回取れる。各ループの GOAL（再来率・新規）とは重ならない ===-->
+      <!--=== 複数ループを合成した数字を置く場所。無いプロジェクトはこのブロックごと消す ===-->
       <div class="rev">
-        <div class="rev-total">売上 <b>2,767,600円</b> <span class="rev-when">直近30日（8/19〜9/17）</span></div>
-        <div class="rev-break">来店 324件（新規 56・再来 268）・客単価 8,541円</div>
-        <div class="rev-note">9/17 時点（データ最終日）。取り方は `python3 scripts/report.py visits 30`</div>
+        <div class="rev-total">累計売上 <b>2,313円</b></div>
+        <div class="rev-break">有料チケット 1,750円（7件 × 250円） ＋ 広告 563円</div>
+        <div class="rev-note">券は9/7まで・広告は9/6まで（配信レポートが手作業のため）・手数料を引く前</div>
       </div>
     </div>
     <div class="section tabbed t-loops">
@@ -91,7 +83,7 @@
             <div class="loop-name"><span class="lid-pill">L01</span>有料チケットの売上を、月 15,000円 に</div>
             <div class="loop-sub">鍵をタップする人は増えているのに、買う人が増えていない<br>施策評価：購入は発生。ボタン単独の効果は評価待ち。</div>
           </div>
-          <div class="loop-num"><b>1,750</b> / 15,000円<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"円","max":15000,"now":1750,"aim":15000,"was":900,"axis":false,"lg":false}'></div></div>
+          <div class="loop-num"><b>1,750</b> / 15,000円<div class="loop-bar"><i style="width:12%"></i></div></div>
           <div class="state"><div class="st run"><span class="st-dot"></span><span class="st-n">2</span><span class="st-lb">実行中</span></div><div class="st rev"><span class="st-dot"></span><span class="st-n">1</span><span class="st-lb">評価中</span></div></div>
           <div class="chev">→</div>
         </button>
@@ -101,7 +93,7 @@
             <div class="loop-name"><span class="lid-pill">L02</span>来た人が、次の日もまた来る割合を 30% に</div>
             <div class="loop-sub">初日ごとの振れが極端（18/4/7/19/14%）。翌日が揃った3日なら14%</div>
           </div>
-          <div class="loop-num"><b>11</b> / 30%<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"%","max":30,"now":11,"aim":30,"was":14,"axis":false,"lg":false}'></div></div>
+          <div class="loop-num"><b>11</b> / 30%<div class="loop-bar"><i style="width:37%"></i></div></div>
           <div class="state"><div class="st idle"><span class="st-dot"></span>施策待ち</div></div>
           <div class="chev">→</div>
         </button>
@@ -125,26 +117,45 @@
     <div class="m-chips" id="m-chips" hidden></div>
     <div class="m-actions">
       <button class="button button-secondary" id="m-cancel">キャンセル</button>
-      <button class="button button-primary" id="m-ok">送る</button>
+      <button class="button button-primary" id="m-ok">コピーする</button>
     </div>
     <div class="m-hint">⌘/Ctrl + Enter でも確定します</div>
   </div>
 </div>
 
+<div id="toast" role="status" aria-live="polite">
+  <div class="t-head">COPIED</div>
+  <div class="t-body" id="toast-body"></div>
+  <div class="t-foot"><span class="arrow">▶</span><span class="t-foot-text">AIに貼って伝えてください。</span></div>
+</div>
 <!-- ═════════ Claude Code / codex の右ペイン ═════════
-     右の窓はアプリが出す。rising.js が ?arg=<プロジェクトの絶対パス>&arg=<画面ID> を読み込み、
-     アプリがこの読み込みを受けてチャットを出す。セッションIDは画面が持たない（アプリが loops/.chat-sessions を見る） -->
+     起動（どちらか一方。どちらを立てるかで道具が決まる。同じ 7681 番なので両方は立てない）:
+       Claude Code: sh /絶対パス/プロジェクト/loops/chat-pane.sh claude
+       codex:       sh /絶対パス/プロジェクト/loops/chat-pane.sh codex
+           （?arg=<プロジェクトの絶対パス>&arg=<画面ID> の2つが chat-pane.sh に渡る。
+             セッションIDは画面が持たない。ランチャーが loops/.chat-sessions を見て、
+             無ければその場で作る。ttyd は全プロジェクトで1本を共有）
+     見えるだけ（file:// からは iframe の中へ送れない）。真っ黒なときの出し方は #cc-help に出す -->
 <div id="cc">
+  <div class="cc-bar">
+    <button class="cc-ask" id="cc-ask">💡 15秒たってもチャットが出ない？</button>
+  </div>
   <div class="cc-stack"></div>
 </div>
 <div id="topbtns"><button id="howto-btn">? 使い方</button><button id="cc-toggle">AI ◂</button></div>
 
-<!-- この画面の使い方。★仕組みは3つだけ: 見るだけの画面／指示文を右のチャットに送るボタン／送ると AI が画面を書き換える -->
+<!-- この画面の使い方。★仕組みは3つだけ: 見るだけの画面／指示文をコピーするボタン／貼ると AI が画面を書き換える -->
 <div id="howto" role="dialog" aria-modal="true" aria-labelledby="howto-t">
   <div class="h-panel">
-    <h3 id="howto-t"><span>ライジング・ループの使い方</span><span class="brand-wrap"><span class="brand"><b>RISING LOOP</b><i><span class="ver">v2.0.0</span> · Created by Voice App Lab</i></span></span></h3>
+    <h3 id="howto-t"><span>ライジング・ループの使い方</span><span class="brand-wrap"><button type="button" class="upd-btn" id="rl-update" data-copy="---
+loop: all
+section: ALL
+rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと
+task: |
+  rising-loop を最新版に更新して、このループを合わせて
+---" title="最新版に更新して、このループを合わせる">⬆ アップデート</button><span class="brand"><b>RISING LOOP</b><i><span class="ver">v1.4.0</span> · Created by Voice App Lab</i></span></span></h3>
     <p class="lede">ライジング・ループは、ひとつの指標を計測し、その数字を上げるためのあらゆる施策を AI と共に進めるループシステムです。</p>
-    <p class="lede">この画面は<b>見るだけ</b>です。ボタンを押すと<b>指示文が右のチャットに送られ</b>、AI が動いてこの画面を書き換えます。</p>
+    <p class="lede">この画面は<b>見るだけ</b>です。ボタンを押しても何も実行されません。<b>指示文を作ってコピーする</b>だけ。それを<b>右のチャットに貼る</b>と AI が動き、この画面を書き換えます。</p>
     <div class="cols">
       <svg class="howto-fig" viewBox="0 0 260 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ゴール → 数字を測る → ボトルネック → 施策案から1つ選ぶ → 施策 → 期間をおいて測る → 評価 → 数字が動く → ゴールへ戻る。回すたびにゴールに近づく">
         <defs><marker id="hw-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52751f"/></marker></defs>
@@ -188,15 +199,17 @@
       <div>
     
     <ol class="steps">
-      <li><div><b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「TRIAL に移す」</b>を選んで送る。<br>実装が全部 ✅ になったら、同じ「指示する」から<b>「完了にして（評価に移す）」</b></div></li>
-      <li><div><b>ボタンはぜんぶ、押すと指示文が右のチャットに送られます。</b>コメント・更新・指示、どれも AI がそれを読んで動きます</div></li>
+      <li><div><b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「TRIAL に移す」</b>を選び、コピー。右のチャットに貼って Enter。実装が全部 ✅ になったら、同じ「指示する」から<b>「完了にして（評価に移す）」</b></div></li>
+      <li><div><b>ボタンはぜんぶ指示文を作るだけ。</b>コメント・更新・指示、どれも右のチャットに貼って初めて動きます</div></li>
       <li><div><b>ループの期間を決めて</b>（1日1回、週1回、など）、都度「更新」を押して AI に指示。全体のステータスが更新されるので、次の施策に進みます</div></li>
     </ol>
     <div class="free">
       <b>右のチャットはただの Claude Code（Codex）です。普段どおりに使いましょう</b>
       <ul>
-        <li>（スクショを貼って）「ここをグラフにして」「この説明は短く」「GOAL の下にメモを入れて」</li>
-        <li>「施策案が弱い。別案で5案だして」「プランを別の md にまとめてから実装して」</li>
+        <li>（スクショを貼って）「ここをグラフにして」「この説明は短く」</li>
+        <li>「気づいたことを GOAL の下にメモとして入れて」</li>
+        <li>「施策案が弱い。別案で5案だして」</li>
+        <li>「施策のプランを別 md ファイルにまとめてから実装して」</li>
         <li>「GA4 の API から数字取って」「Google Drive に保存して」</li>
       </ul>
       などなど。画面を「母艦」にして、API をつなげたり、作業を進行すると良い感じになります。
@@ -207,6 +220,27 @@
       <span class="h-note">右上の「? 使い方」でいつでも開けます</span>
       <button class="button button-primary" id="howto-close">わかった</button>
     </div>
+  </div>
+</div>
+
+<!-- 真っ黒なときの説明。コマンドは Claude Code と codex の2つから選ぶ（どちらも同じ 7681 番） -->
+<div id="cc-help" role="dialog" aria-modal="true" aria-labelledby="cc-help-t">
+  <div class="h-panel">
+    <h3 id="cc-help-t">15秒たってもチャットが出ない？</h3>
+    <p>右のチャットは、ターミナルで動いている Claude Code（または codex）を映しているだけです。動いていないと真っ黒になります。</p>
+    <div class="h-step">① 使う方をターミナルに貼って実行</div>
+    <div class="h-who">Claude Code を使う人</div>
+    <!-- コマンドは JS が CONST の PROJECT_DIR から埋める（data-cmd が claude / codex の別） -->
+    <button class="h-cmd" data-cmd="claude" data-foot="ターミナルに貼って実行してください。">
+      <code></code>
+    </button>
+    <div class="h-who">codex を使う人</div>
+    <button class="h-cmd" data-cmd="codex" data-foot="ターミナルに貼って実行してください。">
+      <code></code>
+    </button>
+    <div class="h-step">② このページをリロード</div>
+    <p>出るまで15秒ほどかかることがあります。</p>
+    <div class="h-actions"><button class="button button-secondary" id="cc-help-close">閉じる</button></div>
   </div>
 </div>
 

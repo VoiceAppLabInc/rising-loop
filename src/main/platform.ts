@@ -100,7 +100,8 @@ export function loadShellEnv(): Promise<NodeJS.ProcessEnv> {
 }
 
 function readShellEnv(): Promise<NodeJS.ProcessEnv> {
-  if (process.platform === 'win32') return Promise.resolve({ ...process.env })
+  // テストでは読まない（ログインシェルの起動に数秒かかり、テストの待ち時間を食うため）
+  if (process.platform === 'win32' || process.env.RISING_LOOP_APP_SKIP_SHELL_ENV === '1') return Promise.resolve({ ...process.env })
   const shell = process.env.SHELL || '/bin/zsh'
   const mark = '__RLA_ENV__'
   const script = `process.stdout.write('${mark}'+JSON.stringify(process.env)+'${mark}')`

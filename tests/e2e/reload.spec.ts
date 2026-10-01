@@ -2,7 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { SAMPLE, inFrame, inLoops, launch, nextFolder, paneText } from './helpers'
+import { SAMPLE, inFrame, inLoops, later, launch, nextFolder, paneText } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -25,6 +25,7 @@ test.beforeEach(async () => {
   win = await app.firstWindow()
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win)
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
   await expect.poll(() => fakeCount('s-list')).toBe(1)
 })
