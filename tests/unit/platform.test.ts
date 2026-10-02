@@ -85,12 +85,11 @@ describe('killCommand', () => {
 })
 
 describe('windowChrome', () => {
-  it('Mac は左に閉じる・最小化ボタンの余白を取る', () => {
-    expect(windowChrome('darwin')).toMatchObject({ titleBarStyle: 'hiddenInset', controls: 'left' })
+  it('Mac は左に閉じる・最小化ボタンの余白を取り、ボタンをタブの列の上下の真ん中に置く', () => {
+    expect(windowChrome('darwin', 48)).toMatchObject({ titleBarStyle: 'hiddenInset', controls: 'left', trafficLightPosition: { x: 16, y: 16 } })
   })
-  it('Windows は右にウィンドウのボタンを重ねる', () => {
-    expect(windowChrome('win32')).toMatchObject({ titleBarStyle: 'hidden', controls: 'right' })
-    expect(windowChrome('win32').titleBarOverlay).toBeTruthy()
+  it('Windows は右にウィンドウのボタンを重ね、高さと色をタブの列（濃い列）に合わせる', () => {
+    expect(windowChrome('win32', 48)).toMatchObject({ titleBarStyle: 'hidden', controls: 'right', titleBarOverlay: { color: '#1c1c1b', symbolColor: '#c8c8c4', height: 48 } })
   })
 })
 

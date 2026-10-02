@@ -2,8 +2,11 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, sta
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { cardPage, CURRENT, dialogOf, inLoops, launch, nextFolder, paneText } from './helpers'
+import { cardPage, CURRENT, dialogOf, inLoops, launch, mainWindow, nextFolder, paneText } from './helpers'
 import { changelogSummary } from '../../src/shared/migrate'
+
+/** タブの列の高さ（src/main/views.ts の TAB_H と同じ） */
+const TAB_H = 48
 
 let app: ElectronApplication
 let win: Page
@@ -39,7 +42,7 @@ const layerView = () =>
 test.beforeEach(async () => {
   root = mkdtempSync(join(tmpdir(), 'rla-version-'))
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 })
 
 test.afterEach(async () => {
@@ -64,7 +67,7 @@ test('古い形のプロジェクトを開くと最初にダイアログで知�
   await expect(dialog).toBeHidden()
   await expect((await cardPage(app)).getByRole('status')).toContainText('前のバージョンの画面です（1.5〜1.7 の形）')
   // カードはループの画面の上に浮かぶので、画面は下げない
-  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: 40 })
+  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: TAB_H })
 })
 
 test('一度知らせた形は、開き直しても知らせず、帯だけ出す', async () => {
@@ -72,7 +75,7 @@ test('一度知らせた形は、開き直しても知らせず、帯だけ出�
   await (await dialogOf(app)).getByRole('button', { name: 'あとで' }).click()
   await app.close()
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await expect((await cardPage(app)).getByRole('status')).toContainText('1.6.1')
   await win.waitForTimeout(1000)
   await expect((await dialogOf(app))).toHaveCount(0)
@@ -80,7 +83,7 @@ test('一度知らせた形は、開き直しても知らせず、帯だけ出�
 
 test('いまの形のプロジェクトには、知らせも帯も出さない', async () => {
   await open(CURRENT)
-  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: 40 })
+  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: TAB_H })
   await expect((await dialogOf(app))).toHaveCount(0)
   await expect((await cardPage(app)).getByRole('status')).toHaveCount(0)
 })
@@ -184,7 +187,7 @@ test('頁の書き方が雛形と違っても、前の版とは言わない', as
   writeFileSync(l01, readFileSync(l01, 'utf8').replace(/tid-pill/g, 'my-pill').replace(/data-rl/g, 'data-x'))
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: 40 })
+  await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: TAB_H })
   await expect((await dialogOf(app))).toHaveCount(0)
   await expect((await cardPage(app)).getByRole('status')).toHaveCount(0)
 })
@@ -284,7 +287,7 @@ test('記録した会話のスキルの版がいまと違えば、新しい会�
   await app.close()
   writeFileSync(join(root, 'data', 'sessions.json'), JSON.stringify({ [folder]: { screens: { 's-list': { claude: { id: oldId, skill: '1.9.0' } } } } }))
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await nextFolder(app, folder)
   await win.getByRole('button', { name: /フォルダを開く…|プロジェクトを追加/ }).first().click()
   await expect.poll(lastSessionId).not.toBeNull()
@@ -300,7 +303,7 @@ test('記録した会話のスキルの版がいまと違えば、新しい会�
 test('起動直後に入力を捨てる AI にも、作り直しの作業が届く（起動時の引数で渡す）', async () => {
   await app.close()
   app = await launch(root, { RLA_FAKE_DEAF_MS: '3000' })
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await open('1.7.5')
   await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)

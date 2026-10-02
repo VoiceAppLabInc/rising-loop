@@ -3,13 +3,11 @@ import { compareVersions } from '@shared/migrate'
 import type { ProjectsSnapshot } from '@shared/types'
 import { Button } from './Button'
 import { Icon } from './Icon'
-import { Settings } from './Settings'
 
-// アプリの画面（タブの列・設定・プロジェクトが無いときの画面）。ダイアログはループの画面より上の透明な層（Overlay.tsx）に描く。
-// ここから出すダイアログ（使い方・ループが無いフォルダの確認）は、main を通して層に頼む
+// アプリの画面（タブの列・プロジェクトが無いときの画面）。ダイアログ（設定も）はループの画面より上の透明な層（Overlay.tsx）に描く。
+// ここから出すダイアログ（使い方・設定・ループが無いフォルダの確認）は、main を通して層に頼む
 export function App() {
   const [snap, setSnap] = useState<ProjectsSnapshot | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     void window.rla.getProjects().then(setSnap)
@@ -23,10 +21,6 @@ export function App() {
   const paneOpen = current ? (snap?.panes[current.id] ?? true) : true
   const nav = (current && snap?.nav[current.id]) || { back: false, forward: false }
 
-  // 設定は画面全体をおおうので、そのあいだは main が重ねている画面を隠す（設定が下に隠れるため）
-  useEffect(() => {
-    window.rla.setCovered(settingsOpen)
-  }, [settingsOpen])
 
   if (!snap) return null
   const add = () =>
@@ -87,7 +81,7 @@ export function App() {
               </Button>
             </>
           )}
-          <Button variant="bar" size="sm" className="btn-icon" aria-label="設定" title="設定" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)}>
+          <Button variant="bar" size="sm" className="btn-icon" aria-label="設定" title="設定" onClick={() => window.rla.openDialog({ kind: 'settings' })}>
             <Icon name="gear" />
           </Button>
         </div>
@@ -110,7 +104,6 @@ export function App() {
           </div>
         ) : null}
       </main>
-      {settingsOpen && <Settings project={current} snap={snap} onSnap={setSnap} onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

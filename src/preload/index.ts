@@ -16,8 +16,9 @@ const api = {
   rework: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:rework', id),
   undo: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:undo', id),
   closeMigrated: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:close-migrated', id),
-  updateProject: (id: string, patch: { ai?: AiKind; perm?: PermMode }): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:update', id, patch),
-  pickFolder: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:pick-folder', id),
+  updateProject: (id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:update', id, patch),
+  /** フォルダを選ぶだけ（選ばなければ null）。切り替えは updateProject で */
+  chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('projects:choose-folder'),
   removeProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:remove', id),
   setPane: (id: string, on: boolean): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:pane', id, on),
   /** そのタブのループの画面で、戻る（-1）・進む（1） */

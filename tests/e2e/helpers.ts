@@ -91,6 +91,18 @@ export async function later(app: ElectronApplication): Promise<void> {
   await d.waitFor({ state: 'hidden' })
 }
 
+/**
+ * アプリの画面（タブの列）。firstWindow() は、先に読み込み終えた透明な層（?overlay=bar）を返すことがあるので、URL で選ぶ
+ */
+export async function mainWindow(app: ElectronApplication): Promise<Page> {
+  for (let i = 0; i < 100; i++) {
+    const p = app.windows().find((w) => /renderer\/index\.html$|^http:\/\/localhost:51\d\d\/$/.test(w.url()))
+    if (p) return p
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  throw new Error('アプリの画面が見つからない')
+}
+
 /** ダイアログ（ループの画面より上の透明な層に描く。アプリの画面とは別のページ） */
 export const dialogOf = async (app: ElectronApplication) => (await cardPage(app)).getByRole('dialog')
 

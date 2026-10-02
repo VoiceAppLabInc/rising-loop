@@ -202,6 +202,15 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.3.3",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

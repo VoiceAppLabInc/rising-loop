@@ -76,13 +76,19 @@ export function killCommand(platform: Platform, pid: number): Command | null {
 }
 
 /** ウィンドウの枠。controls はウィンドウのボタンがタブの列のどちら側に来るか */
-export function windowChrome(platform: Platform): {
+export function windowChrome(
+  platform: Platform,
+  barHeight: number
+): {
   titleBarStyle: 'hiddenInset' | 'hidden' | 'default'
   titleBarOverlay?: { color: string; symbolColor: string; height: number }
+  trafficLightPosition?: { x: number; y: number }
   controls: 'left' | 'right' | 'none'
 } {
-  if (platform === 'darwin') return { titleBarStyle: 'hiddenInset', controls: 'left' }
-  if (platform === 'win32') return { titleBarStyle: 'hidden', titleBarOverlay: { color: '#f4f5f7', symbolColor: '#1d1e22', height: 40 }, controls: 'right' }
+  // Mac の閉じる・最小化・最大化のボタンを、タブの列の上下の真ん中に置く（見た目の真ん中は y から約 8px 下。48px の列なら y は 16）
+  if (platform === 'darwin') return { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: Math.round(barHeight / 2) - 8 }, controls: 'left' }
+  // Windows の最小化・最大化・閉じるのボタンは、タブの列（濃い列）と同じ高さ・色にする（style.css の --bar・--bar-fg）
+  if (platform === 'win32') return { titleBarStyle: 'hidden', titleBarOverlay: { color: '#1c1c1b', symbolColor: '#c8c8c4', height: barHeight }, controls: 'right' }
   return { titleBarStyle: 'default', controls: 'none' }
 }
 

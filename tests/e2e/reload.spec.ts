@@ -2,7 +2,7 @@ import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { inFrame, inLoops, later, launch, nextFolder, paneText, SAMPLE } from './helpers'
+import { inFrame, inLoops, later, launch, mainWindow, nextFolder, paneText, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -22,7 +22,7 @@ test.beforeEach(async () => {
   folder = join(root, 'yoga app')
   cpSync(SAMPLE, folder, { recursive: true })
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await later(app)

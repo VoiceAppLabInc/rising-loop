@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { dialogOf, inLoops, launch, nextFolder, paneText, SAMPLE } from './helpers'
+import { dialogOf, inLoops, launch, mainWindow, nextFolder, paneText, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -23,7 +23,7 @@ test.beforeEach(async () => {
   folder = join(root, 'new-service')
   mkdirSync(folder)
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 })
 
 test.afterEach(async () => {
@@ -67,7 +67,7 @@ test('最初の依頼はプロジェクトごとに1回だけ。開き直して�
   await app.close()
 
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeVisible()
   await expect.poll(async () => count(await paneText(app, 's-list'), 'FAKE-AI {')).toBe(1)
   await win.waitForTimeout(2500)

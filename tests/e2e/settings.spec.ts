@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { cardPage, CURRENT, dialogOf, inFrame, inLoops, later, launch, nextFolder, paneText } from './helpers'
+import { cardPage, CURRENT, dialogOf, inFrame, inLoops, later, launch, mainWindow, nextFolder, paneText } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -10,7 +10,7 @@ let root: string
 
 async function start(extraEnv: Record<string, string> = {}, firstRun = false): Promise<void> {
   app = await launch(root, extraEnv, { firstRun })
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 }
 
 /** いまの版の見本を一時フォルダに写してプロジェクトにする */
@@ -31,7 +31,13 @@ async function lastArgv(): Promise<string[] | null> {
   return JSON.parse(json.slice(0, json.indexOf('}') + 1)).argv
 }
 
-const openSettings = () => win.getByRole('button', { name: '設定' }).click()
+/** 設定のダイアログを開く。設定はループの画面より上の透明な層に出るので、その層のページを返す */
+async function openSettings(): Promise<Page> {
+  await win.getByRole('button', { name: '設定' }).click()
+  const layer = await cardPage(app)
+  await expect(layer.getByRole('dialog', { name: '設定' })).toBeVisible()
+  return layer
+}
 
 /** 重ねている画面の置き場所。ループの画面と、アプリが出す右のチャットの窓（2.2.0 からの殻） */
 const layoutOf = () =>
@@ -65,9 +71,13 @@ test('フォルダを選び直すと、タブの名前もそのフォルダ名�
   await openCurrent()
   const other = join(root, 'other-service')
   cpSync(resolve('tests/fixtures/versions', CURRENT), other, { recursive: true })
-  await openSettings()
+  const s = await openSettings()
   await nextFolder(app, other)
-  await win.getByRole('button', { name: '選び直す…' }).click()
+  await s.getByRole('button', { name: '選び直す…' }).click()
+  // 選んだだけでは切り替えない。［OK］で切り替える
+  await expect(s.getByRole('dialog', { name: '設定' })).toContainText(other)
+  await expect(win.getByRole('tab', { name: 'other-service' })).toHaveCount(0)
+  await s.getByRole('button', { name: 'OK' }).click()
   await expect(win.getByRole('tab', { name: 'other-service' })).toBeVisible()
   await expect(win.getByRole('tab')).toHaveCount(1)
 })
@@ -78,41 +88,86 @@ test('すべて自動で許可にすると、同じ会話のままチャット�
   await expect.poll(lastArgv).not.toBeNull()
   const before = (await lastArgv())!
   expect(before).not.toContain('--permission-mode')
-  await openSettings()
-  await win.getByRole('radio', { name: 'すべて自動で許可' }).check()
+  const s = await openSettings()
+  await s.getByRole('radio', { name: 'すべて自動で許可' }).check()
+  await s.getByRole('button', { name: 'OK' }).click()
   await expect.poll(async () => (await lastArgv())?.includes('bypassPermissions')).toBe(true)
   // 会話は同じ
   expect((await lastArgv())![1]).toBe(before[1])
+})
+
+test('設定で変えても、［キャンセル］なら何も変えない（チャットも起動し直さない）', async () => {
+  await start()
+  await openCurrent()
+  await expect.poll(lastArgv).not.toBeNull()
+  const before = await lastArgv()
+  const other = join(root, 'other-service')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), other, { recursive: true })
+  const s = await openSettings()
+  await s.getByRole('radio', { name: 'すべて自動で許可' }).check()
+  await s.getByRole('radio', { name: 'Codex' }).check()
+  await nextFolder(app, other)
+  await s.getByRole('button', { name: '選び直す…' }).click()
+  await expect(s.getByRole('dialog', { name: '設定' })).toContainText(other)
+  await s.getByRole('button', { name: 'キャンセル' }).click()
+  await expect(s.getByRole('dialog', { name: '設定' })).toHaveCount(0)
+  await win.waitForTimeout(1500)
+  expect(await lastArgv()).toEqual(before)
+  await expect(win.getByRole('tab', { name: 'proj' })).toBeVisible()
+  // 開き直すと、元の設定のまま
+  const s2 = await openSettings()
+  await expect(s2.getByRole('radio', { name: '確認する（いつもの設定のまま）' })).toBeChecked()
+  await expect(s2.getByRole('radio', { name: 'Claude Code' })).toBeChecked()
 })
 
 test('使う AI を Codex にすると、codex の会話で起動し直す', async () => {
   await start()
   await openCurrent()
   await expect.poll(lastArgv).not.toBeNull()
-  await openSettings()
-  await win.getByRole('radio', { name: 'Codex' }).check()
+  const s = await openSettings()
+  await s.getByRole('radio', { name: 'Codex' }).check()
+  await s.getByRole('button', { name: 'OK' }).click()
   await expect.poll(async () => (await lastArgv())?.includes('resume'), { timeout: 15_000 }).toBe(true)
   expect(await lastArgv()).toContain('fake-thread-1')
 })
 
-test('プロジェクトを外すと一覧から消え、フォルダには触れない', async () => {
+test('プロジェクトを外すときは確認し、［外す］で一覧から消える。フォルダには触れない', async () => {
   await start()
   const folder = await openCurrent('yoga')
-  await openSettings()
-  await win.getByRole('button', { name: '外す' }).click()
+  const s = await openSettings()
+  await s.getByRole('button', { name: '外す' }).click()
+  const d = s.getByRole('dialog', { name: '「yoga」を外しますか？' })
+  await expect(d).toContainText('アプリのタブから外すだけで、フォルダの中身には触れません。')
+  await d.getByRole('button', { name: '外す' }).click()
   await expect(win.getByRole('tab')).toHaveCount(0)
+  // 外したら設定も閉じる（対象のプロジェクトが無くなったので）
+  await expect(s.getByRole('dialog', { name: '設定' })).toHaveCount(0)
   expect(existsSync(join(folder, 'loops', 'index.html'))).toBe(true)
+})
+
+test('外す確認で［やめる］なら外さない', async () => {
+  await start()
+  await openCurrent('yoga')
+  const s = await openSettings()
+  await s.getByRole('button', { name: '外す' }).click()
+  await s.getByRole('dialog', { name: '「yoga」を外しますか？' }).getByRole('button', { name: 'やめる' }).click()
+  await expect(s.getByRole('dialog', { name: '「yoga」を外しますか？' })).toHaveCount(0)
+  // 設定のダイアログは開いたまま。Esc で閉じる
+  await expect(s.getByRole('dialog', { name: '設定' })).toBeVisible()
+  await s.keyboard.press('Escape')
+  await expect(s.getByRole('dialog', { name: '設定' })).toHaveCount(0)
+  await expect(win.getByRole('tab', { name: 'yoga' })).toBeVisible()
 })
 
 test('AI の状態を出し、ログインしていなければ［ログイン］で公式の手順を動かす', async () => {
   await start({ RLA_FAKE_LOGGED_OUT: '1' })
-  await openSettings()
-  const claude = win.locator('.ai-row[data-ai="claude"]')
+  const s = await openSettings()
+  const claude = s.locator('.ai-row[data-ai="claude"]')
   await expect(claude).toContainText('ログインしていません')
   await expect(claude).toContainText('fake-ai 9.9.9')
   await claude.getByRole('button', { name: 'ログイン' }).click()
-  await expect(win.locator('.tool-head')).toContainText('（終わりました）', { timeout: 10_000 })
-  const out = await win.evaluate(() => {
+  await expect(s.locator('.tool-head')).toContainText('（終わりました）', { timeout: 10_000 })
+  const out = await s.evaluate(() => {
     const t = (window as unknown as { __rlaToolTerm: { buffer: { active: { length: number; getLine: (i: number) => { translateToString: () => string } } } } }).__rlaToolTerm
     let s = ''
     for (let i = 0; i < t.buffer.active.length; i++) s += t.buffer.active.getLine(i).translateToString() + '\n'
@@ -406,4 +461,14 @@ test('Mac の戻る・進むのスワイプ（マウスの戻る・進むボタ�
   await swipe('right', 3)
   await expect.poll(screen).toBe('#s-L01')
   await expect(win.getByRole('button', { name: '進む' })).toBeDisabled()
+})
+
+test('設定はダイアログで、開いているあいだも後ろのループの画面とチャットを隠さない', async () => {
+  await start()
+  await openCurrent('proj-behind')
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
+  await openSettings()
+  const l = await layoutOf()
+  expect(l.loops?.visible).toBe(true)
+  expect(l.chat?.visible).toBe(true)
 })

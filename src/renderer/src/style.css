@@ -2,7 +2,7 @@
    色の決まり：色は使わず墨の濃さで分ける。いま・オンは塗り（明るい地では墨、濃い列では白・紙）。
    赤は「取り消せない・失敗」、カードの橙・緑は知らせの意味だけに使う */
 :root {
-  --tab-h: 40px;
+  --tab-h: 48px;
   --setup-h: 112px; /* main/views.ts の SETUP_HEAD_H と合わせる */
   --fg: #1a1a19;
   --sub: #6a6a68;
@@ -33,18 +33,19 @@ body { background: #fff; }
   gap: 6px;
   padding: 0 8px;
   background: var(--bar);
-  border-bottom: 1px solid var(--bar-edge);
+  /* 下の境目の線は高さに含めない（含めると、タブを上下の真ん中に置く範囲が 1px 狭まり、上に寄る） */
+  box-shadow: inset 0 -1px 0 var(--bar-edge);
   color: var(--bar-fg);
   -webkit-app-region: drag;
 }
-.controls-left .tabs { padding-left: 80px; } /* Mac の閉じる・最小化ボタンの分 */
+.controls-left .tabs { padding-left: 86px; } /* Mac の閉じる・最小化ボタンの分（platform.ts の trafficLightPosition） */
 .controls-right .tabs { padding-right: 150px; } /* Windows の最小化・最大化・閉じるボタンの分 */
 .tabs button { -webkit-app-region: no-drag; font: inherit; cursor: pointer; }
 .nav { display: flex; gap: 2px; }
 /* タブは溝の中に並べ、いまのタブだけ明るい紙のつまみにする */
-.track { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 3px; border-radius: 9px; background: var(--bar-groove); }
+.track { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 3px; border-radius: 10px; background: var(--bar-groove); }
 .tab {
-  height: 26px;
+  height: 30px;
   max-width: 200px;
   padding: 0 14px;
   border: 0;
@@ -145,8 +146,8 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .btn-bar:disabled { opacity: 0.3; cursor: default; }
 .btn-bar:focus-visible { box-shadow: 0 0 0 2px #fff; }
 .btn-bar[aria-pressed='true'], .btn-bar[aria-pressed='true']:hover:not(:disabled) { background: #fff; color: var(--ink); }
-.tabs .btn-sm { height: 28px; padding: 0 10px; gap: 6px; font-size: 12.5px; }
-.tabs .btn-icon { width: 28px; padding: 0; }
+.tabs .btn-sm { height: 32px; padding: 0 11px; gap: 6px; font-size: 12.5px; }
+.tabs .btn-icon { width: 32px; padding: 0; }
 
 /* カードの小さなボタンと ✕ */
 .card .btn-sm { height: 24px; padding: 0 9px; }
@@ -172,8 +173,9 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .tab-actions { margin-left: auto; align-self: center; display: flex; gap: 6px; -webkit-app-region: no-drag; }
 
 /* 設定画面（タブの列の下をおおう）。行は「項目名・値・右端のボタン」の3列で、高さをそろえる */
-.settings { position: fixed; inset: var(--tab-h) 0 0 0; background: #fff; overflow: auto; z-index: 5; }
-.settings-inner { max-width: 760px; margin: 0 auto; padding: 24px 28px 60px; }
+.dialog.settings { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); display: flex; flex-direction: column; padding: 20px 28px 18px; }
+.settings-body { flex: 1; min-height: 0; overflow: auto; }
+.dialog .settings-foot { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .settings-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; }
 .settings-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
 .settings-sec { padding: 16px 0 18px; border-top: 1px solid var(--line); }

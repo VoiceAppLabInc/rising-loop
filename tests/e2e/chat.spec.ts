@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, wri
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { inFrame, inLoops, later, launch, nextFolder, paneText, SAMPLE } from './helpers'
+import { inFrame, inLoops, later, launch, mainWindow, nextFolder, paneText, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -30,7 +30,7 @@ test.beforeEach(async () => {
   folder = join(root, 'yoga app')
   cpSync(SAMPLE, folder, { recursive: true })
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 })
 
 test.afterEach(async () => {
@@ -72,7 +72,7 @@ test('画面ごとに別の会話になり、開き直すと同じ会話の続�
   writeFileSync(join(root, 'claude-config', 'projects', 'x', list.argv[1] + '.jsonl'), '')
   await app.close()
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   const again = await fakeStart('s-list')
   expect(again.argv.slice(0, 2)).toEqual(['--resume', list.argv[1]])
 })

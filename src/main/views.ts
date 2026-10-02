@@ -10,7 +10,7 @@ import { classifyChange, mergeChanges, type Change } from '@shared/reload'
 import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
-export const TAB_H = 40
+export const TAB_H = 48
 /** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
 export const SETUP_HEAD_H = 112
 

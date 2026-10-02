@@ -10,6 +10,7 @@ import { Button } from './Button'
 import { Howto } from './Howto'
 import { OldFormCard, OldFormDialog, UndoDialog } from './OldForm'
 import { OldSkillsDialog } from './OldSkills'
+import { Settings } from './Settings'
 
 export function Overlay() {
   const [snap, setSnap] = useState<ProjectsSnapshot | null>(null)
@@ -26,6 +27,11 @@ export function Overlay() {
   const [askAdd, setAskAdd] = useState<{ folder: string; name: string } | null>(null)
   // ループの画面（2.3.0 からの殻）が頼んだ、コメント・指示の入力の窓
   const [ask, setAsk] = useState<(AskRequest & { id: number }) | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 設定を開いたときのプロジェクト。いまのプロジェクトがこれと違うものになったら、設定を閉じる（別のプロジェクトの設定を開いたままにしない） */
+  const [settingsFor, setSettingsFor] = useState<string | null>(null)
+  const currentIdRef = useRef<string | null>(null)
+  currentIdRef.current = snap?.currentId ?? null
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -39,6 +45,10 @@ export function Overlay() {
       // アプリの画面（タブの列）から頼まれたダイアログ
       window.rla.onOpenDialog((req: DialogRequest) => {
         if (req.kind === 'howto') setHowtoOpen(true)
+        if (req.kind === 'settings') {
+          setSettingsFor(currentIdRef.current)
+          setSettingsOpen(true)
+        }
         if (req.kind === 'add') setAskAdd({ folder: req.folder, name: req.name })
       })
     ]
@@ -60,7 +70,11 @@ export function Overlay() {
   }, [shellNew, howtoSeen, notice, oldSkills.length])
 
   // ダイアログを出しているかを main に伝える（main が層を窓いっぱいに広げ、層に入力を向ける）
-  const dialog = notice || undoing || howtoOpen || oldSkills.length > 0 || !!askAdd || !!ask
+  useEffect(() => {
+    if (settingsOpen && (snap?.currentId ?? null) !== settingsFor) setSettingsOpen(false)
+  }, [settingsOpen, settingsFor, snap?.currentId])
+
+  const dialog = notice || undoing || howtoOpen || oldSkills.length > 0 || !!askAdd || !!ask || settingsOpen
   useEffect(() => {
     window.rla.overlayDialog(dialog)
   }, [dialog])
@@ -114,6 +128,7 @@ export function Overlay() {
           />
         )}
       </div>
+      {settingsOpen && snap && <Settings project={current} snap={snap} onSnap={setSnap} onClose={() => setSettingsOpen(false)} />}
       {notice && current && form && snap && (
         <OldFormDialog
           name={current.name}

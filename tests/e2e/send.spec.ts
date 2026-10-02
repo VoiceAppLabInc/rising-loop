@@ -2,7 +2,7 @@ import { cpSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { cardPage, CURRENT, dialogOf, inFrame, inLoops, later, launch, nextFolder, paneText, SAMPLE } from './helpers'
+import { cardPage, CURRENT, dialogOf, inFrame, inLoops, later, launch, mainWindow, nextFolder, paneText, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -13,7 +13,7 @@ const received = (screen: string) => async () => ((await paneText(app, screen)) 
 
 async function start(extraEnv: Record<string, string> = {}): Promise<void> {
   app = await launch(root, extraEnv)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await later(app)
@@ -74,7 +74,7 @@ async function startCurrent(): Promise<void> {
   rmSync(folder, { recursive: true, force: true })
   cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector("button.cmt")'))?.value).toBe(true)
@@ -128,4 +128,30 @@ test('入力の窓は、空のままでは送れず、Esc・［キャンセル�
   await expect(d).toHaveCount(0)
   await win.waitForTimeout(800)
   expect(await received('s-list')()).toHaveLength(0)
+})
+
+test('［全ループ更新］［更新］は1回押しただけでは送らず、更新の文を入れた入力の窓を開き、［送る］で送る', async () => {
+  await startCurrent()
+  await inLoops(app, folder, 'document.querySelector("button.upd[data-upd=all]").click()')
+  const d = await dialogOf(app)
+  await expect(d.getByRole('heading')).toHaveText('全ループを更新')
+  await expect(d.getByRole('textbox')).toHaveValue('loops/ の全ループを更新して')
+  await win.waitForTimeout(800)
+  expect(await received('s-list')()).toHaveLength(0)
+  await d.getByRole('button', { name: '送る' }).click()
+  await expect.poll(received('s-list'), { timeout: 15_000 }).toHaveLength(1)
+  // 届く指示文の形は、1回で送っていた頃と同じ
+  expect((await received('s-list')())[0]).toBe('受信: ---⏎loop: all⏎section: ALL⏎rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと⏎task: |⏎  loops/ の全ループを更新して⏎---')
+
+  // ループの頁の［更新］も同じ。書き足した分も届く
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.upd[data-upd=L01]")')).toBe(true)
+  await expect.poll(async () => await paneText(app, 's-L01')).toContain('FAKE-AI {')
+  await inFrame(app, '/L01.html', 'document.querySelector("button.upd[data-upd=L01]").click()')
+  await expect(d.getByRole('heading')).toHaveText('このループを更新')
+  await expect(d.getByRole('textbox')).toHaveValue('このループを更新して')
+  await (await cardPage(app)).keyboard.type('。売上だけでいい')
+  await d.getByRole('button', { name: '送る' }).click()
+  await expect.poll(received('s-L01'), { timeout: 15_000 }).toHaveLength(1)
+  expect((await received('s-L01')())[0]).toContain('loop: L01⏎section: GOAL⏎rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと⏎task: |⏎  このループを更新して。売上だけでいい⏎---')
 })

@@ -245,7 +245,7 @@ setInterval(() => {
 }, 500)
 
 function createWindow(): void {
-  const chrome = windowChrome(process.platform)
+  const chrome = windowChrome(process.platform, TAB_H)
   win = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -254,6 +254,7 @@ function createWindow(): void {
     title: 'Rising Loop App',
     titleBarStyle: chrome.titleBarStyle,
     ...(chrome.titleBarOverlay ? { titleBarOverlay: chrome.titleBarOverlay } : {}),
+    ...(chrome.trafficLightPosition ? { trafficLightPosition: chrome.trafficLightPosition } : {}),
     backgroundColor: '#ffffff',
     show: !hidden,
     // 見えないウィンドウは描画が間引かれるので、隠して動かすときは間引かせない
@@ -395,24 +396,30 @@ ipcMain.handle('loops:close-migrated', (_e, id: string) => {
 // ── 設定画面 ──
 
 /** AI・確認のモードを変える。AI かモードが変わったら、そのプロジェクトのチャットを起動し直す（会話は続ける） */
-ipcMain.handle('projects:update', (_e, id: string, patch: { ai?: AiKind; perm?: PermMode }) => {
+/**
+ * 設定の［OK］で、変えた分をまとめて適用する。
+ * フォルダが変われば名前もそのフォルダ名になり、前のフォルダの画面とチャットは捨てて新しいフォルダで開き直す。
+ * フォルダはそのままで AI・確認のモードが変われば、同じ会話のままチャットを起動し直す
+ */
+ipcMain.handle('projects:update', (_e, id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }) => {
   const before = state.projects.find((x) => x.id === id)
   if (!before) return snapshot()
-  commit(updateProject(state, id, patch))
+  const moved = !!patch.folder && patch.folder.replace(/[\\/]+$/, '') !== before.folder
+  if (moved) {
+    views?.removeProject(id)
+    chats.killProject(id)
+  }
+  commit(updateProject(state, id, moved ? patch : { ai: patch.ai, perm: patch.perm }))
   const after = state.projects.find((x) => x.id === id)!
-  if (aiOf(after) !== aiOf(before) || (after.perm ?? 'ask') !== (before.perm ?? 'ask')) chats.restartProject(after, aiOf(after))
+  if (!moved && (aiOf(after) !== aiOf(before) || (after.perm ?? 'ask') !== (before.perm ?? 'ask'))) chats.restartProject(after, aiOf(after))
   return snapshot()
 })
 
-/** フォルダを選び直す。名前もそのフォルダ名になる。前のフォルダの画面とチャットは捨て、新しいフォルダで開き直す */
-ipcMain.handle('projects:pick-folder', async (_e, id: string) => {
-  if (!win || !state.projects.some((x) => x.id === id)) return snapshot()
+/** 設定の［選び直す…］。フォルダを選ぶだけで、切り替えは［OK］のとき（projects:update） */
+ipcMain.handle('projects:choose-folder', async (): Promise<string | null> => {
+  if (!win) return null
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'] })
-  if (r.canceled || !r.filePaths[0]) return snapshot()
-  views?.removeProject(id)
-  chats.killProject(id)
-  commit(updateProject(state, id, { folder: r.filePaths[0] }))
-  return snapshot()
+  return r.canceled || !r.filePaths[0] ? null : r.filePaths[0]
 })
 
 /** アプリの一覧から外す（フォルダには触れない） */
@@ -452,7 +459,7 @@ ipcMain.handle('ai:status', async () => Promise.all((['claude', 'codex'] as AiKi
 
 /** ［入れる］［ログイン］。公式の手順をアプリの中のターミナルで動かす（1つずつ） */
 const tools = new ToolRunner()
-ipcMain.handle('ai:run', async (_e, ai: AiKind, kind: 'install' | 'login', cols: number, rows: number) => {
+ipcMain.handle('ai:run', async (e, ai: AiKind, kind: 'install' | 'login', cols: number, rows: number) => {
   let cmd = kind === 'install' ? installCommand(ai, process.platform) : null
   if (kind === 'login') {
     const cli = await findCli(ai)
@@ -466,8 +473,9 @@ ipcMain.handle('ai:run', async (_e, ai: AiKind, kind: 'install' | 'login', cols:
     env: await childEnv(),
     cols,
     rows,
-    onData: (d) => win?.webContents.send('tool:data', d),
-    onExit: (code) => win?.webContents.send('tool:exit', code)
+    // 出力は、ターミナルを出している画面（設定のダイアログ＝透明な層）に返す
+    onData: (d) => !e.sender.isDestroyed() && e.sender.send('tool:data', d),
+    onExit: (code) => !e.sender.isDestroyed() && e.sender.send('tool:exit', code)
   })
   return true
 })

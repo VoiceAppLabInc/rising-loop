@@ -5,7 +5,7 @@ import type { AskRequest } from '@shared/types'
 import { Button } from './Button'
 
 export function AskDialog(p: { req: AskRequest; onAnswer: (value: string | null) => void }) {
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(p.req.value)
   const input = useRef<HTMLTextAreaElement>(null)
   // 背景で押して背景で離したときだけ閉じる（入力欄で押して背景で離すドラッグでは閉じない）
   const downOnBackdrop = useRef(false)
@@ -16,7 +16,10 @@ export function AskDialog(p: { req: AskRequest; onAnswer: (value: string | null)
   }
 
   useEffect(() => {
-    input.current?.focus()
+    // 最初から文が入っているときは、その後ろから書き足せるようにする
+    const el = input.current
+    el?.focus()
+    el?.setSelectionRange(el.value.length, el.value.length)
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') p.onAnswer(null)
     }

@@ -82,10 +82,12 @@ export interface AskRequest {
   sub: string
   placeholder: string
   chips: [string, string][]
+  /** 最初から入力欄に入れておく文（更新のボタンなど。空なら何も入れない） */
+  value: string
 }
 
 /** アプリの画面（タブの列）から、ダイアログの層に出してもらうダイアログ */
-export type DialogRequest = { kind: 'howto' } | { kind: 'add'; folder: string; name: string }
+export type DialogRequest = { kind: 'howto' } | { kind: 'settings' } | { kind: 'add'; folder: string; name: string }
 
 export type AiKind = 'claude' | 'codex'
 

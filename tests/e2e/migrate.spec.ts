@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { SAMPLE, inLoops, launch, nextFolder, paneText } from './helpers'
+import { dialogOf, inLoops, launch, mainWindow, nextFolder, paneText, SAMPLE } from './helpers'
 
 // 見本の loops/（スキル 1.7.6 の写し）を、同梱のスキルの「合わせて」（shell-update.py）で新しい形にしても、
 // アプリとのつながり（右の窓・指示文の送信）が切れないことを確かめる
@@ -20,7 +20,7 @@ test.beforeEach(async () => {
   cpSync(SAMPLE, folder, { recursive: true })
   execFileSync('python3', [SHELL_UPDATE, join(folder, 'loops')], { stdio: 'pipe' })
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 })
 
 test.afterEach(async () => {
@@ -44,5 +44,7 @@ test('合わせたあとも、右の窓にチャットが出て、ボタンの�
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
   await expect.poll(async () => await paneText(app, 's-list')).toContain('FAKE-AI {')
   await inLoops(app, folder, 'document.querySelector("button.upd[data-upd=all]").click()')
+  // 2.3.3 からの殻は、更新の文を入れた入力の窓を開き、［送る］で送る
+  await (await dialogOf(app)).getByRole('button', { name: '送る' }).click()
   await expect.poll(async () => await paneText(app, 's-list')).toContain('受信: ---⏎loop: all⏎')
 })

@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, stat
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { dialogOf, inFrame, inLoops as inLoopsOf, later, launch, nextFolder as nextFolderOf, SAMPLE } from './helpers'
+import { dialogOf, inFrame, inLoops as inLoopsOf, later, launch, mainWindow, nextFolder as nextFolderOf, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -33,7 +33,7 @@ test.beforeEach(async () => {
   noLoops = join(root, 'new-service')
   mkdirSync(noLoops)
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
 })
 
 test.afterEach(async () => {
@@ -135,7 +135,7 @@ test('同じフォルダを選んでもタブは増えず、開き直しても�
 
   await app.close()
   app = await launch(root)
-  win = await app.firstWindow()
+  win = await mainWindow(app)
   await expect(win.getByRole('tab')).toHaveCount(2)
   await expect(win.getByRole('tab', { name: 'yoga app' })).toHaveAttribute('aria-selected', 'true')
 })
