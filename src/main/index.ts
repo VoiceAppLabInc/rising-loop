@@ -6,7 +6,7 @@ import { BrowserWindow, WebContentsView, app, dialog, ipcMain, shell } from 'ele
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
-import type { AiKind, AiStatus, AskRequest, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
+import type { AiKind, AiStatus, AskRequest, DialogRequest, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
 import { loadSettings, saveSettings } from './appSettings'
 import { findOldSkills } from './oldSkills'
 import { ToolRunner } from './tools'
@@ -38,6 +38,8 @@ let views: ProjectViews | null = null
 let overlay: WebContentsView | null = null
 let overlaySize = { w: 0, h: 0 }
 let covered = false
+/** 層がダイアログを出しているか（そのあいだは層を窓いっぱいに広げる） */
+let overlayDialog = false
 let chats: Chats
 
 /** 同梱のスキルと、右の窓の動き。開発中はリポジトリの中、配るときはアプリの Resources の中 */
@@ -159,6 +161,13 @@ function showCurrent(snap = snapshot()): ProjectsSnapshot {
 function layoutOverlay(): void {
   if (!win || !overlay) return
   win.contentView.addChildView(overlay)
+  // ダイアログのあいだは窓いっぱい（後ろのループの画面とチャットは隠さず、層の薄暗い背景ごしに見せる）
+  if (overlayDialog) {
+    const [width, height] = win.getContentSize()
+    overlay.setBounds({ x: 0, y: 0, width, height })
+    overlay.setVisible(true)
+    return
+  }
   const p = state && current()
   const show = !!p && hasLoops(p.folder) && !covered && overlaySize.w > 0 && overlaySize.h > 0
   overlay.setVisible(show)
@@ -250,6 +259,7 @@ function createWindow(): void {
   })
   // AI が loops/ を書き換えたら、形を見分け直す（作り直しが終われば帯が消える）
   views.onLoopsChanged(() => broadcast(showCurrent()))
+  views.onViewAdded(() => layoutOverlay())
   overlay = new WebContentsView({
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true, backgroundThrottling: !hidden }
   })
@@ -468,8 +478,15 @@ ipcMain.on('overlay:size', (_e, w: number, h: number) => {
   overlaySize = { w, h }
   layoutOverlay()
 })
-// カードの［元に戻す］。確認はアプリの画面で出す
-ipcMain.on('ui:ask-undo', () => win?.webContents.send('ui:ask-undo'))
+// 層がダイアログを出した・閉じた。出すときは入力を層に向け、閉じたら見えている画面に戻す
+ipcMain.on('overlay:dialog', (_e, on: boolean) => {
+  overlayDialog = !!on
+  layoutOverlay()
+  if (overlayDialog) overlay?.webContents.focus()
+  else views?.focusShown() ?? win?.webContents.focus()
+})
+// アプリの画面（タブの列）から頼まれたダイアログを、層に出させる
+ipcMain.on('ui:open-dialog', (_e, req: DialogRequest) => overlay?.webContents.send('ui:open-dialog', req))
 
 // ループの画面がクリップボードに書いた指示文（preload/loops.ts が --- で囲まれた文だけを送る）
 // 送り先は、指示文を出したループの画面でいま見えている画面ID（#s-L01 など）のチャット
@@ -479,7 +496,7 @@ ipcMain.on('loops:instruction', (e, text: string) => {
   if (!p) return
   // 前の版の画面の「⬆ アップデート」は AI に渡さず、［新しい形にする］のダイアログを開く
   if (isUpdateRequest(text)) {
-    win?.webContents.send('projects:open-notice', p.id)
+    overlay?.webContents.send('projects:open-notice', p.id)
     return
   }
   // 2.2.0 からの殻は右の窓をアプリが持つので、閉じていればアプリが開く（それより前の殻は殻が開く）
@@ -491,13 +508,13 @@ ipcMain.on('loops:instruction', (e, text: string) => {
   chats.send(p, screenOfUrl(e.sender.getURL()), aiOf(p), text)
 })
 
-// 殻（2.3.0 から）の入力の窓。アプリの画面に出させ、答えを殻に返す（キャンセルは null）
+// 殻（2.3.0 から）の入力の窓。ダイアログの層に出させ、答えを殻に返す（キャンセルは null）
 let askSeq = 0
 const asks = new Map<number, (v: string | null) => void>()
 ipcMain.handle('loops:ask', (e, req: AskRequest) => {
-  if (!win || !paneProject(e.sender.id)) return null
+  if (!overlay || !paneProject(e.sender.id)) return null
   const id = ++askSeq
-  win.webContents.send('ui:ask', { ...req, id })
+  overlay.webContents.send('ui:ask', { ...req, id })
   return new Promise<string | null>((resolve) => asks.set(id, resolve))
 })
 ipcMain.on('ui:ask-reply', (_e, id: number, value: string | null) => {

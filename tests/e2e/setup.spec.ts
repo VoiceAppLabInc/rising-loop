@@ -2,7 +2,7 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { SAMPLE, inLoops, launch, nextFolder, paneText } from './helpers'
+import { dialogOf, inLoops, launch, nextFolder, paneText, SAMPLE } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -15,7 +15,7 @@ const count = (text: string | null, s: string) => (text ?? '').split(s).length -
 async function open(): Promise<void> {
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await win.getByRole('dialog').getByRole('button', { name: '追加する' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: '追加する' }).click()
 }
 
 test.beforeEach(async () => {
@@ -41,7 +41,7 @@ test('ループが無いフォルダを開くと、全面のチャットで目�
 test('ループが無いフォルダは、新しいプロジェクトにしてよいかを聞き、［やめる］なら追加しない', async () => {
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  const d = win.getByRole('dialog')
+  const d = (await dialogOf(app))
   await expect(d).toContainText('「new-service」にはループがありません。新しいプロジェクトとして追加しますか？')
   await d.getByRole('button', { name: 'やめる' }).click()
   await expect(d).toHaveCount(0)

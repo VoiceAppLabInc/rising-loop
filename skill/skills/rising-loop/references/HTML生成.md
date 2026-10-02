@@ -116,7 +116,7 @@ README にも `index.html` にも写しを持たせない（写しがあると�
   - `data-loop-ver` は、この頁が**どの版の作りか**の印（台帳 `migrations.json` の項目をどこまで反映したか）。新しく作るときは雛形のまま残す。版を上げる作り直しで台帳の項目を反映したら、その版に書き換える。アプリはこの印で、まだ作り直していない頁を見分ける
   - `data-page-schema` は値の持ち方の連番（1.5.0 で 2 になった）。いまは変えない
 - 読むものは3つ: `rising.css` / D3（**UMD 版を `<script src>` で**。`type="module"` と `fetch('./*.json')` は file:// で使えない）/ `rising.js`
-- 中身は `<section class="screen" id="s-LXX">` **1つだけ**。上に `← ループ一覧`（`data-go="s-list"`）
+- 中身は `<section class="screen" id="s-LXX">` **1つだけ**。上に `← ループ一覧`（`data-go=""`。行き先は空にする。`s-list` にすると殻のアドレスが `#s-list` になり、ブラウザが一覧の枠まで送って少し下にずれる）
 - 値は `var LOOP_DATA = {…}` の1か所（下の「`LOOP_DATA` の定義」）。**ループIDで引く形にしない**（頁にはそのループしか無い）
 - ⛔ **入力の窓・右の窓を持たない。** ボタンは押された事実を**殻に `postMessage` するだけ**
 - ⛔ **`navigator.clipboard` と `localStorage` を頁で使わない。** iframe の中では拒否される環境がある。指示文を組むのも記憶も殻がやる（殻が `rlaApp.send` でアプリに渡し、アプリが右のチャットへ送る）

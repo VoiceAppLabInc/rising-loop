@@ -82,6 +82,9 @@ export interface AskRequest {
   chips: [string, string][]
 }
 
+/** アプリの画面（タブの列）から、ダイアログの層に出してもらうダイアログ */
+export type DialogRequest = { kind: 'howto' } | { kind: 'add'; folder: string; name: string }
+
 export type AiKind = 'claude' | 'codex'
 
 export type PermMode = 'ask' | 'auto'

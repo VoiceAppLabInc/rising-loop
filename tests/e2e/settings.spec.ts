@@ -1,8 +1,8 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { CURRENT, cardPage, inLoops, later, launch, nextFolder, paneText } from './helpers'
+import { cardPage, CURRENT, dialogOf, inFrame, inLoops, later, launch, nextFolder, paneText } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -126,7 +126,7 @@ test('ほかの場所の rising-loop を見つけたら聞き、ゴミ箱に入�
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), '---\nname: rising-loop\n---\n')
   await start()
-  const d = win.getByRole('dialog')
+  const d = (await dialogOf(app))
   await expect(d).toContainText('ほかの場所に rising-loop が入っています')
   await expect(d).toContainText(dir)
   await d.getByRole('button', { name: 'ゴミ箱に入れる' }).click()
@@ -140,18 +140,18 @@ test('［残す］と答えたら、次からは聞かない', async () => {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), '---\nname: loop-manager\n---\n')
   await start()
-  await win.getByRole('dialog').getByRole('button', { name: '残す' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: '残す' }).click()
   await app.close()
   await start()
   await win.waitForTimeout(1500)
-  await expect(win.getByRole('dialog')).toHaveCount(0)
+  await expect((await dialogOf(app))).toHaveCount(0)
   expect(existsSync(dir)).toBe(true)
 })
 
 test('いまの殻では、タブの列に使い方と AI の窓の開閉を出す（使い方は初回だけ自動で開く）', async () => {
   await start({}, true)
   const folder = await openCurrent()
-  const howto = win.getByRole('dialog')
+  const howto = (await dialogOf(app))
   await expect(howto).toContainText('ライジング・ループの使い方')
   await howto.getByRole('button', { name: 'わかった' }).click()
   // 殻には使い方・開閉のボタンも、右の窓も置かない
@@ -171,7 +171,7 @@ test('いまの殻では、タブの列に使い方と AI の窓の開閉を出�
   await expect.poll(async () => (await layoutOf()).loops?.width).toBe(l.width - 360)
   // 使い方は、いつでも開ける（開き直しても自動では開かない）
   await win.getByRole('button', { name: '? 使い方' }).click()
-  await expect(win.getByRole('dialog')).toContainText(`スキル v${CURRENT}`)
+  await expect((await dialogOf(app))).toContainText(`スキル v${CURRENT}`)
 })
 
 test('前の版の殻では、殻が自分のボタンを持つので、アプリは出さない', async () => {
@@ -180,7 +180,7 @@ test('前の版の殻では、殻が自分のボタンを持つので、アプ�
   cpSync(resolve('tests/fixtures/sample-project'), folder, { recursive: true })
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await later(win)
+  await later(app)
   await expect(win.getByRole('button', { name: '? 使い方' })).toHaveCount(0)
   await expect(win.getByRole('button', { name: /AI [▸◂]/ })).toHaveCount(0)
   await expect(win.getByRole('button', { name: '設定' })).toBeVisible()
@@ -214,7 +214,7 @@ test('2.1.0 の殻は、新しい形にするまで殻の中の右の窓を使�
   cpSync(resolve('tests/fixtures/versions/2.1.0'), folder, { recursive: true })
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await later(win)
+  await later(app)
   await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on") && !!document.getElementById("cc")'))?.value).toBe(true)
   await expect.poll(() => paneText(app, 's-list')).not.toBeNull()
   expect(await chatInAppPane('s-list')).toBe(false)
@@ -223,16 +223,38 @@ test('2.1.0 の殻は、新しい形にするまで殻の中の右の窓を使�
   await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(false)
 })
 
-test('2.1.0 から新しい形にすると、殻の入れ替えだけで AI に作業を送らず、チャットはアプリの窓に移る', async () => {
+test('2.1.0 から新しい形にすると、殻を入れ替え、台帳の頁の項目（← ループ一覧の行き先）だけを AI に送り、チャットはアプリの窓に移る', async () => {
   await start()
   const folder = join(root, 'v21')
   cpSync(resolve('tests/fixtures/versions/2.1.0'), folder, { recursive: true })
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await win.getByRole('dialog').getByRole('button', { name: '新しい形にする' }).click()
-  await expect((await cardPage(app)).getByRole('status')).toContainText(`新しい形にしました（2.1.0 → ${CURRENT}）`)
+  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
   await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("cc")'))?.value).toBe(false)
   await expect.poll(() => chatInAppPane('s-list'), { timeout: 15_000 }).toBe(true)
-  await win.waitForTimeout(1500)
-  expect((await paneText(app, 's-list')) ?? '').not.toContain('新しい形への作り直し')
+  await expect.poll(async () => (await paneText(app, 's-list')) ?? '', { timeout: 15_000 }).toContain('新しい形への作り直し')
+  const text = ((await paneText(app, 's-list')) ?? '').replace(/\n/g, '')
+  expect(text).toContain('2.3.1-back-link')
+  expect(text).not.toContain('2.0.0-page-ver')
+})
+
+test('ループの頁の「← ループ一覧」で戻ると、一覧はいちばん上から出て、読み込み直してもずれない', async () => {
+  await start()
+  const folder = join(root, 'tall')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
+  // 一覧を長くして、スクロールできるようにする
+  const index = join(folder, 'loops', 'index.html')
+  writeFileSync(index, readFileSync(index, 'utf8').replace('<!-- LOOPS:END -->', '<div style="height:3000px"></div><!-- LOOPS:END -->'))
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L01"]\')'))?.value).toBe(true)
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.back")')).toBe(true)
+  await inFrame(app, '/L01.html', 'document.querySelector("button.back").click(); 1')
+  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("in-loop")'))?.value).toBe(false)
+  expect((await inLoops(app, folder, '[location.hash, scrollY]'))?.value).toEqual(['', 0])
+  await app.evaluate(({ webContents }) => webContents.getAllWebContents().find((c) => c.getURL().includes('/tall/loops/index.html'))!.reload())
+  await expect.poll(async () => (await inLoops(app, folder, 'document.readyState'))?.value).toBe('complete')
+  await win.waitForTimeout(500)
+  expect((await inLoops(app, folder, 'scrollY'))?.value).toBe(0)
 })

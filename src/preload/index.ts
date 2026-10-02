@@ -1,6 +1,6 @@
 // アプリの周りの画面（タブ・設定）用
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { AiKind, AiStatus, AskRequest, PermMode, ProjectsSnapshot } from '@shared/types'
+import type { AiKind, AiStatus, AskRequest, DialogRequest, PermMode, ProjectsSnapshot } from '@shared/types'
 
 const api = {
   /** ウィンドウのボタンがタブの列のどちら側に来るか（main/platform.ts の windowChrome と合わせる） */
@@ -42,12 +42,14 @@ const api = {
   keepOldSkills: (): Promise<void> => ipcRenderer.invoke('skills:keep'),
   /** ループの画面の上のカード（透明な層）の大きさを伝える */
   overlaySize: (w: number, h: number): void => ipcRenderer.send('overlay:size', w, h),
-  /** カードの［元に戻す］。確認はアプリの画面で出す */
-  askUndo: (): void => ipcRenderer.send('ui:ask-undo'),
-  onAskUndo: (cb: () => void): (() => void) => {
-    const h = () => cb()
-    ipcRenderer.on('ui:ask-undo', h)
-    return () => ipcRenderer.removeListener('ui:ask-undo', h)
+  /** 層がダイアログを出しているか（main が層を窓いっぱいに広げ、入力を層に向ける） */
+  overlayDialog: (on: boolean): void => ipcRenderer.send('overlay:dialog', on),
+  /** アプリの画面から、層にダイアログを出してもらう */
+  openDialog: (req: DialogRequest): void => ipcRenderer.send('ui:open-dialog', req),
+  onOpenDialog: (cb: (req: DialogRequest) => void): (() => void) => {
+    const h = (_e: IpcRendererEvent, req: DialogRequest) => cb(req)
+    ipcRenderer.on('ui:open-dialog', h)
+    return () => ipcRenderer.removeListener('ui:open-dialog', h)
   },
   /** ループの画面（2.3.0 からの殻）が頼んだ入力の窓。答えは askReply で返す（キャンセルは null） */
   onAsk: (cb: (req: AskRequest & { id: number }) => void): (() => void) => {

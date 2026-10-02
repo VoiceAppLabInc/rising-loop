@@ -54,6 +54,7 @@ export class ProjectViews {
   /** ループの画面の殻が右の窓を持たないか（2.2.0 から）と、チャットを付ける画面（殻の CONST の PANES）。読み込むたびに読み直す */
   private shells = new Map<string, { appChat: boolean; panes: string[] }>()
   private changed: () => void = () => undefined
+  private added: () => void = () => undefined
   private shownId: string | null = null
   private projects = new Map<string, Project>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
@@ -101,6 +102,15 @@ export class ProjectViews {
     this.layout()
   }
 
+  /** 見えているループの画面（無ければ全面のチャット）に入力を向ける。どちらも無ければ false */
+  focusShown(): boolean | undefined {
+    const id = this.shownId
+    const v = id ? (this.views.get(id) ?? this.setups.get(id)) : undefined
+    if (!v || v.webContents.isDestroyed()) return undefined
+    v.webContents.focus()
+    return true
+  }
+
   /** 全面のチャットを出しているか（ループがまだ無い） */
   isSetup(id: string): boolean {
     return this.setups.has(id)
@@ -124,6 +134,8 @@ export class ProjectViews {
       }
     })
     this.win.contentView.addChildView(v)
+    // 後から足した画面はいちばん上に来るので、main が透明な層（カード・ダイアログ）を上に戻す
+    queueMicrotask(() => this.added())
     return v
   }
 
@@ -241,6 +253,11 @@ export class ProjectViews {
     this.setups.delete(id)
     this.win.contentView.removeChildView(v)
     v.webContents.close()
+  }
+
+  /** 画面を足したあとに呼ぶ */
+  onViewAdded(cb: () => void): void {
+    this.added = cb
   }
 
   /** loops/ を読み込み直したあとに呼ぶ */

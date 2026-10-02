@@ -177,6 +177,22 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.3.1",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.1-back-link",
+          "target": "pages",
+          "what": "頁の上の「← ループ一覧」のボタン（<button class=\"back\">）の行き先を空にする（data-go=\"s-list\" を data-go=\"\" に）。s-list だと殻のアドレスが #s-list になり、ブラウザが一覧の枠まで送って一覧が少し下にずれて出るため",
+          "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span> ループ一覧</button>。ボタンの文字・見た目・位置は変えない"
+        }
+      ]
     }
   ]
 }

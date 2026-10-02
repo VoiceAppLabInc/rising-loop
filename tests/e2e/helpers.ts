@@ -84,14 +84,17 @@ export const paneText = (app: ElectronApplication, screen: string): Promise<stri
  * 古い形のプロジェクトを開くと出る知らせに「あとで」と答える。
  * 見本の loops/（スキル 1.7.6 の写し）は古い形なので、知らせとは関係の無いテストではこれで閉じる
  */
-export async function later(win: Page): Promise<void> {
-  const d = win.getByRole('dialog')
+export async function later(app: ElectronApplication): Promise<void> {
+  const d = await dialogOf(app)
   await d.waitFor({ timeout: 5000 })
   await d.getByRole('button', { name: 'あとで' }).click()
   await d.waitFor({ state: 'hidden' })
 }
 
-/** ループの画面の上に重ねたカードの層（透明な層。アプリの画面とは別のページ） */
+/** ダイアログ（ループの画面より上の透明な層に描く。アプリの画面とは別のページ） */
+export const dialogOf = async (app: ElectronApplication) => (await cardPage(app)).getByRole('dialog')
+
+/** ループの画面の上に重ねた透明な層（カードとダイアログ。アプリの画面とは別のページ） */
 export async function cardPage(app: ElectronApplication): Promise<Page> {
   for (let i = 0; i < 100; i++) {
     const p = app.windows().find((w) => w.url().includes('overlay=bar'))
