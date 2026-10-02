@@ -16,6 +16,8 @@ export const SETUP_HEAD_H = 112
 
 /** 右のチャットの窓の幅。殻が窓を持っていた頃（2.2.0 より前）の殻の --pane と同じ */
 export const PANE_W = 360
+/** ループの画面・右のチャットからリンクを開いたときの、新しいウィンドウの大きさ */
+export const LINK_WINDOW = { width: 1024, height: 680 }
 /** この版からの殻は右の窓を持たない。アプリが自分の窓としてループの画面の右に並べる */
 const APP_CHAT_FROM = '2.2.0'
 
@@ -135,6 +137,9 @@ export class ProjectViews {
         backgroundThrottling: this.throttle
       }
     })
+    // リンクを開くと、アプリの中の別のウィンドウで開く（大きさだけ指定する）
+    // （テストなどでウィンドウを出さずに動かすときは、開いたウィンドウも出さない）
+    v.webContents.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { ...LINK_WINDOW, show: process.env.RISING_LOOP_APP_HIDDEN !== '1' } }))
     this.win.contentView.addChildView(v)
     // 後から足した画面はいちばん上に来るので、main が透明な層（カード・ダイアログ）を上に戻す
     queueMicrotask(() => this.added())

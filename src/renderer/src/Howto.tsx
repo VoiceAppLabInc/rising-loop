@@ -6,19 +6,17 @@ export function Howto(p: { skillVersion: string; appVersion: string; onClose: ()
   return (
     <div className="backdrop" onClick={(e) => e.target === e.currentTarget && p.onClose()}>
       <div className="dialog howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+        {/* 左にロゴとバージョン、右に見出し */}
         <header className="howto-head">
-          <h2 id="howto-title">ライジング・ループの使い方</h2>
           <span className="brand">
             <b>RISING LOOP</b>
             <i>
               スキル v{p.skillVersion} · アプリ v{p.appVersion} · Created by Voice App Lab
             </i>
           </span>
+          <h2 id="howto-title">ライジング・ループの使い方</h2>
         </header>
         <p className="lede">ライジング・ループは、ひとつの指標を計測し、その数字を上げるためのあらゆる施策を AI と共に進めるループシステムです。</p>
-        <p className="lede">
-          この画面は<b>見るだけ</b>です。ボタンを押すと<b>指示文が右のチャットに送られ</b>、AI が動いてこの画面を書き換えます。
-        </p>
         <div className="howto-cols">
           <div className="howto-fig" dangerouslySetInnerHTML={{ __html: fig }} />
           <div>
@@ -45,9 +43,8 @@ export function Howto(p: { skillVersion: string; appVersion: string; onClose: ()
           </div>
         </div>
         <div className="actions">
-          <span className="note">上の「? 使い方」でいつでも開けます</span>
           <Button variant="primary" onClick={p.onClose}>
-            わかった
+            OK
           </Button>
         </div>
       </div>

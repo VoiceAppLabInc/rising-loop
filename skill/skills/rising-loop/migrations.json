@@ -211,6 +211,22 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.3.4",
+      "templates": {
+        "loop": "2fda97621bb1c4e8",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.4-log-link",
+          "target": "pages",
+          "what": "出来事の LOG の折りたたみ（<details class=\"record-log\"> と中の <iframe>）を、タイトルそのものを LOG の md へのリンクにした1行に置き換える。頁の中に広げず、別タブ（アプリでは別ウィンドウ）で開くため",
+          "detail": "例: <p class=\"record-log\"><a href=\"logs/L01.md\" target=\"_blank\" rel=\"noopener\">出来事のLOG<span class=\"arw\">↗</span></a></p>。タイトルの文字と行き先（href）は元の details のものをそのまま使う。畳んだループの LOG（「畳む前の L02 の出来事」など）が複数あれば、それぞれ同じ形にする。LOG が無い頁では何もしない"
+        }
+      ]
     }
   ]
 }

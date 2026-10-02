@@ -208,7 +208,7 @@ test('いまの殻では、タブの列に使い方と AI の窓の開閉を出�
   const folder = await openCurrent()
   const howto = (await dialogOf(app))
   await expect(howto).toContainText('ライジング・ループの使い方')
-  await howto.getByRole('button', { name: 'わかった' }).click()
+  await howto.getByRole('button', { name: 'OK' }).click()
   // 殻には使い方・開閉のボタンも、右の窓も置かない
   await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("howto") || !!document.getElementById("cc-toggle") || !!document.getElementById("cc")'))?.value).toBe(false)
   // 右の窓はアプリが出し、ループの画面はその幅だけ狭まる
@@ -471,4 +471,38 @@ test('設定はダイアログで、開いているあいだも後ろのルー�
   const l = await layoutOf()
   expect(l.loops?.visible).toBe(true)
   expect(l.chat?.visible).toBe(true)
+})
+
+test('ループの画面からリンクを開くと、新しいウィンドウは 1024×680 で開く', async () => {
+  await start()
+  const folder = await openCurrent('proj-link')
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.body'))?.value).toBe(true)
+  const before = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)
+  await app.evaluate(async ({ webContents }, url) => {
+    await webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!.executeJavaScript('window.open("about:blank#link", "_blank"); 1', true)
+  }, 'file://' + encodeURI(join(folder, 'loops', 'index.html')))
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(before + 1)
+  const size = await app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows().find((x) => x.webContents.getURL().includes('#link'))!
+    return w.getSize()
+  })
+  expect(size).toEqual([1024, 680])
+})
+
+test('LOG のタイトルを押すと、頁の中に広げずに LOG の md を別ウィンドウで開く', async () => {
+  await start()
+  const folder = await openCurrent('proj-log')
+  const index = join(folder, 'loops', 'index.html')
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L01"]\')'))?.value).toBe(true)
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector(".record-log a")')).toBe(true)
+  // 頁の中には広げない（折りたたみ・中の枠が無い）
+  expect(await inFrame(app, '/L01.html', '!!document.querySelector("details.record-log, .record-log iframe")')).toBe(false)
+  await app.evaluate(async ({ webContents }, url) => {
+    const w = webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!
+    await w.mainFrame.framesInSubtree.find((f) => f.url.includes('/L01.html'))!.executeJavaScript('document.querySelector(".record-log a").click(); 1', true)
+  }, 'file://' + encodeURI(index))
+  await expect
+    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some((w) => w.webContents.getURL().endsWith('/loops/logs/L01.md'))))
+    .toBe(true)
 })
