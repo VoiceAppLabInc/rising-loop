@@ -519,6 +519,24 @@ test('頁の「← 一覧へ」は左上に浮かび、頁をスクロールし�
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L01"]\')'))?.value).toBe(true)
   await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
   await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.back")')).toBe(true)
+  // 頁を開いた直後から毎コマ測り、見えているあいだは必ず左上にあること（頁が出る動きのあいだは見せない）
+  const shown = (await inFrame(
+    app,
+    '/L01.html',
+    `new Promise(function (done) {
+      var out = [], t0 = performance.now()
+      ;(function tick() {
+        var b = document.querySelector("button.back"), r = b.getBoundingClientRect()
+        out.push([+getComputedStyle(b).opacity, Math.round(r.left), Math.round(r.top)])
+        if (performance.now() - t0 < 900) requestAnimationFrame(tick); else done(out)
+      })()
+    })`
+  )) as [number, number, number][]
+  const visible = shown.filter(([o]) => o > 0.01)
+  // 上下にはずれない（頁の枠を基準にずれた位置に出ない）。左から滑り込み（行き過ぎて戻る分のわずかな右は許す）、止まったら左上
+  expect(visible.every(([, l, t]) => t === 12 && l <= 12 + 10)).toBe(true)
+  expect(visible.some(([, l]) => l < 12)).toBe(true)
+  expect(shown[shown.length - 1]).toEqual([1, 12, 12])
   const where = () => inFrame(app, '/L01.html', '(function(){ var b = document.querySelector("button.back").getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), scrollY > 0] })()')
   expect(await inFrame(app, '/L01.html', 'document.querySelector("button.back").textContent')).toBe('←一覧へ')
   await expect.poll(where).toEqual([12, 12, false])

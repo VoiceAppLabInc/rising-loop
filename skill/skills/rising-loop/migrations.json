@@ -243,6 +243,24 @@
           "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span>一覧へ</button>。<span class=\"arw\"> と data-go はそのまま残す"
         }
       ]
+    },
+    {
+      "version": "2.3.6",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.7",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }
