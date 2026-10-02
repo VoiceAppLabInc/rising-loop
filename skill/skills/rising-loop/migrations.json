@@ -1,0 +1,302 @@
+{
+  "about": "既存のループの HTML に要る変化の台帳。版を上げたら、その版の項を足す（変化が無い版も、雛形の指紋だけの項を足す）。アプリが前の版からいまの版までの項目を走査し、まだ反映していない頁と一覧に、項目だけを AI に反映させる。target: pages=各ループの頁 / list=殻の一覧の行（LOOPS ブロック） / const=殻の CONST ブロック。殻の LOOPS・CONST の外と共通の部品（rising.js など）は、アプリが毎回入れ替えるので書かない。templates は雛形の指紋で、アプリのテストが雛形の変化と項目の書き忘れを見る",
+  "versions": [
+    {
+      "version": "1.7.0",
+      "templates": {
+        "loop": "5cb32d9f5bcb256b",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
+      "changes": [
+        {
+          "id": "1.7.0-chart-parts",
+          "target": "pages",
+          "what": "手で描いた図（SVG）と、数字が3つ以上並んでいる所を、図の部品 <div class=\"rl\" data-rl='{…}'></div> に置き換える。ゴール・レポート・ボトルネック・施策のどこでも対象",
+          "detail": "どの部品を使うかは references/HTML生成.md「図は部品を呼ぶ」の表で、データの形から決める（先に「見る数字」を1つ決める。bullet は受け皿）。手で SVG を描かない。図を足したら update/LXX.py にも差し替えを足す"
+        }
+      ]
+    },
+    {
+      "version": "1.7.1",
+      "templates": {
+        "loop": "42fdeb5d4d1de294",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
+      "changes": [
+        {
+          "id": "1.7.1-goal-bullet",
+          "target": "pages",
+          "what": "ゴールの進み具合の帯（.progress-track / .progress-fill と「はじめた頃」の札）を、bullet の図の部品に置き換える",
+          "detail": "雛形 assets/loop.html のゴールの <div class=\"rl\" data-rl='{\"t\":\"bullet\",\"unit\":\"@hist.unit\",\"max\":\"@hist.target\",\"now\":\"@hist.points.last.value\",\"aim\":\"@hist.target\",\"was\":\"@metric.start\",\"wasLabel\":\"はじめた頃\",\"lg\":false}'></div> と、残す <div class=\"progress-meta\"><span data-goal-diff=\"LXX\">—</span></div>"
+        },
+        {
+          "id": "1.7.1-chart-refs",
+          "target": "pages",
+          "what": "図の部品（data-rl）の中に焼き込んだ数字を、LOOP_DATA を指す参照（\"@hist.target\" のような書き方）に置き換える。次の計測で、上の大きい数字と図の数字が食い違わないようにするため",
+          "detail": "参照の書き方は references/HTML生成.md の図の部品の節"
+        }
+      ]
+    },
+    {
+      "version": "1.7.2",
+      "templates": {
+        "loop": "e238bd8fcd6b4e01",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
+      "changes": [
+        {
+          "id": "1.7.2-tid-pill",
+          "target": "pages",
+          "what": "施策の見出しの先頭に、施策の ID を <span class=\"tid-pill\">T05</span> で出す。実行中の施策（.trial-name）も、評価（.record-item の h3）も",
+          "detail": "ID は trials[].id・records[].id。施策が1件も無い頁では何もしない"
+        },
+        {
+          "id": "1.7.2-tid-ref",
+          "target": "pages",
+          "what": "本文の中の施策の ID（「T09 が入るまで」など）を <a class=\"tid-ref\"> にして、押すとその施策へ飛べるようにする"
+        },
+        {
+          "id": "1.7.2-no-done-tag",
+          "target": "pages",
+          "what": "評価（RECORD）の見出しに付いた「完了」の札（done-tag）を外す。状態は評価枠が言い、見出しは「どの施策か」だけを言う"
+        },
+        {
+          "id": "1.7.2-status-words",
+          "target": "pages",
+          "what": "施策の移した日付の語を「実施済 日付」と「観察へ 日付」の2つにそろえる（「完了 2026-09-15（TRIAL から外して観察へ）」→「観察へ 2026-09-15」、「TODO完了」「実装完了」など）。日付は残す"
+        }
+      ]
+    },
+    {
+      "version": "1.7.3",
+      "templates": {
+        "loop": "e238bd8fcd6b4e01",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
+      "changes": []
+    },
+    {
+      "version": "1.7.4",
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
+      "changes": [
+        {
+          "id": "1.7.4-trial-anchor",
+          "target": "pages",
+          "what": "実行中の施策（<div class=\"trial\">）に、飛び先 id=\"trial-LXX-TNN\" を付ける。本文の T03 から実行中の施策へ飛べるようにするため",
+          "detail": "例: <div class=\"trial\" id=\"trial-L06-T03\">。実行中の施策が無い頁では何もしない"
+        },
+        {
+          "id": "1.7.4-list-rows",
+          "target": "list",
+          "what": "一覧の各行の数字（.loop-num）を、「<b>いま</b> / 目標 単位」と、空の <div class=\"loop-delta\"></div> と、bullet の図の部品の3つにする。帯（.loop-bar）は外す",
+          "detail": "雛形 assets/index.html の LOOPS ブロックの例の行と、その上の注記。bullet の値（max・now・aim・was）は各頁の LOOP_DATA から取る（metric.start・hist.points の最後・hist.target）。百分率や色は書かない（rising.js が付ける）。上限の目標は \"aimLabel\":\"上限\""
+        },
+        {
+          "id": "1.7.4-list-note",
+          "target": "list",
+          "what": "LOOPS ブロックの先頭の注記を「この殻の一覧は、各ループ頁の LOOP_DATA の写しです。1つのループを直したら、同じターンでここも直します。」の2行にする"
+        }
+      ]
+    },
+    {
+      "version": "1.7.5",
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
+      "changes": []
+    },
+    {
+      "version": "1.7.6",
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.0.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.0.0-page-ver",
+          "target": "pages",
+          "what": "頁の <html> に、どの版の作りかの印 data-loop-ver を付ける（この作り直しで反映した版を書く）",
+          "detail": "例: <html lang=\"ja\" data-page-schema=\"2\" data-loop-ver=\"2.0.0\">"
+        },
+        {
+          "id": "2.0.0-list-ver",
+          "target": "list",
+          "what": "LOOPS ブロックの先頭に、一覧の作りの印 <!-- list-ver: 2.0.0 … --> を置く（この作り直しで反映した版を書く）",
+          "detail": "雛形 assets/index.html の LOOPS ブロックの1行目"
+        },
+        {
+          "id": "2.0.0-const-note",
+          "target": "const",
+          "what": "CONST ブロックの PANES の注記を「セッションIDはここに持たない。アプリが loops/.chat-sessions を見る」にする（chat-pane.sh は使わない）"
+        }
+      ]
+    },
+    {
+      "version": "2.1.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.2.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.1",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.1-back-link",
+          "target": "pages",
+          "what": "頁の上の「← ループ一覧」のボタン（<button class=\"back\">）の行き先を空にする（data-go=\"s-list\" を data-go=\"\" に）。s-list だと殻のアドレスが #s-list になり、ブラウザが一覧の枠まで送って一覧が少し下にずれて出るため",
+          "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span> ループ一覧</button>。ボタンの文字・見た目・位置は変えない"
+        }
+      ]
+    },
+    {
+      "version": "2.3.2",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.3",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.4",
+      "templates": {
+        "loop": "2fda97621bb1c4e8",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.4-log-link",
+          "target": "pages",
+          "what": "出来事の LOG の折りたたみ（<details class=\"record-log\"> と中の <iframe>）を、タイトルそのものを LOG の md へのリンクにした1行に置き換える。頁の中に広げず、別タブ（アプリでは別ウィンドウ）で開くため",
+          "detail": "例: <p class=\"record-log\"><a href=\"logs/L01.md\" target=\"_blank\" rel=\"noopener\">出来事のLOG<span class=\"arw\">↗</span></a></p>。タイトルの文字と行き先（href）は元の details のものをそのまま使う。畳んだループの LOG（「畳む前の L02 の出来事」など）が複数あれば、それぞれ同じ形にする。LOG が無い頁では何もしない"
+        }
+      ]
+    },
+    {
+      "version": "2.3.5",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.5-back-label",
+          "target": "pages",
+          "what": "頁の上の戻るボタン（<button class=\"back\">）の文字を「ループ一覧」から「一覧へ」にする。左上に浮かぶピルの形は rising.css が出すので、markup は文字だけ直す",
+          "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span>一覧へ</button>。<span class=\"arw\"> と data-go はそのまま残す"
+        }
+      ]
+    },
+    {
+      "version": "2.3.6",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.7",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.4.0",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.4.1",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.4.2",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.4.3",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    }
+  ]
+}

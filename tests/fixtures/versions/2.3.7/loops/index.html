@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- ═══════════════════════════════════════════════════════════════
+     rising-loop の殻（index.html）のテンプレート
+
+     保存するのはこの2か所だけ（共通部品を入れ替えるときも、ここだけ移す）:
+       CONST:BEGIN 〜 CONST:END   PROJECT_DIR / SERVICE_NAME / PANES
+       LOOPS:BEGIN 〜 LOOPS:END   一覧（合算の数字ブロック .rev と行）
+
+     ループの画面は LXX.html（assets/loop.html から作る）。この殻は iframe で出すだけ。
+     CSS と JS は rising.css / rising.js（共通部品。中身を書かない）。
+
+     この殻の一覧は、各ループ頁の LOOP_DATA の写しです。
+     1つのループを直したら、同じターンでここも直します。
+
+     詳しくは ../references/HTML生成.md
+     ═══════════════════════════════════════════════════════════════ -->
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- ★<title> は rising.js が SERVICE_NAME から入れ直す -->
+<title>ライジング・ループ</title>
+<link rel="stylesheet" href="rising.css" />
+<link rel="stylesheet" href="project.css" /><!-- プロジェクト独自の CSS。無ければ無いでよい。「合わせて」で上書きされない -->
+</head>
+<body>
+
+<!-- ═════════ 定数。★ここは要書き換え ═════════ -->
+<!-- CONST:BEGIN -->
+<script>
+  //=== ⚠️ この CONST と下の LOOPS の中身（サービス名・ループ名・数字）は、
+  //===    形式を見せるための架空例です。構造だけ借りて、必ず実データで置き換えてください。
+  //===    （このブロックは split-index.py / shell-update.py が丸ごと差し替えるので、注記も残りません）
+  //=== ★このプロジェクトの絶対パス（loops/ の親）。右ペインの AI はここを cwd にして動く
+  //===   忘れると別プロジェクトの cwd で動く
+  var PROJECT_DIR = '/絶対パス/プロジェクト';
+  //=== ★サービス名。<title> と一覧の見出しに入る
+  var SERVICE_NAME = '（サービス名）';
+  //=== ★右ペインを立てる画面IDの一覧。ループを足したらここにも足す（右ペイン専用。画面の切り替えは見ない）。
+  //===   セッションIDはここに持たない。アプリが loops/.chat-sessions を見る
+  var PANES = ['s-list','s-L01','s-L02'];
+</script>
+<!-- CONST:END -->
+
+<div class="page">
+<!-- LOOPS:BEGIN -->
+<!-- list-ver: 2.0.0 （一覧の行がどの版の作りかの印。台帳 migrations.json の一覧の項目を反映したら、その版に書き換える。消さない） -->
+<!-- ★一覧の行（1.7.4）: .loop-num の中は3つだけ。
+     <b>いま</b> / 目標 単位
+     <div class="loop-delta"></div>           ← 空のまま。rising.js が「↑ はじめより +75%」を入れる
+     <div class="rl rl-tight" data-rl='{"t":"bullet","unit":…,"max":目標,"now":いま,"aim":目標,"was":はじめ,"axis":false,"lg":false}'></div>
+     行の左の帯（緑／赤）と数字の色は rising.js がブレットから決める。**百分率を自分で書かない。**
+     上限の目標（コストなど）は "aimLabel":"上限" を足すと、上がったときが赤になる -->
+
+<!-- ═════════ 一覧 ═════════ -->
+<section class="screen" id="s-list">
+  <div class="flow">
+    <div class="section">
+      <div class="kicker">RISING LOOP</div>
+      <div class="section-head" style="margin-top:7px">
+        <h1 class="goal-name" style="margin-top:0">（サービス名）ライジング・ループ</h1>
+        <div class="head-right">
+          <button class="upd" data-upd="all">全ループ更新</button>
+          <button class="cmt" data-sec="ループ一覧" data-loop="ループ一覧">コメント</button>
+        </div>
+      </div>
+      <!--=== 主要な数字。このサービスで一番の数字を大きく1つ、内訳を小さく2〜4個、いつ時点かを1行。必ず置く（消さない）。
+           何を置くかは AI が決める（references/HTML生成.md「主要な数字」）。決めた理由を次の行のコメントに1行残す ===-->
+      <!--=== なぜこの数字: 売上がこの店の目的で、README の visits で毎回取れる。各ループの GOAL（再来率・新規）とは重ならない ===-->
+      <div class="rev">
+        <div class="rev-total">売上 <b>2,767,600円</b> <span class="rev-when">直近30日（8/19〜9/17）</span></div>
+        <div class="rev-break">来店 324件（新規 56・再来 268）・客単価 8,541円</div>
+        <div class="rev-note">9/17 時点（データ最終日）。取り方は `python3 scripts/report.py visits 30`</div>
+      </div>
+    </div>
+    <div class="section tabbed t-loops">
+      <div class="sec-tab t-loops"><span class="k">LOOPS</span><span class="ja">ループ一覧</span></div>
+      <div class="sec-right"><button class="add-loop">ループを追加</button></div>
+      <!--=== 一覧が0件のときは .loop-list の代わりにこれを出す（文言の正は SKILL.md「毎回やること」の10個。書き換えない）
+      <div class="loop-ideas">
+        <div class="li-head">例えばこんな目標</div>
+        <ul>
+          <li>申し込みを増やしたい</li><li>見込み客を増やしたい</li><li>翌日また来る人を増やしたい</li><li>有料に切り替える人を増やしたい</li><li>解約を減らしたい</li>
+          <li>TOEIC の点を上げたい</li><li>YouTube の登録者を増やしたい</li><li>株の含み益を増やしたい</li><li>体重を落としたい</li><li>貯金を毎月積みたい</li>
+        </ul>
+        <p>右上の「ループを追加」から送ると、AI が目標の数字と窓を聞いて作ります。</p>
+      </div>
+      ===-->
+      <div class="loop-list">
+        <button class="loop-row" data-go="s-L01">
+          <div>
+            <div class="loop-name"><span class="lid-pill">L01</span>有料チケットの売上を、月 15,000円 に</div>
+            <div class="loop-sub">鍵をタップする人は増えているのに、買う人が増えていない<br>施策評価：購入は発生。ボタン単独の効果は評価待ち。</div>
+          </div>
+          <div class="loop-num"><b>1,750</b> / 15,000円<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"円","max":15000,"now":1750,"aim":15000,"was":900,"axis":false,"lg":false}'></div></div>
+          <div class="state"><div class="st run"><span class="st-dot"></span><span class="st-n">2</span><span class="st-lb">実行中</span></div><div class="st rev"><span class="st-dot"></span><span class="st-n">1</span><span class="st-lb">評価中</span></div></div>
+          <div class="chev">→</div>
+        </button>
+
+        <button class="loop-row" data-go="s-L02">
+          <div>
+            <div class="loop-name"><span class="lid-pill">L02</span>来た人が、次の日もまた来る割合を 30% に</div>
+            <div class="loop-sub">初日ごとの振れが極端（18/4/7/19/14%）。翌日が揃った3日なら14%</div>
+          </div>
+          <div class="loop-num"><b>11</b> / 30%<div class="loop-delta"></div><div class="rl rl-tight" data-rl='{"t":"bullet","unit":"%","max":30,"now":11,"aim":30,"was":14,"axis":false,"lg":false}'></div></div>
+          <div class="state"><div class="st idle"><span class="st-dot"></span>施策待ち</div></div>
+          <div class="chev">→</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- LOOPS:END -->
+</div>
+
+<!-- ループの画面はここに出る（LXX.html）。★src は書かない。
+     rising.js が contentWindow.location.replace で差し替える（履歴は殻の hash だけに一本化） -->
+<iframe id="loop-frame" title="ループの画面"></iframe>
+
+<!-- コメント・指示の入力の窓はアプリが出す（rising.js が window.rlaApp.ask を呼ぶ） -->
+<!-- 右のチャットの窓はアプリが持ち、この画面の右に並べる（殻には置かない）。
+     どの画面にチャットを付けるかは、アプリが CONST の PANES を読んで決める -->
+<!-- 殻の版。アプリが版の判定に使う（見えない）。使い方・右の窓の開閉・版の表示はアプリのタブの列にある -->
+<span class="ver" hidden>v2.3.7</span>
+
+<script src="rising.js"></script>
+
+</body>
+</html>

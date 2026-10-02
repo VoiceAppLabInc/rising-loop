@@ -1,0 +1,222 @@
+/* 上のタブの列の高さは main/views.ts の TAB_H と合わせる。
+   色の決まり：色は使わず墨の濃さで分ける。いま・オンは塗り（明るい地では墨、濃い列では白・紙）。
+   赤は「取り消せない・失敗」、カードの橙・緑は知らせの意味だけに使う */
+:root {
+  --tab-h: 48px;
+  --setup-h: 112px; /* main/views.ts の SETUP_HEAD_H と合わせる */
+  --fg: #1a1a19;
+  --sub: #6a6a68;
+  --line: #e2e2e0;
+  --ink: #1a1a19;
+  --ring: rgba(26, 26, 25, 0.28);
+  /* 濃いタブの列 */
+  --bar: #1c1c1b;
+  --bar-edge: #0e0e0d;
+  --bar-fg: #c8c8c4;
+  --bar-hover: #2c2c2a;
+  --bar-press: #383836;
+  --bar-groove: #2a2a28;
+  --paper: #f0f2ed; /* いまのタブ（ループの画面の地と同じ） */
+  font: 13px -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  color: var(--fg);
+}
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body { background: #fff; }
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.tabs {
+  height: var(--tab-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  background: var(--bar);
+  /* 下の境目の線は高さに含めない（含めると、タブを上下の真ん中に置く範囲が 1px 狭まり、上に寄る） */
+  box-shadow: inset 0 -1px 0 var(--bar-edge);
+  color: var(--bar-fg);
+  -webkit-app-region: drag;
+}
+.controls-left .tabs { padding-left: 86px; } /* Mac の閉じる・最小化ボタンの分（platform.ts の trafficLightPosition） */
+.controls-right .tabs { padding-right: 150px; } /* Windows の最小化・最大化・閉じるボタンの分 */
+.tabs button { -webkit-app-region: no-drag; font: inherit; cursor: pointer; }
+.nav { display: flex; gap: 2px; }
+/* タブは溝の中に並べ、いまのタブだけ明るい紙のつまみにする */
+.track { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 3px; border-radius: 10px; background: var(--bar-groove); }
+.tab {
+  height: 30px;
+  max-width: 200px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--bar-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color 0.12s, color 0.12s, transform 0.05s;
+}
+.tab:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.tab:active { background: rgba(255, 255, 255, 0.1); transform: translateY(1px); }
+.tab:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.tab[aria-selected='true'], .tab[aria-selected='true']:hover { font-weight: 700; background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); transform: none; }
+
+.body { flex: 1; position: relative; }
+.empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; }
+.empty h1 { margin: 0; font-size: 16px; font-weight: 600; }
+.empty p { margin: 0 0 8px; color: var(--sub); }
+.empty .btn { justify-self: center; }
+.setup-head {
+  height: var(--setup-h);
+  padding: 22px 28px 0;
+  background: #16171a;
+  color: #e6e6e6;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.setup-head p { margin: 0; }
+.setup-head .sub { color: #8b8d94; font-size: 12px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ループの画面の上に浮かぶカード（main が重ねる透明な層に描く）。D1：上の真ん中に、小さめに1行 */
+body.overlay, body.overlay #root { background: transparent; height: auto; overflow: hidden; }
+.overlay-box { display: inline-block; padding: 8px 14px 16px; }
+.card { display: inline-flex; align-items: center; gap: 8px; max-width: 760px; padding: 6px 8px 6px 7px; border-radius: 9px; background: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.06); font-size: 12px; color: var(--fg); }
+.card .ico { width: 20px; height: 20px; border-radius: 6px; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; flex: none; }
+.card .msg { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.card.warn .ico { background: #d97706; }
+.card.work .ico { background: #2563eb; }
+.card.done .ico { background: #2f7d32; }
+.card.stop .ico { background: #b42318; }
+.spin { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-right-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ボタンの共通部品（Button.tsx）。押せることが分かるように、指のカーソル・乗せたら濃く・押すと沈む・キーボードで選ぶと輪・押せないと薄く */
+.btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s, transform 0.05s;
+}
+.btn-md { height: 32px; padding: 0 14px; font-size: 13px; }
+.btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.btn .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.btn-primary:hover:not(:disabled) { background: #3a3a38; border-color: #3a3a38; }
+.btn-primary:active:not(:disabled) { background: #000; border-color: #000; box-shadow: none; }
+
+.btn-secondary { background: #fff; border-color: #d6d6d3; color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.btn-secondary:hover:not(:disabled) { background: #f1f1ef; border-color: #bdbdb9; }
+.btn-secondary:active:not(:disabled) { background: #e4e4e1; border-color: #adada9; box-shadow: none; }
+.btn-secondary[aria-pressed='true'] { background: #e4e4e1; border-color: #adada9; }
+
+.btn-danger { background: #fff; border-color: #d9534f; color: #c0392b; }
+.btn-danger:hover:not(:disabled) { background: #fdecea; }
+.btn-danger:active:not(:disabled) { background: #f9d6d2; }
+
+.btn-danger-solid { background: #b42318; border-color: #b42318; color: #fff; }
+.btn-danger-solid:hover:not(:disabled) { background: #961d13; border-color: #961d13; }
+.btn-danger-solid:active:not(:disabled) { background: #7a170f; border-color: #7a170f; }
+
+.btn-dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn-dark:hover:not(:disabled) { background: #3a3a38; border-color: #3a3a38; }
+.btn-dark:active:not(:disabled) { background: #000; border-color: #000; }
+
+.btn-quiet { background: transparent; color: var(--sub); font-weight: 400; }
+.btn-quiet:hover:not(:disabled) { background: #ebebe9; color: var(--fg); }
+.btn-quiet:active:not(:disabled) { background: #dededb; }
+
+/* 濃いタブの列の上の操作。色を持たず、乗せると明るく、オン（窓が開いている・設定を開いている）のときだけ白く塗る */
+.btn-bar { background: transparent; color: var(--bar-fg); }
+.btn-bar:hover:not(:disabled) { background: var(--bar-hover); color: #fff; }
+.btn-bar:active:not(:disabled) { background: var(--bar-press); }
+.btn-bar:disabled { opacity: 0.3; cursor: default; }
+.btn-bar:focus-visible { box-shadow: 0 0 0 2px #fff; }
+.btn-bar[aria-pressed='true'], .btn-bar[aria-pressed='true']:hover:not(:disabled) { background: #fff; color: var(--ink); }
+.tabs .btn-sm { height: 32px; padding: 0 11px; gap: 6px; font-size: 12.5px; }
+.tabs .btn-icon { width: 32px; padding: 0; }
+
+/* カードの小さなボタンと ✕ */
+.card .btn-sm { height: 24px; padding: 0 9px; }
+.card .btn-x { width: 24px; padding: 0; }
+
+.backdrop { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(20, 21, 24, 0.32); z-index: 10; }
+.dialog { width: 420px; padding: 20px 22px 16px; border-radius: 10px; background: #fff; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); }
+.dialog h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+.dialog p { margin: 0 0 8px; line-height: 1.6; color: var(--fg); }
+.dialog .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
+
+/* コメント・指示の入力の窓（2.3.0 からの殻が頼む） */
+.dialog.ask { width: 540px; max-width: calc(100vw - 32px); }
+.ask-kick { margin-bottom: 6px; color: var(--sub); font: 700 10px ui-monospace, monospace; letter-spacing: 0.12em; }
+.dialog .ask-sub { color: var(--sub); white-space: pre-wrap; }
+.ask-input { display: block; width: 100%; min-height: 110px; margin-top: 10px; padding: 10px 12px; border: 1px solid #d3d5da; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.7; resize: vertical; }
+.ask-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--ring); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ask-chips .btn { font-weight: 400; }
+.ask-hint { margin-right: auto; }
+
+/* タブの列の右端（使い方・AI の窓・設定） */
+.tab-actions { margin-left: auto; align-self: center; display: flex; gap: 6px; -webkit-app-region: no-drag; }
+
+/* 設定画面（タブの列の下をおおう）。行は「項目名・値・右端のボタン」の3列で、高さをそろえる */
+.dialog.settings { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); display: flex; flex-direction: column; padding: 20px 28px 18px; }
+.settings-body { flex: 1; min-height: 0; overflow: auto; }
+.dialog .settings-foot { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
+.settings-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; }
+.settings-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
+.settings-sec { padding: 16px 0 18px; border-top: 1px solid var(--line); }
+.settings-sec h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.settings-sec h4 { margin: 0; font-size: 13px; font-weight: 600; }
+.settings .row { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.settings .key { width: 160px; flex: none; color: var(--sub); }
+.settings .val { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; }
+.settings .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings .act { flex: none; margin-left: auto; display: flex; gap: 8px; }
+.settings .act .btn { min-width: 96px; }
+.settings .choice { display: inline-flex; align-items: center; gap: 6px; }
+input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
+.settings .note { margin: 2px 0 0 172px; }
+.sub { color: var(--sub); font-size: 12px; }
+.danger { margin-top: 16px; padding: 6px 14px; border: 1px solid #f0c6c0; border-radius: 8px; }
+.danger .row { min-height: 56px; }
+.danger-text { flex: 1; min-width: 0; }
+.danger-text p { margin: 3px 0 0; }
+.state { font-weight: 600; }
+.state-ready { color: #3f7a2a; }
+.state-login, .state-missing { color: #b0661a; }
+.tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.tool-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f4f4f2; font-size: 12px; }
+.tool-term { height: 260px; padding: 6px; background: #16171a; }
+
+/* 使い方 */
+.dialog.howto { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 80px); overflow: auto; padding-top: 0; }
+.howto-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 -22px; padding: 18px 22px 16px; background: var(--bar); color: #fff; border-radius: 10px 10px 0 0; }
+.howto-head h2 { margin: 0; font-size: 17px; }
+.howto-head .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; opacity: 0.7; line-height: 1.2; }
+.howto-head .brand b { color: #ccef67; font: 800 30px/1.05 ui-monospace, Menlo, monospace; letter-spacing: 0.2em; }
+.howto-head .brand i { font-style: normal; font-size: 10px; color: #dfe6d6; }
+.dialog .lede { margin: 12px 0 0; color: var(--sub); line-height: 1.65; }
+/* 使い方の本文は、ほかより一回り大きく */
+.howto .lede, .howto .steps, .howto .free { font-size: 14.5px; }
+.howto-cols { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-top: 14px; align-items: start; }
+.howto-fig svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
+.steps { margin: 0; padding-left: 20px; line-height: 1.65; }
+.steps li { padding: 6px 0; }
+.free { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #f4f4f2; line-height: 1.6; }
+.free ul { margin: 4px 0 0; padding-left: 18px; }
+.dialog .actions .note { margin-right: auto; color: var(--sub); font-size: 12px; align-self: center; }
+.paths { margin: 6px 0 10px; padding-left: 18px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }

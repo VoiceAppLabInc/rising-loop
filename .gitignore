@@ -1,4 +1,12 @@
 .DS_Store
+node_modules/
+out/
+dist/
+test-results/
+playwright-report/
+__pycache__/
+# 配るときに同梱する Python（scripts/fetch-python.mjs が落とす）
+vendor/
+# スキル版の頃の作業場（手元だけ）
 _design/
 assets/img/
-__pycache__/
