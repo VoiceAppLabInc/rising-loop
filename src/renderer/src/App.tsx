@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
 import type { ProjectsSnapshot } from '@shared/types'
 import { Button } from './Button'
+import { Icon } from './Icon'
 import { Settings } from './Settings'
 
 // アプリの画面（タブの列・設定・プロジェクトが無いときの画面）。ダイアログはループの画面より上の透明な層（Overlay.tsx）に描く。
@@ -20,6 +21,7 @@ export function App() {
   // 2.1.0 からの殻は、使い方と右の窓の開閉をアプリのタブの列に出す（それより前の殻は自分のボタンを持っている）
   const shellNew = !!form?.shellVersion && compareVersions(form.shellVersion, '2.1.0') >= 0
   const paneOpen = current ? (snap?.panes[current.id] ?? true) : true
+  const nav = (current && snap?.nav[current.id]) || { back: false, forward: false }
 
   // 設定は画面全体をおおうので、そのあいだは main が重ねている画面を隠す（設定が下に隠れるため）
   useEffect(() => {
@@ -35,35 +37,58 @@ export function App() {
 
   return (
     <div className={`app controls-${window.rla.controls}`}>
-      <header className="tabs" role="tablist">
-        {snap.projects.map((p) => (
-          <button
-            key={p.id}
-            role="tab"
-            className="tab"
-            aria-selected={p.id === snap.currentId}
-            title={p.folder}
-            onClick={() => void window.rla.selectProject(p.id).then(setSnap)}
-          >
-            {p.name}
-          </button>
-        ))}
-        <Button variant="quiet" size="sm" className="tab-add" title="フォルダを開く" onClick={add}>
-          <span className="plus">＋</span>プロジェクトを追加
+      <header className="tabs">
+        {/* 戻る・進む。履歴はタブごと（そのタブのループの画面の履歴をたどる） */}
+        <div className="nav">
+          <Button variant="bar" size="sm" className="btn-icon" aria-label="戻る" title="戻る" disabled={!nav.back} onClick={() => current && void window.rla.go(current.id, -1)}>
+            <Icon name="back" />
+          </Button>
+          <Button variant="bar" size="sm" className="btn-icon" aria-label="進む" title="進む" disabled={!nav.forward} onClick={() => current && void window.rla.go(current.id, 1)}>
+            <Icon name="forward" />
+          </Button>
+        </div>
+        {snap.projects.length > 0 && (
+          <div className="track" role="tablist">
+            {snap.projects.map((p) => (
+              <button
+                key={p.id}
+                role="tab"
+                className="tab"
+                aria-selected={p.id === snap.currentId}
+                title={p.folder}
+                onClick={() => void window.rla.selectProject(p.id).then(setSnap)}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+        )}
+        <Button variant="bar" size="sm" title="フォルダを開く" onClick={add}>
+          <Icon name="plus" />
+          プロジェクトを追加
         </Button>
         <div className="tab-actions">
           {current && shellNew && (
             <>
-              <Button size="sm" onClick={() => window.rla.openDialog({ kind: 'howto' })}>
-                ? 使い方
+              <Button variant="bar" size="sm" onClick={() => window.rla.openDialog({ kind: 'howto' })}>
+                <Icon name="help" />
+                使い方
               </Button>
-              <Button size="sm" className="btn-ai" aria-pressed={paneOpen} onClick={() => void window.rla.setPane(current.id, !paneOpen).then(setSnap)}>
-                {paneOpen ? 'AI ▸' : 'AI ◂'}
+              {/* 開いているとき（オン）だけ白く塗る */}
+              <Button
+                variant="bar"
+                size="sm"
+                aria-pressed={paneOpen}
+                title={paneOpen ? 'AI の窓を閉じる' : 'AI の窓を開く'}
+                onClick={() => void window.rla.setPane(current.id, !paneOpen).then(setSnap)}
+              >
+                <Icon name="chat" />
+                AI
               </Button>
             </>
           )}
-          <Button size="sm" className="btn-gear" aria-label="設定" title="設定" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)}>
-            ⚙
+          <Button variant="bar" size="sm" className="btn-icon" aria-label="設定" title="設定" aria-pressed={settingsOpen} onClick={() => setSettingsOpen(!settingsOpen)}>
+            <Icon name="gear" />
           </Button>
         </div>
       </header>

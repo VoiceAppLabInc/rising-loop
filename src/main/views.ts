@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path'
 import { BrowserWindow, WebContentsView, net, session, webFrameMain, type Session } from 'electron'
 import { PANE_PORT, parsePaneUrl, screenOfUrl } from '@shared/intercept'
 import { compareVersions } from '@shared/migrate'
+import { navKeyDir } from './platform'
 import { classifyChange, mergeChanges, type Change } from '@shared/reload'
 import type { Project } from '@shared/types'
 
@@ -55,6 +56,7 @@ export class ProjectViews {
   private shells = new Map<string, { appChat: boolean; panes: string[] }>()
   private changed: () => void = () => undefined
   private added: () => void = () => undefined
+  private navigated: () => void = () => undefined
   private shownId: string | null = null
   private projects = new Map<string, Project>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
@@ -144,7 +146,18 @@ export class ProjectViews {
     void v.webContents.loadFile(loopsIndex(p.folder))
     v.webContents.on('did-finish-load', () => void this.readShell(p, v))
     // 画面の切り替えは殻の hash（#s-L01）。右のチャットをその画面のものにする
-    v.webContents.on('did-navigate-in-page', () => this.syncChat(p))
+    v.webContents.on('did-navigate-in-page', () => {
+      this.syncChat(p)
+      this.navigated()
+    })
+    v.webContents.on('did-navigate', () => this.navigated())
+    // Chrome・Safari と同じキーで戻る・進む（右のチャットの窓では効かない。そちらは入力の行の移動に使う）
+    v.webContents.on('before-input-event', (e, input) => {
+      const dir = navKeyDir(input, process.platform)
+      if (!dir) return
+      e.preventDefault()
+      this.go(p.id, dir)
+    })
     this.watch(p.id, p.folder, v)
     return v
   }
@@ -253,6 +266,27 @@ export class ProjectViews {
     this.setups.delete(id)
     this.win.contentView.removeChildView(v)
     v.webContents.close()
+  }
+
+  /** 戻る・進むができるか。履歴はプロジェクト（タブ）ごとのループの画面が持つ（殻が画面を切り替えるたびに hash の履歴を積む） */
+  navState(id: string): { back: boolean; forward: boolean } {
+    const v = this.views.get(id)
+    if (!v || v.webContents.isDestroyed()) return { back: false, forward: false }
+    const h = v.webContents.navigationHistory
+    return { back: h.canGoBack(), forward: h.canGoForward() }
+  }
+
+  go(id: string, dir: -1 | 1): void {
+    const v = this.views.get(id)
+    if (!v || v.webContents.isDestroyed()) return
+    const h = v.webContents.navigationHistory
+    if (dir < 0 && h.canGoBack()) h.goBack()
+    if (dir > 0 && h.canGoForward()) h.goForward()
+  }
+
+  /** ループの画面で画面が移ったときに呼ぶ */
+  onNavigated(cb: () => void): void {
+    this.navigated = cb
   }
 
   /** 画面を足したあとに呼ぶ */

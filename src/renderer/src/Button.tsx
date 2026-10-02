@@ -15,6 +15,8 @@ export type ButtonVariant =
   | 'dark'
   /** 文字だけの控えめな操作（✕・＋ など） */
   | 'quiet'
+  /** 濃いタブの列の上の操作（色を持たない。オンのときだけ白く塗る） */
+  | 'bar'
 
 export function Button({
   variant = 'secondary',

@@ -20,6 +20,8 @@ const api = {
   pickFolder: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:pick-folder', id),
   removeProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:remove', id),
   setPane: (id: string, on: boolean): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:pane', id, on),
+  /** そのタブのループの画面で、戻る（-1）・進む（1） */
+  go: (id: string, dir: -1 | 1): Promise<void> => ipcRenderer.invoke('loops:go', id, dir),
   aiStatus: (): Promise<AiStatus[]> => ipcRenderer.invoke('ai:status'),
   runTool: (ai: AiKind, kind: 'install' | 'login', cols: number, rows: number): Promise<boolean> => ipcRenderer.invoke('ai:run', ai, kind, cols, rows),
   toolInput: (d: string): void => ipcRenderer.send('tool:input', d),

@@ -97,6 +97,27 @@ export function installCommand(ai: 'claude' | 'codex', platform: Platform): Comm
 }
 
 /** ログインは公式のコマンドで、ブラウザに任せる（アプリはトークンを扱わない） */
+/**
+ * 戻る・進むのキー（Chrome・Safari と同じ）。戻るなら -1、進むなら 1、ほかは null。
+ * Mac は ⌘[ ⌘] と ⌘← ⌘→、Windows などは Alt+← Alt+→。ほかの修飾キーが混ざっていれば何もしない
+ */
+export function navKeyDir(
+  input: { type: string; key: string; meta: boolean; control: boolean; alt: boolean },
+  platform: Platform
+): -1 | 1 | null {
+  if (input.type !== 'keyDown') return null
+  if (platform === 'darwin') {
+    if (!input.meta || input.control || input.alt) return null
+    if (input.key === '[' || input.key === 'ArrowLeft') return -1
+    if (input.key === ']' || input.key === 'ArrowRight') return 1
+    return null
+  }
+  if (!input.alt || input.control || input.meta) return null
+  if (input.key === 'ArrowLeft') return -1
+  if (input.key === 'ArrowRight') return 1
+  return null
+}
+
 export const loginArgs = (ai: 'claude' | 'codex'): string[] => (ai === 'claude' ? ['auth', 'login'] : ['login'])
 /** ログインの状態を調べるコマンドの引数 */
 export const statusArgs = (ai: 'claude' | 'codex'): string[] => (ai === 'claude' ? ['auth', 'status'] : ['login', 'status'])

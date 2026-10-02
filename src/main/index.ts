@@ -11,7 +11,7 @@ import { loadSettings, saveSettings } from './appSettings'
 import { findOldSkills } from './oldSkills'
 import { ToolRunner } from './tools'
 import { Chats } from './chat'
-import { childEnv, findCli, installCommand, loadShellEnv, loginArgs, parseLoggedIn, statusArgs, windowChrome } from './platform'
+import { childEnv, findCli, installCommand, loadShellEnv, loginArgs, navKeyDir, parseLoggedIn, statusArgs, windowChrome } from './platform'
 import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
@@ -143,8 +143,12 @@ function snapshot(): ProjectsSnapshot {
     forms[p.id] = formOf(p)
   }
   const panes: Record<string, boolean> = {}
-  for (const p of state.projects) panes[p.id] = views?.paneOpen(p.id) ?? true
-  return { ...state, hasLoops: hasLoopsMap, forms, panes, skillVersion: skillVersion(), appVersion: app.getVersion() }
+  const nav: ProjectsSnapshot['nav'] = {}
+  for (const p of state.projects) {
+    panes[p.id] = views?.paneOpen(p.id) ?? true
+    nav[p.id] = views?.navState(p.id) ?? { back: false, forward: false }
+  }
+  return { ...state, hasLoops: hasLoopsMap, forms, panes, nav, skillVersion: skillVersion(), appVersion: app.getVersion() }
 }
 
 /** いまのプロジェクトを出し、カードの層をループの画面のさらに上に置き直す */
@@ -260,6 +264,16 @@ function createWindow(): void {
   // AI が loops/ を書き換えたら、形を見分け直す（作り直しが終われば帯が消える）
   views.onLoopsChanged(() => broadcast(showCurrent()))
   views.onViewAdded(() => layoutOverlay())
+  // タブの列（アプリの画面）でも、Chrome・Safari と同じキーで、いまのタブを戻る・進む（ダイアログのあいだは効かない）
+  win.webContents.on('before-input-event', (e, input) => {
+    const dir = navKeyDir(input, process.platform)
+    const p = current()
+    if (!dir || !p || overlayDialog) return
+    e.preventDefault()
+    views?.go(p.id, dir)
+  })
+  // ループの画面で画面が移ったら、戻る・進むの状態を送り直す
+  views.onNavigated(() => broadcast(snapshot()))
   overlay = new WebContentsView({
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true, backgroundThrottling: !hidden }
   })
@@ -397,6 +411,7 @@ ipcMain.handle('projects:remove', (_e, id: string) => {
 })
 
 /** 右の窓の開閉（アプリのタブの列の［AI の窓］） */
+ipcMain.handle('loops:go', (_e, id: string, dir: -1 | 1) => views?.go(id, dir))
 ipcMain.handle('loops:pane', (_e, id: string, on: boolean) => {
   views?.setPane(id, on)
   layoutOverlay()

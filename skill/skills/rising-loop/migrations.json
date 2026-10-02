@@ -193,6 +193,15 @@
           "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span> ループ一覧</button>。ボタンの文字・見た目・位置は変えない"
         }
       ]
+    },
+    {
+      "version": "2.3.2",
+      "templates": {
+        "loop": "a5e259a05ac4a2b0",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findCliIn, installCommand, killCommand, loginArgs, parseLoggedIn, resolveWinShim, windowChrome } from '../../src/main/platform'
+import { findCliIn, installCommand, killCommand, loginArgs, navKeyDir, parseLoggedIn, resolveWinShim, windowChrome } from '../../src/main/platform'
 
 const fsOf = (files: Record<string, string>) => ({
   exists: (p: string) => p in files,
@@ -118,5 +118,29 @@ describe('ログインの状態を読む', () => {
   it('codex は login status が成功して「Logged in」を含むか', () => {
     expect(parseLoggedIn('codex', 'Logged in using ChatGPT', 0)).toBe(true)
     expect(parseLoggedIn('codex', 'Not logged in', 1)).toBe(false)
+  })
+})
+
+describe('戻る・進むのキー（Chrome・Safari と同じ）', () => {
+  const key = (k: string, mods: { meta?: boolean; control?: boolean; alt?: boolean; shift?: boolean } = {}, type = 'keyDown') => ({ type, key: k, meta: false, control: false, alt: false, shift: false, ...mods })
+  it('Mac は ⌘[ ⌘] と ⌘← ⌘→', () => {
+    expect(navKeyDir(key('[', { meta: true }), 'darwin')).toBe(-1)
+    expect(navKeyDir(key(']', { meta: true }), 'darwin')).toBe(1)
+    expect(navKeyDir(key('ArrowLeft', { meta: true }), 'darwin')).toBe(-1)
+    expect(navKeyDir(key('ArrowRight', { meta: true }), 'darwin')).toBe(1)
+  })
+  it('Mac で ⌘ が無い・ほかの修飾キーが混ざる・離したときは何もしない', () => {
+    expect(navKeyDir(key('['), 'darwin')).toBeNull()
+    expect(navKeyDir(key('ArrowLeft', { alt: true }), 'darwin')).toBeNull()
+    expect(navKeyDir(key('ArrowLeft', { meta: true, alt: true }), 'darwin')).toBeNull()
+    expect(navKeyDir(key('[', { meta: true, control: true }), 'darwin')).toBeNull()
+    expect(navKeyDir(key('[', { meta: true }, 'keyUp'), 'darwin')).toBeNull()
+  })
+  it('Windows は Alt+← Alt+→ だけ', () => {
+    expect(navKeyDir(key('ArrowLeft', { alt: true }), 'win32')).toBe(-1)
+    expect(navKeyDir(key('ArrowRight', { alt: true }), 'win32')).toBe(1)
+    expect(navKeyDir(key('[', { control: true }), 'win32')).toBeNull()
+    expect(navKeyDir(key('ArrowLeft', { alt: true, control: true }), 'win32')).toBeNull()
+    expect(navKeyDir(key('ArrowLeft', { meta: true }), 'win32')).toBeNull()
   })
 })

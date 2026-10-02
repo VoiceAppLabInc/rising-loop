@@ -89,7 +89,7 @@ README にも `index.html` にも写しを持たせない（写しがあると�
 ```
 
 - **値は CONST ブロックだけに置く。** `<title>`・見出しのサービス名は `rising.js` が、`PROJECT_DIR`・`PANES` はアプリがここから読む。**ベタ書きしない**（原理7）
-- 画面の切り替えは `show()`。**頁の差し替えは `loopFrame.contentWindow.location.replace('L03.html')`**。⚠️ `iframe.src = …` にしない——殻の履歴に積まれ、戻るボタンで iframe だけ戻って hash とずれる。**初回も `replace`**（`src` 属性を後から付けると、Safari は about:blank → 頁 を履歴に積み、戻るを重ねたとき iframe だけ空になる。★ 2026-09-17 の検証で実際に起きた）
+- 画面の切り替えは `show()`。**頁を替えるときは `loop-frame` を新しく作り直す**（`src` を付けた iframe を作ってから `replaceWith` で差し込む）。⚠️ 同じ iframe の中身を差し替えない（`location.replace` も `iframe.src = …` も）——ブラウザの履歴が殻の hash と iframe の中身を一緒に覚え、戻る・進むで iframe だけ昔の頁に戻されて hash とずれる（★ 2.3.2 で直した。一覧 → A → 一覧 → B → 一覧 → A から戻ると、一覧が続いたり1つずれたりした）。⚠️ 差し込んだあとに `src` を付けない（Safari は about:blank → 頁 を履歴に積む。★ 2026-09-17 の検証で実際に起きた）
 - **履歴は殻の hash だけが持つ**（`index.html#s-list` / `#s-L01`）。`hashchange` のリスナを増やさない。同じ id なら再読込しない
 - `loop-frame` は縦いっぱい・中スクロール。**対象はアプリの中の Chromium**。印刷は対象外（必要なら `LXX.html` を単体で開く）
 

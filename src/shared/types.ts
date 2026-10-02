@@ -61,6 +61,8 @@ export interface FormInfo {
 
 /** 画面に渡す一覧。loops/index.html があるか、loops/ の形、同梱のスキルの版を添える */
 export interface ProjectsSnapshot extends ProjectsState {
+  /** プロジェクトごとの戻る・進むができるか（そのタブのループの画面の履歴） */
+  nav: Record<string, { back: boolean; forward: boolean }>
   hasLoops: Record<string, boolean>
   forms: Record<string, FormInfo>
   /** 右の窓を開いているか（プロジェクトごと） */

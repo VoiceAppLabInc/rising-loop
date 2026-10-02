@@ -163,14 +163,14 @@ test('いまの殻では、タブの列に使い方と AI の窓の開閉を出�
   expect(l.chat!.x).toBe(l.width - 360)
   expect(l.loops!.width).toBe(l.width - 360)
   // 開閉はアプリのボタンから
-  await win.getByRole('button', { name: 'AI ▸' }).click()
+  await win.getByRole('button', { name: 'AI', exact: true, pressed: true }).click()
   await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(false)
   l = await layoutOf()
   expect(l.loops!.width).toBe(l.width)
-  await win.getByRole('button', { name: 'AI ◂' }).click()
+  await win.getByRole('button', { name: 'AI', exact: true, pressed: false }).click()
   await expect.poll(async () => (await layoutOf()).loops?.width).toBe(l.width - 360)
   // 使い方は、いつでも開ける（開き直しても自動では開かない）
-  await win.getByRole('button', { name: '? 使い方' }).click()
+  await win.getByRole('button', { name: '使い方' }).click()
   await expect((await dialogOf(app))).toContainText(`スキル v${CURRENT}`)
 })
 
@@ -181,8 +181,8 @@ test('前の版の殻では、殻が自分のボタンを持つので、アプ�
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await later(app)
-  await expect(win.getByRole('button', { name: '? 使い方' })).toHaveCount(0)
-  await expect(win.getByRole('button', { name: /AI [▸◂]/ })).toHaveCount(0)
+  await expect(win.getByRole('button', { name: '使い方' })).toHaveCount(0)
+  await expect(win.getByRole('button', { name: 'AI', exact: true })).toHaveCount(0)
   await expect(win.getByRole('button', { name: '設定' })).toBeVisible()
 })
 
@@ -200,11 +200,11 @@ test('右の窓を閉じていても、指示文が届いたらアプリが開�
   await start()
   const folder = await openCurrent()
   await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
-  await win.getByRole('button', { name: 'AI ▸' }).click()
+  await win.getByRole('button', { name: 'AI', exact: true, pressed: true }).click()
   await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(false)
   await inLoops(app, folder, 'navigator.clipboard.writeText("---\\n受け取ってください\\n---"); 1')
   await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
-  await expect(win.getByRole('button', { name: 'AI ▸' })).toBeVisible()
+  await expect(win.getByRole('button', { name: 'AI', exact: true, pressed: true })).toBeVisible()
   await expect.poll(async () => (await paneText(app, 's-list')) ?? '', { timeout: 15_000 }).toContain('受け取ってください')
 })
 
@@ -219,7 +219,7 @@ test('2.1.0 の殻は、新しい形にするまで殻の中の右の窓を使�
   await expect.poll(() => paneText(app, 's-list')).not.toBeNull()
   expect(await chatInAppPane('s-list')).toBe(false)
   expect((await layoutOf()).chat).toBeNull()
-  await win.getByRole('button', { name: 'AI ▸' }).click()
+  await win.getByRole('button', { name: 'AI', exact: true, pressed: true }).click()
   await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(false)
 })
 
@@ -256,5 +256,115 @@ test('ループの頁の「← ループ一覧」で戻ると、一覧はいち�
   await app.evaluate(({ webContents }) => webContents.getAllWebContents().find((c) => c.getURL().includes('/tall/loops/index.html'))!.reload())
   await expect.poll(async () => (await inLoops(app, folder, 'document.readyState'))?.value).toBe('complete')
   await win.waitForTimeout(500)
-  expect((await inLoops(app, folder, 'scrollY'))?.value).toBe(0)
+  // 1px 未満の端数（表示の倍率による）は、ずれとみなさない
+  expect((await inLoops(app, folder, 'scrollY'))?.value).toBeLessThan(1)
+})
+
+test('戻る・進むは、そのタブのループの画面の中だけで移る（履歴はタブごと）', async () => {
+  await start()
+  const a = await openCurrent('proj-a')
+  const back = win.getByRole('button', { name: '戻る' })
+  const forward = win.getByRole('button', { name: '進む' })
+  const screen = async (f: string) => (await inLoops(app, f, 'document.body.classList.contains("in-loop") ? location.hash : "一覧"'))?.value
+  await expect.poll(() => screen(a)).toBe('一覧')
+  await expect(back).toBeDisabled()
+  await expect(forward).toBeDisabled()
+  // 人が押したときと同じく、押した操作として動かす（操作なしに積んだ履歴は、Chromium が戻るで飛ばす）
+  await app.evaluate(async ({ webContents }, f) => {
+    const w = webContents.getAllWebContents().find((c) => c.getURL().startsWith('file://' + encodeURI(f)))!
+    await w.executeJavaScript('document.querySelector(\'[data-go="s-L01"]\').click(); 1', true)
+  }, join(a, 'loops', 'index.html'))
+  await expect.poll(() => screen(a)).toBe('#s-L01')
+  await expect(back).toBeEnabled()
+  await back.click()
+  await expect.poll(() => screen(a)).toBe('一覧')
+  await expect(forward).toBeEnabled()
+  // 別のタブは、自分の履歴だけを持つ
+  await openCurrent('proj-b')
+  await expect(win.getByRole('tab', { name: 'proj-b' })).toHaveAttribute('aria-selected', 'true')
+  await expect(back).toBeDisabled()
+  await expect(forward).toBeDisabled()
+  // 元のタブに戻ると、そのタブの続きから進める
+  await win.getByRole('tab', { name: 'proj-a' }).click()
+  await expect(forward).toBeEnabled()
+  await forward.click()
+  await expect.poll(() => screen(a)).toBe('#s-L01')
+  await expect(forward).toBeDisabled()
+})
+
+test('ループを行き来してから戻ると、来た順のとおりに画面が戻る（頁の枠が履歴で勝手に戻らない）', async () => {
+  await start()
+  const folder = join(root, 'proj-hist')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
+  cpSync(join(folder, 'loops', 'L01.html'), join(folder, 'loops', 'L02.html'))
+  const index = join(folder, 'loops', 'index.html')
+  // 一覧に L02 の行を足す（L01 の行を写して行き先だけ変える）
+  writeFileSync(index, readFileSync(index, 'utf8').replace('<!-- LOOPS:END -->', '<button data-go="s-L02">L02</button><!-- LOOPS:END -->'))
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L02"]\')'))?.value).toBe(true)
+  // 人が押したときと同じく、押した操作として動かす（殻の行・頁の「← ループ一覧」）
+  const press = (code: string, inPage: boolean) =>
+    app.evaluate(
+      async ({ webContents }, { url, code, inPage }) => {
+        const w = webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!
+        const f = inPage ? w.mainFrame.framesInSubtree.find((x) => x !== w.mainFrame && x.url.startsWith('file:'))! : w.mainFrame
+        await f.executeJavaScript(code, true)
+      },
+      { url: 'file://' + encodeURI(index), code, inPage }
+    )
+  const shown = async () => (await inLoops(app, folder, 'document.body.classList.contains("in-loop") ? document.getElementById("loop-frame").contentWindow.location.pathname.split("/").pop() : "一覧"'))?.value
+  const go = async (code: string, inPage: boolean, want: string) => {
+    await press(code, inPage)
+    await expect.poll(shown).toBe(want)
+    // 頁が読み終わるのを待つ（次に頁の「← ループ一覧」を押すため）
+    if (want !== '一覧') await expect.poll(() => inFrame(app, '/' + want, '!!document.querySelector("button.back")')).toBe(true)
+  }
+  const toList = 'document.querySelector("button.back").click(); 1'
+  await go('document.querySelector(\'[data-go="s-L01"]\').click(); 1', false, 'L01.html')
+  await go(toList, true, '一覧')
+  await go('document.querySelector(\'[data-go="s-L02"]\').click(); 1', false, 'L02.html')
+  await go(toList, true, '一覧')
+  await go('document.querySelector(\'[data-go="s-L01"]\').click(); 1', false, 'L01.html')
+  const back = win.getByRole('button', { name: '戻る' })
+  for (const want of ['一覧', 'L02.html', '一覧', 'L01.html', '一覧']) {
+    await back.click()
+    await expect.poll(shown).toBe(want)
+  }
+  await expect(back).toBeDisabled()
+})
+
+test('Chrome・Safari と同じキーで戻る・進む。右のチャットの窓では効かない', async () => {
+  await start()
+  const folder = await openCurrent('proj-key')
+  const index = join(folder, 'loops', 'index.html')
+  const screen = async () => (await inLoops(app, folder, 'document.body.classList.contains("in-loop") ? location.hash : "一覧"'))?.value
+  await expect.poll(screen).toBe('一覧')
+  await expect.poll(() => paneText(app, 's-list')).not.toBeNull()
+  await app.evaluate(async ({ webContents }, url) => {
+    await webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!.executeJavaScript('document.querySelector(\'[data-go="s-L01"]\').click(); 1', true)
+  }, 'file://' + encodeURI(index))
+  await expect.poll(screen).toBe('#s-L01')
+  // Mac は ⌘[ ⌘]、ほかは Alt+← Alt+→
+  const mac = process.platform === 'darwin'
+  const press = (where: 'loops' | 'chat' | 'app', dir: -1 | 1) =>
+    app.evaluate(
+      ({ webContents, BrowserWindow }, { where, url, keyCode, modifiers }) => {
+        const all = webContents.getAllWebContents()
+        const w =
+          where === 'loops' ? all.find((c) => c.getURL().startsWith(url))! : where === 'chat' ? all.find((c) => c.getURL().includes('/_rla/chat.html'))! : BrowserWindow.getAllWindows()[0].webContents
+        w.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+        w.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+      },
+      { where, url: 'file://' + encodeURI(index), keyCode: mac ? (dir < 0 ? '[' : ']') : dir < 0 ? 'Left' : 'Right', modifiers: mac ? ['meta'] : ['alt'] }
+    )
+  // チャットの窓では効かない
+  await press('chat', -1)
+  await win.waitForTimeout(500)
+  expect(await screen()).toBe('#s-L01')
+  // ループの画面で戻る、タブの列で進む
+  await press('loops', -1)
+  await expect.poll(screen).toBe('一覧')
+  await press('app', 1)
+  await expect.poll(screen).toBe('#s-L01')
 })

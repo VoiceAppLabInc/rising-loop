@@ -1,12 +1,22 @@
-/* 上のタブの列の高さは main/views.ts の TAB_H と合わせる */
+/* 上のタブの列の高さは main/views.ts の TAB_H と合わせる。
+   色の決まり：色は使わず墨の濃さで分ける。いま・オンは塗り（明るい地では墨、濃い列では白・紙）。
+   赤は「取り消せない・失敗」、カードの橙・緑は知らせの意味だけに使う */
 :root {
   --tab-h: 40px;
   --setup-h: 112px; /* main/views.ts の SETUP_HEAD_H と合わせる */
-  --fg: #1d1e22;
-  --sub: #6b6e76;
-  --line: #e6e7ea;
-  --bg-bar: #f4f5f7;
-  --accent: #2f6fde;
+  --fg: #1a1a19;
+  --sub: #6a6a68;
+  --line: #e2e2e0;
+  --ink: #1a1a19;
+  --ring: rgba(26, 26, 25, 0.28);
+  /* 濃いタブの列 */
+  --bar: #1c1c1b;
+  --bar-edge: #0e0e0d;
+  --bar-fg: #c8c8c4;
+  --bar-hover: #2c2c2a;
+  --bar-press: #383836;
+  --bar-groove: #2a2a28;
+  --paper: #f0f2ed; /* いまのタブ（ループの画面の地と同じ） */
   font: 13px -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
   color: var(--fg);
 }
@@ -19,33 +29,37 @@ body { background: #fff; }
   height: var(--tab-h);
   flex: none;
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
   padding: 0 8px;
-  background: var(--bg-bar);
-  border-bottom: 1px solid var(--line);
+  background: var(--bar);
+  border-bottom: 1px solid var(--bar-edge);
+  color: var(--bar-fg);
   -webkit-app-region: drag;
 }
 .controls-left .tabs { padding-left: 80px; } /* Mac の閉じる・最小化ボタンの分 */
 .controls-right .tabs { padding-right: 150px; } /* Windows の最小化・最大化・閉じるボタンの分 */
 .tabs button { -webkit-app-region: no-drag; font: inherit; cursor: pointer; }
+.nav { display: flex; gap: 2px; }
+/* タブは溝の中に並べ、いまのタブだけ明るい紙のつまみにする */
+.track { display: flex; align-items: center; gap: 2px; min-width: 0; padding: 3px; border-radius: 9px; background: var(--bar-groove); }
 .tab {
-  height: 32px;
+  height: 26px;
   max-width: 200px;
   padding: 0 14px;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
-  color: var(--sub);
+  color: var(--bar-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background-color 0.12s, color 0.12s, transform 0.05s;
 }
-.tab:hover { color: var(--fg); background: #e9eaed; }
-.tab:active { background: #dfe1e5; }
-.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tab[aria-selected='true'], .tab[aria-selected='true']:hover { font-weight: 700; background: #fff; border-color: var(--line); color: var(--fg); margin-bottom: -1px; height: 33px; }
+.tab:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.tab:active { background: rgba(255, 255, 255, 0.1); transform: translateY(1px); }
+.tab:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.tab[aria-selected='true'], .tab[aria-selected='true']:hover { font-weight: 700; background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); transform: none; }
 
 .body { flex: 1; position: relative; }
 .empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 8px; }
@@ -94,18 +108,19 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 }
 .btn-md { height: 32px; padding: 0 14px; font-size: 13px; }
 .btn-sm { height: 26px; padding: 0 10px; font-size: 12px; }
-.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(47, 111, 222, 0.35); }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
+.btn .icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
-.btn-primary:hover:not(:disabled) { background: #245bc0; border-color: #245bc0; }
-.btn-primary:active:not(:disabled) { background: #1c4a9e; border-color: #1c4a9e; box-shadow: none; }
+.btn-primary { background: var(--ink); border-color: var(--ink); color: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.btn-primary:hover:not(:disabled) { background: #3a3a38; border-color: #3a3a38; }
+.btn-primary:active:not(:disabled) { background: #000; border-color: #000; box-shadow: none; }
 
-.btn-secondary { background: #fff; border-color: #d3d5da; color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
-.btn-secondary:hover:not(:disabled) { background: #f0f1f3; border-color: #b9bcc3; }
-.btn-secondary:active:not(:disabled) { background: #e2e4e8; border-color: #a9adb5; box-shadow: none; }
-.btn-secondary[aria-pressed='true'] { background: #e2e4e8; border-color: #a9adb5; }
+.btn-secondary { background: #fff; border-color: #d6d6d3; color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.btn-secondary:hover:not(:disabled) { background: #f1f1ef; border-color: #bdbdb9; }
+.btn-secondary:active:not(:disabled) { background: #e4e4e1; border-color: #adada9; box-shadow: none; }
+.btn-secondary[aria-pressed='true'] { background: #e4e4e1; border-color: #adada9; }
 
 .btn-danger { background: #fff; border-color: #d9534f; color: #c0392b; }
 .btn-danger:hover:not(:disabled) { background: #fdecea; }
@@ -115,36 +130,25 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .btn-danger-solid:hover:not(:disabled) { background: #961d13; border-color: #961d13; }
 .btn-danger-solid:active:not(:disabled) { background: #7a170f; border-color: #7a170f; }
 
-.btn-dark { background: #1d1e22; border-color: #1d1e22; color: #fff; }
-.btn-dark:hover:not(:disabled) { background: #3a3c42; border-color: #3a3c42; }
+.btn-dark { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn-dark:hover:not(:disabled) { background: #3a3a38; border-color: #3a3a38; }
 .btn-dark:active:not(:disabled) { background: #000; border-color: #000; }
 
 .btn-quiet { background: transparent; color: var(--sub); font-weight: 400; }
-.btn-quiet:hover:not(:disabled) { background: #e9eaed; color: var(--fg); }
-.btn-quiet:active:not(:disabled) { background: #dcdee2; }
+.btn-quiet:hover:not(:disabled) { background: #ebebe9; color: var(--fg); }
+.btn-quiet:active:not(:disabled) { background: #dededb; }
 
-/* タブの列の AI の窓の開閉（緑）、＋、カードの ✕ */
-.btn-ai.btn-secondary { background: #52751f; border-color: #52751f; color: #fff; }
-.btn-ai.btn-secondary:hover:not(:disabled) { background: #445f19; border-color: #445f19; }
-.btn-ai.btn-secondary:active:not(:disabled) { background: #364c13; border-color: #364c13; }
-.tab-add.btn {
-  align-self: flex-end;
-  height: 32px;
-  margin-left: 4px;
-  padding: 0 14px 0 12px;
-  gap: 5px;
-  border: 1.5px dashed #9fb6e3;
-  border-bottom: none;
-  border-radius: 6px 6px 0 0;
-  background: #f0f5fe;
-  color: #1f56b8;
-  font-size: 13px;
-  font-weight: 600;
-}
-.tab-add.btn:hover:not(:disabled) { background: #e2ecfd; border-color: var(--accent); color: #1f56b8; }
-.tab-add.btn:active:not(:disabled) { background: #d3e2fb; }
-.tab-add .plus { font-size: 15px; line-height: 1; font-weight: 700; }
-.btn-gear.btn { width: 30px; padding: 0; font-size: 15px; }
+/* 濃いタブの列の上の操作。色を持たず、乗せると明るく、オン（窓が開いている・設定を開いている）のときだけ白く塗る */
+.btn-bar { background: transparent; color: var(--bar-fg); }
+.btn-bar:hover:not(:disabled) { background: var(--bar-hover); color: #fff; }
+.btn-bar:active:not(:disabled) { background: var(--bar-press); }
+.btn-bar:disabled { opacity: 0.3; cursor: default; }
+.btn-bar:focus-visible { box-shadow: 0 0 0 2px #fff; }
+.btn-bar[aria-pressed='true'], .btn-bar[aria-pressed='true']:hover:not(:disabled) { background: #fff; color: var(--ink); }
+.tabs .btn-sm { height: 28px; padding: 0 10px; gap: 6px; font-size: 12.5px; }
+.tabs .btn-icon { width: 28px; padding: 0; }
+
+/* カードの小さなボタンと ✕ */
 .card .btn-sm { height: 24px; padding: 0 9px; }
 .card .btn-x { width: 24px; padding: 0; }
 
@@ -159,7 +163,7 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .ask-kick { margin-bottom: 6px; color: var(--sub); font: 700 10px ui-monospace, monospace; letter-spacing: 0.12em; }
 .dialog .ask-sub { color: var(--sub); white-space: pre-wrap; }
 .ask-input { display: block; width: 100%; min-height: 110px; margin-top: 10px; padding: 10px 12px; border: 1px solid #d3d5da; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.7; resize: vertical; }
-.ask-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 111, 222, 0.2); }
+.ask-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--ring); }
 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .ask-chips .btn { font-weight: 400; }
 .ask-hint { margin-right: auto; }
@@ -182,6 +186,7 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .settings .act { flex: none; margin-left: auto; display: flex; gap: 8px; }
 .settings .act .btn { min-width: 96px; }
 .settings .choice { display: inline-flex; align-items: center; gap: 6px; }
+input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .settings .note { margin: 2px 0 0 172px; }
 .sub { color: var(--sub); font-size: 12px; }
 .danger { margin-top: 16px; padding: 6px 14px; border: 1px solid #f0c6c0; border-radius: 8px; }
@@ -192,7 +197,7 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .state-ready { color: #3f7a2a; }
 .state-login, .state-missing { color: #b0661a; }
 .tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.tool-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: var(--bg-bar); font-size: 12px; }
+.tool-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f4f4f2; font-size: 12px; }
 .tool-term { height: 260px; padding: 6px; background: #16171a; }
 
 /* 使い方 */
@@ -207,7 +212,7 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .howto-fig svg { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; }
 .steps { margin: 0; padding-left: 20px; line-height: 1.65; }
 .steps li { padding: 6px 0; }
-.free { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: var(--bg-bar); line-height: 1.6; }
+.free { margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #f4f4f2; line-height: 1.6; }
 .free ul { margin: 4px 0 0; padding-left: 18px; }
 .dialog .actions .note { margin-right: auto; color: var(--sub); font-size: 12px; align-self: center; }
 .paths { margin: 6px 0 10px; padding-left: 18px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
