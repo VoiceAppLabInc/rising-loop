@@ -99,13 +99,18 @@ export function installCommand(ai: 'claude' | 'codex', platform: Platform): Comm
 /** ログインは公式のコマンドで、ブラウザに任せる（アプリはトークンを扱わない） */
 /**
  * 戻る・進むのキー（Chrome・Safari と同じ）。戻るなら -1、進むなら 1、ほかは null。
- * Mac は ⌘[ ⌘] と ⌘← ⌘→、Windows などは Alt+← Alt+→。ほかの修飾キーが混ざっていれば何もしない
+ * Mac は ⌘[ ⌘] と ⌘← ⌘→、Windows などは Alt+← Alt+→。ほかの修飾キーが混ざっていれば何もしない。
+ * 戻る・進む専用のキー（BrowserBack・BrowserForward。一部のキーボードにある）は、どの OS でも修飾キーなしで効く
  */
 export function navKeyDir(
-  input: { type: string; key: string; meta: boolean; control: boolean; alt: boolean },
+  input: { type: string; key: string; meta: boolean; control: boolean; alt: boolean; shift: boolean },
   platform: Platform
 ): -1 | 1 | null {
   if (input.type !== 'keyDown') return null
+  if (input.key === 'BrowserBack' || input.key === 'BrowserForward') {
+    if (input.meta || input.control || input.alt || input.shift) return null
+    return input.key === 'BrowserBack' ? -1 : 1
+  }
   if (platform === 'darwin') {
     if (!input.meta || input.control || input.alt) return null
     if (input.key === '[' || input.key === 'ArrowLeft') return -1

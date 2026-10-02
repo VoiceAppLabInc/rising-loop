@@ -356,7 +356,7 @@ test('Chrome・Safari と同じキーで戻る・進む。右のチャットの�
         w.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
         w.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
       },
-      { where, url: 'file://' + encodeURI(index), keyCode: mac ? (dir < 0 ? '[' : ']') : dir < 0 ? 'Left' : 'Right', modifiers: mac ? ['meta'] : ['alt'] }
+      { where, url: 'file://' + encodeURI(index), keyCode: mac ? (dir < 0 ? '[' : ']') : dir < 0 ? 'Left' : 'Right', modifiers: (mac ? ['meta'] : ['alt']) as ('meta' | 'alt')[] }
     )
   // チャットの窓では効かない
   await press('chat', -1)
@@ -367,4 +367,43 @@ test('Chrome・Safari と同じキーで戻る・進む。右のチャットの�
   await expect.poll(screen).toBe('一覧')
   await press('app', 1)
   await expect.poll(screen).toBe('#s-L01')
+})
+
+test('Mac の戻る・進むのスワイプ（マウスの戻る・進むボタンもこの合図で届く）で、いまのタブを戻る・進む', async () => {
+  await start()
+  const folder = await openCurrent('proj-swipe')
+  const index = join(folder, 'loops', 'index.html')
+  const screen = async () => (await inLoops(app, folder, 'document.body.classList.contains("in-loop") ? location.hash : "一覧"'))?.value
+  await expect.poll(screen).toBe('一覧')
+  await app.evaluate(async ({ webContents }, url) => {
+    await webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!.executeJavaScript('document.querySelector(\'[data-go="s-L01"]\').click(); 1', true)
+  }, 'file://' + encodeURI(index))
+  await expect.poll(screen).toBe('#s-L01')
+  // 一覧 → L01 → 一覧 → L01 と移っておく（戻るが何回効いたか見分けるため）
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.back")')).toBe(true)
+  await app.evaluate(async ({ webContents }, url) => {
+    const w = webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!
+    await w.mainFrame.framesInSubtree.find((f) => f.url.includes('/L01.html'))!.executeJavaScript('document.querySelector("button.back").click(); 1', true)
+  }, 'file://' + encodeURI(index))
+  await expect.poll(screen).toBe('一覧')
+  await app.evaluate(async ({ webContents }, url) => {
+    await webContents.getAllWebContents().find((c) => c.getURL().startsWith(url))!.executeJavaScript('document.querySelector(\'[data-go="s-L01"]\').click(); 1', true)
+  }, 'file://' + encodeURI(index))
+  await expect.poll(screen).toBe('#s-L01')
+  const swipe = (dir: string, times: number) =>
+    app.evaluate(({ BrowserWindow }, { dir, times }) => {
+      const w = BrowserWindow.getAllWindows()[0]
+      for (let i = 0; i < times; i++) w.emit('swipe', {}, dir)
+    }, { dir, times })
+  // 1回押すと続けて何回も届く。何回来ても1回だけ戻る
+  await swipe('left', 3)
+  await expect.poll(screen).toBe('一覧')
+  // 3回戻っていれば最初の一覧で、もう戻れない。1回だけなので、まだ戻れる
+  await win.waitForTimeout(500)
+  await expect(win.getByRole('button', { name: '戻る' })).toBeEnabled()
+  await expect(win.getByRole('button', { name: '進む' })).toBeEnabled()
+  await win.waitForTimeout(500)
+  await swipe('right', 3)
+  await expect.poll(screen).toBe('#s-L01')
+  await expect(win.getByRole('button', { name: '進む' })).toBeDisabled()
 })

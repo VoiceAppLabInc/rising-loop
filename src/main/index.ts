@@ -38,6 +38,8 @@ let views: ProjectViews | null = null
 let overlay: WebContentsView | null = null
 let overlaySize = { w: 0, h: 0 }
 let covered = false
+/** 戻る・進むのスワイプは1回で続けて何回も届くので、このあいだに来た分は1回とみなす */
+const SWIPE_QUIET_MS = 400
 /** 層がダイアログを出しているか（そのあいだは層を窓いっぱいに広げる） */
 let overlayDialog = false
 let chats: Chats
@@ -282,6 +284,17 @@ function createWindow(): void {
   if (process.env.ELECTRON_RENDERER_URL) void overlay.webContents.loadURL(process.env.ELECTRON_RENDERER_URL + '?overlay=bar')
   else void overlay.webContents.loadFile(join(__dirname, '../renderer/index.html'), { query: { overlay: 'bar' } })
   win.on('resize', layoutOverlay)
+  // Mac の「戻る・進むのスワイプ」。トラックパッドのほか、マウスの戻る・進むボタンもドライバーがこの合図に置き換えて送ってくる。
+  // 左へで戻る、右へで進む。1回押すと続けて何回も届くので、少しのあいだに来た分は1回とみなす。ダイアログのあいだは効かない
+  let lastSwipe = 0
+  win.on('swipe', (_e, dir) => {
+    const step = dir === 'left' ? -1 : dir === 'right' ? 1 : 0
+    const p = current()
+    const now = Date.now()
+    if (!step || !p || overlayDialog || now - lastSwipe < SWIPE_QUIET_MS) return
+    lastSwipe = now
+    views?.go(p.id, step)
+  })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
   win.webContents.once('did-finish-load', () => {

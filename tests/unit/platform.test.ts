@@ -136,6 +136,14 @@ describe('戻る・進むのキー（Chrome・Safari と同じ）', () => {
     expect(navKeyDir(key('[', { meta: true, control: true }), 'darwin')).toBeNull()
     expect(navKeyDir(key('[', { meta: true }, 'keyUp'), 'darwin')).toBeNull()
   })
+  it('戻る・進む専用のキー（BrowserBack・BrowserForward）は、どの OS でも修飾キーなしで効く', () => {
+    for (const os of ['darwin', 'win32', 'linux'] as const) {
+      expect(navKeyDir(key('BrowserBack'), os)).toBe(-1)
+      expect(navKeyDir(key('BrowserForward'), os)).toBe(1)
+      expect(navKeyDir(key('BrowserBack', { shift: true }), os)).toBeNull()
+      expect(navKeyDir(key('BrowserBack', { meta: true }), os)).toBeNull()
+    }
+  })
   it('Windows は Alt+← Alt+→ だけ', () => {
     expect(navKeyDir(key('ArrowLeft', { alt: true }), 'win32')).toBe(-1)
     expect(navKeyDir(key('ArrowRight', { alt: true }), 'win32')).toBe(1)
