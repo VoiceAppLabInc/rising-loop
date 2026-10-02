@@ -207,6 +207,10 @@ test('殻から消える独自の部品は、控えの殻の場所と一緒に A
   // AI が移し直したつもりで、新しい殻に足す → 帯が「新しい形にしました」に変わる
   writeFileSync(p, readFileSync(p, 'utf8').replace('</body>', '<div id="my-own-panel">独自</div></body>'))
   await expect((await cardPage(app)).getByRole('status')).toContainText('新しい形にしました', { timeout: 10_000 })
+  // 一度移し終えたら、あとでユーザーの判断で外しても「直っていない」に戻さない
+  writeFileSync(p, readFileSync(p, 'utf8').replace('<div id="my-own-panel">独自</div>', ''))
+  await win.waitForTimeout(3000)
+  await expect((await cardPage(app)).getByRole('status')).toContainText('新しい形にしました')
 })
 
 test('［元に戻す］で、確認してから、新しい形にする前のとおりに戻す', async () => {

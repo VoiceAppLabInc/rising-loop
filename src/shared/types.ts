@@ -29,6 +29,8 @@ export interface Migration {
   fromVersion?: string
   /** 入れ替えで殻から消えた独自の部品（AI が移し直す） */
   lost: string[]
+  /** 消えた部品を一度すべて移し終えた。これ以降は見ない（あとでユーザーの判断で外しても「直っていない」にしない） */
+  lostDone?: boolean
   /** 帯の「新しい形にしました」を閉じた */
   closed?: boolean
 }

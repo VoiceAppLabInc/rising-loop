@@ -62,10 +62,9 @@
   .quiet-button{padding:4px 0;border:0;color:var(--dim);background:transparent;font-size:12.5px;cursor:pointer}
   .quiet-button:hover{color:var(--ink)}
 
-  /* AI 作業中の札（2.4.0 から）。アプリが知らせた画面の、一覧の行と一覧の見出しの枠の右上の角に rising.js が重ねて出す
-     （重ねるので行の中身は動かない）。墨の地に白い文字、ライムの回る印。「評価中」の琥珀とは色を分ける */
-  .ai-busy-host{position:relative}
-  .ai-busy-pill{position:absolute;top:8px;right:10px;z-index:2;display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;
+  /* AI 作業中の札（2.4.0 から）。アプリが知らせた画面の、一覧の行のループ名と一覧の見出しの頭（L01 の札の左）に rising.js が出す。
+     墨の地に白い文字、ライムの回る印。「評価中」の琥珀とは色を分ける */
+  .ai-busy-pill{display:inline-flex;align-items:center;gap:6px;vertical-align:2px;margin-right:8px;padding:3px 11px 3px 9px;
     border-radius:999px;background:var(--ink);color:#fff;font:700 12.5px/1.4 Inter,"Hiragino Sans",sans-serif;
     letter-spacing:0;white-space:nowrap}
   .ai-busy-pill::before{content:"";width:9px;height:9px;border-radius:50%;border:2px solid var(--accent);border-right-color:transparent;

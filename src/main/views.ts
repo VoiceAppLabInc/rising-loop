@@ -61,6 +61,8 @@ export class ProjectViews {
   private navigated: () => void = () => undefined
   private shownId: string | null = null
   private projects = new Map<string, Project>()
+  /** AI が作業中の画面（プロジェクトごと）。殻に知らせて、一覧に札を出してもらう */
+  private busy = new Map<string, string[]>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
   private covered = false
   private ses: Session
@@ -183,8 +185,25 @@ export class ProjectViews {
     this.shells.set(p.id, { appChat, panes: r?.panes ?? [] })
     if (!appChat) this.closeChat(p.id)
     this.applyPane(p.id)
+    this.applyBusy(p.id)
     this.syncChat(p)
     this.layout()
+  }
+
+  /**
+   * AI が作業中の画面を殻に知らせる（アプリとの約束：window.LOOP_SET_BUSY(画面ID の並び)。2.4.0 からの殻が一覧に札を出す）。
+   * それより前の殻には関数が無いので、何も起きない
+   */
+  setBusy(id: string, screens: string[]): void {
+    this.busy.set(id, screens)
+    this.applyBusy(id)
+  }
+
+  private applyBusy(id: string): void {
+    const v = this.views.get(id)
+    if (!v || v.webContents.isDestroyed()) return
+    const screens = JSON.stringify(this.busy.get(id) ?? [])
+    void v.webContents.executeJavaScript(`window.LOOP_SET_BUSY && window.LOOP_SET_BUSY(${screens})`).catch(() => undefined)
   }
 
   /** アプリが右のチャットの窓を出すプロジェクトか（殻が 2.2.0 から） */

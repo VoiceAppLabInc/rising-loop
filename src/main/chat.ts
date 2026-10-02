@@ -26,8 +26,13 @@ const SEND_TIMEOUT_MS = 60_000
  * 会話を始めるときの文は起動時の引数で渡すので、これは起動中に続けて届いた文のためのもの
  */
 const STARTUP_MS = 4000
-/** 最後の出力からこの時間内なら、AI は作業中とみなす */
-const BUSY_MS = 5000
+/**
+ * 最後の出力からこの時間内なら、AI は作業中とみなす。claude / codex は作業中ずっと回る印や経過時間を描き直すので、
+ * 作業の途中で出力が 2 秒以上途切れることはまず無い（一覧の「AI作業中」の札を早く消すため短くしている）
+ */
+const BUSY_MS = 2000
+/** 打った文字のこだま（入力の直後の出力）は、AI の作業に数えない */
+const ECHO_MS = 300
 
 interface Term {
   proc: pty.IPty | null
@@ -39,6 +44,10 @@ interface Term {
   /** いまのプロセスが何か出力したか、最後に出力した時刻、起動した時刻 */
   started: boolean
   lastOut: number
+  /** AI が作業として出力した最後の時刻（打った文字のこだまは除く）。作業中かの判定に使う */
+  lastWork: number
+  /** 人が最後に打った時刻 */
+  lastInput: number
   spawnedAt: number
   /** まだ送っていない指示文 */
   queue: { text: string; at: number }[]
@@ -118,6 +127,7 @@ export class Chats {
   input(projectId: string, screen: string, data: string, restart: () => void): void {
     const t = this.terms.get(`${projectId}:${screen}`)
     if (!t) return
+    t.lastInput = Date.now()
     if (t.proc) t.proc.write(data)
     else if (!t.starting && data.includes('\r')) restart()
   }
@@ -182,7 +192,18 @@ export class Chats {
   busy(projectId: string, screen: string): boolean {
     const t = this.terms.get(`${projectId}:${screen}`)
     if (!t) return false
-    return t.starting || t.queue.length > 0 || (!!t.proc && Date.now() - t.lastOut < BUSY_MS)
+    return t.starting || t.queue.length > 0 || (!!t.proc && Date.now() - t.lastWork < BUSY_MS)
+  }
+
+  /** そのプロジェクトで AI が作業中の画面（一覧の札に出す） */
+  busyScreens(projectId: string): string[] {
+    const out: string[] = []
+    for (const key of this.terms.keys()) {
+      if (!key.startsWith(`${projectId}:`)) continue
+      const screen = key.slice(projectId.length + 1)
+      if (this.busy(projectId, screen)) out.push(screen)
+    }
+    return out.sort()
   }
 
   /** 終了したターミナルを開き直す */
@@ -215,7 +236,7 @@ export class Chats {
     const key = `${projectId}:${screen}`
     let t = this.terms.get(key)
     if (!t) {
-      t = { proc: null, buf: '', frame: null, starting: false, cols, rows, started: false, lastOut: 0, spawnedAt: 0, queue: [], flushing: false }
+      t = { proc: null, buf: '', frame: null, starting: false, cols, rows, started: false, lastOut: 0, lastWork: 0, lastInput: 0, spawnedAt: 0, queue: [], flushing: false }
       this.terms.set(key, t)
     }
     return t
@@ -311,6 +332,7 @@ export class Chats {
         if (this.killed.has(proc)) return
         t.started = true
         t.lastOut = Date.now()
+        if (t.lastOut - t.lastInput > ECHO_MS) t.lastWork = t.lastOut
         this.out(t, d)
       })
       proc.onExit(() => {

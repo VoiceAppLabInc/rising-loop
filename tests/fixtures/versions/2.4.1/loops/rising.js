@@ -194,21 +194,19 @@ if (IS_SHELL) (function(){
 
   /* ── AI 作業中の札（アプリとの約束。2.4.0 から） ── */
   //=== アプリが window.LOOP_SET_BUSY(['s-list','s-L01', …]) で、チャットの AI が作業中の画面を知らせる（作業が終われば外れる）。
-  //===   殻は一覧のその行の右上の角に「AI作業中」の札を重ねて出す。s-list（一覧のチャット）は一覧の見出しの枠の右上の角に出す。
-  //===   重ねて出すので、札があってもなくても行の中身の位置は動かない（札の置き場は position:relative の .ai-busy-host）
-  //===   一覧の行の markup は AI が書くので、決め打ちしない（行は [data-go]、見出しの枠は一覧の最初の .section）
+  //===   殻は一覧のその行のループ名のすぐ右に「AI作業中」の札を出す。s-list（一覧のチャット）は一覧の見出し（サービス名）のすぐ右に出す。
+  //===   一覧の行の markup は AI が書くので、決め打ちしない（行は [data-go]、札の置き場は .loop-name、無ければ行の中）
   function busyPill(){ var p = document.createElement('span'); p.className = 'ai-busy-pill'; p.textContent = 'AI作業中'; return p; }
   window.LOOP_SET_BUSY = function(ids){
     var on = {}; (Array.isArray(ids) ? ids : []).forEach(function(id){ on[String(id)] = true; });
     Array.prototype.forEach.call(document.querySelectorAll('.ai-busy-pill'), function(p){ p.parentNode.removeChild(p); });
-    function put(host){ host.classList.add('ai-busy-host'); host.appendChild(busyPill()); }
     Array.prototype.forEach.call(document.querySelectorAll('#s-list [data-go]'), function(row){
       var busy = !!on[row.getAttribute('data-go')];
       row.classList.toggle('ai-busy', busy);
-      if (busy) put(row);
+      if (busy) (row.querySelector('.loop-name') || row).appendChild(busyPill());
     });
-    var head = document.querySelector('#s-list .section');
-    if (head && on['s-list']) put(head);
+    var head = document.querySelector('#s-list h1') || document.querySelector('#s-list .head-right');
+    if (head && on['s-list']) head.appendChild(busyPill());
   };
 
   /* ── hash ── */

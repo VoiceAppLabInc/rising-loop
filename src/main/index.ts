@@ -88,8 +88,27 @@ function loopsFiles(folder: string): LoopsFiles & { indexHtml: string | null } {
   }
 }
 
-/** 殻から消えた独自の部品のうち、まだ新しい殻に移っていないもの（id で見る） */
-const lostLeft = (p: Project, indexHtml: string) => (p.migration?.lost ?? []).filter((x) => x.startsWith('id="') && !indexHtml.includes(x))
+/** 殻から消えた独自の部品のうち、まだ新しい殻に移っていないもの（id で見る）。一度すべて移し終えたら見ない */
+const lostLeft = (p: Project, indexHtml: string) =>
+  p.migration?.lostDone ? [] : (p.migration?.lost ?? []).filter((x) => x.startsWith('id="') && !indexHtml.includes(x))
+
+/**
+ * 消えた部品がすべて新しい殻に移ったら、そのことを記録する（これ以降は見ない）。
+ * 移したあとでユーザーが「外して」と言って外しても、「直っていない」に戻さないため
+ */
+function settleLost(): void {
+  let next = state
+  for (const p of state.projects) {
+    const m = p.migration
+    if (!m || m.lostDone || !m.lost.some((x) => x.startsWith('id="'))) continue
+    const index = loopsFiles(p.folder).indexHtml
+    if (index != null && lostLeft(p, index).length === 0) next = setMigration(next, p.id, { ...m, lostDone: true })
+  }
+  if (next !== state) {
+    state = next
+    saveState(projectsFile(), state)
+  }
+}
 
 /**
  * 台帳を数え始める版。新しい形にしたことがあれば、そのとき記録した版。無ければ殻の版の表示。
@@ -215,6 +234,8 @@ function kickoff(): void {
  */
 /** 作り直しのあいだ、一覧のチャットの AI が作業中かどうかが変わったら、帯を出し直す */
 let lastBusy: boolean | null = null
+/** プロジェクトごとの、AI が作業中の画面（変わったら殻に知らせ、一覧に札を出してもらう） */
+const lastScreens = new Map<string, string>()
 setInterval(() => {
   const p = state && current()
   const busy = !!p && !!chats?.busy(p.id, 's-list')
@@ -222,7 +243,14 @@ setInterval(() => {
     lastBusy = busy
     if (p?.migration) broadcast(showCurrent())
   }
-}, 1000)
+  for (const q of state?.projects ?? []) {
+    const screens = chats?.busyScreens(q.id) ?? []
+    const key = screens.join(',')
+    if (lastScreens.get(q.id) === key) continue
+    lastScreens.set(q.id, key)
+    views?.setBusy(q.id, screens)
+  }
+}, 500)
 
 const seen = new Map<string, number>()
 setInterval(() => {
@@ -265,7 +293,10 @@ function createWindow(): void {
     console.log('[pane]', p.projectId, p.screen)
   })
   // AI が loops/ を書き換えたら、形を見分け直す（作り直しが終われば帯が消える）
-  views.onLoopsChanged(() => broadcast(showCurrent()))
+  views.onLoopsChanged(() => {
+    settleLost()
+    broadcast(showCurrent())
+  })
   views.onViewAdded(() => layoutOverlay())
   // タブの列（アプリの画面）でも、Chrome・Safari と同じキーで、いまのタブを戻る・進む（ダイアログのあいだは効かない）
   win.webContents.on('before-input-event', (e, input) => {
@@ -582,6 +613,8 @@ app.whenReady().then(() => {
   // ログインシェルの環境変数は読むのに数秒かかるので、起動してすぐ読み始める（最初のチャットを待たせない）
   void loadShellEnv()
   state = loadState(projectsFile())
+  // 前に起動していたあいだに、消えた部品を移し終えていれば記録する
+  settleLost()
   tpl = readTemplates((rel) => readFileSync(join(skillDir(), rel), 'utf8'))
   ledger = parseLedger(readFileSync(ledgerPath(), 'utf8'))
   chats = new Chats({

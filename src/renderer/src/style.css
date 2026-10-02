@@ -204,10 +204,10 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 
 /* 使い方 */
 .dialog.howto { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 80px); overflow: auto; padding-top: 0; }
-.howto-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 -22px; padding: 14px 22px; background: var(--bar); color: #fff; border-radius: 10px 10px 0 0; }
+.howto-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 0 -22px; padding: 18px 22px 16px; background: var(--bar); color: #fff; border-radius: 10px 10px 0 0; }
 .howto-head h2 { margin: 0; font-size: 17px; }
-.howto-head .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; opacity: 0.7; line-height: 1.2; }
-.howto-head .brand b { color: #ccef67; font: 800 22px ui-monospace, Menlo, monospace; letter-spacing: 0.2em; }
+.howto-head .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; opacity: 0.7; line-height: 1.2; }
+.howto-head .brand b { color: #ccef67; font: 800 30px/1.05 ui-monospace, Menlo, monospace; letter-spacing: 0.2em; }
 .howto-head .brand i { font-style: normal; font-size: 10px; color: #dfe6d6; }
 .dialog .lede { margin: 12px 0 0; color: var(--sub); line-height: 1.65; }
 /* 使い方の本文は、ほかより一回り大きく */

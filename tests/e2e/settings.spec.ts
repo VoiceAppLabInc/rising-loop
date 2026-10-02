@@ -545,3 +545,30 @@ test('頁の「← 一覧へ」は左上に浮かび、頁をスクロールし�
   await inFrame(app, '/L01.html', 'document.querySelector("button.back").click(); 1')
   await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("in-loop")'))?.value).toBe(false)
 })
+
+test('チャットの AI が作業中のあいだ、一覧のその行（と一覧の見出しの枠）の右上の角に「AI作業中」を重ねて出し、終われば消す', async () => {
+  await start()
+  const folder = await openCurrent('proj-busy')
+  const pill = (sel: string) => async () => (await inLoops(app, folder, `(function(){ var p = document.querySelector(${JSON.stringify(sel)}); return p ? p.textContent : '' })()`))?.value
+  // 一覧のチャットが起動して出力しているあいだは、見出しの枠の右上に出る。止まって 2 秒たつと消える
+  await expect.poll(pill('#s-list .section > .ai-busy-pill')).toBe('AI作業中')
+  await expect.poll(pill('#s-list .section > .ai-busy-pill'), { timeout: 15_000 }).toBe('')
+  const row = '#s-list [data-go="s-L01"]'
+  const nameAt = async () => (await inLoops(app, folder, `(function(){ var r = document.querySelector('${row} .loop-name').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.height)] })()`))?.value
+  const before = await nameAt()
+  // L01 のチャットを起こしてから一覧に戻ると、L01 の行の右上の角に出る
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
+  await expect.poll(async () => (await paneText(app, 's-L01')) ?? '').toContain('FAKE-AI {')
+  await inLoops(app, folder, 'location.hash = ""; 1')
+  await expect.poll(pill(`${row} > .ai-busy-pill`)).toBe('AI作業中')
+  const corner = (await inLoops(
+    app,
+    folder,
+    `(function(){ var r = document.querySelector('${row}').getBoundingClientRect(), p = document.querySelector('${row} > .ai-busy-pill').getBoundingClientRect(); return [Math.round(r.right - p.right), Math.round(p.top - r.top)] })()`
+  ))?.value
+  expect(corner).toEqual([10, 8])
+  // 重ねて出すので、ループ名の位置は札があってもなくても同じ
+  expect(await nameAt()).toEqual(before)
+  expect(await pill('#s-list .section > .ai-busy-pill')()).toBe('')
+  await expect.poll(pill(`${row} > .ai-busy-pill`), { timeout: 15_000 }).toBe('')
+})
