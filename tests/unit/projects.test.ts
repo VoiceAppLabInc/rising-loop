@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, saveState, selectProject, setMigration } from '../../src/main/projects'
+import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, removeProject, saveState, selectProject, setMigration, updateProject } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -134,5 +134,30 @@ describe('setMigration', () => {
     expect(s.projects[0].migration).toEqual(m)
     expect(parseState(JSON.stringify(s)).projects[0].migration).toEqual(m)
     expect(setMigration(s, 'p1', undefined).projects[0].migration).toBeUndefined()
+  })
+})
+
+describe('updateProject / removeProject', () => {
+  it('AI・確認のモードを変える（ほかは変えない）', () => {
+    const s = addProject(emptyState(), '/a/one', NOW).state
+    const next = updateProject(s, 'p1', { ai: 'codex', perm: 'auto' })
+    expect(next.projects[0]).toMatchObject({ id: 'p1', name: 'one', folder: '/a/one', ai: 'codex', perm: 'auto' })
+    expect(parseState(JSON.stringify(next)).projects[0]).toMatchObject({ ai: 'codex', perm: 'auto' })
+  })
+
+  it('フォルダを変えると、名前はそのフォルダ名になり、新しい形にした記録・知らせ・最初の依頼の記録を消す（別のフォルダの話なので）', () => {
+    const s0 = addProject(emptyState(), '/a/one', NOW).state
+    const s1 = setMigration(markNotice(markKickoff(s0, 'p1', NOW), 'p1', 'k'), 'p1', { at: NOW, backup: '/b', from: '1.7.5', lost: [] })
+    const next = updateProject(s1, 'p1', { folder: '/a/two/' })
+    expect(next.projects[0]).toEqual({ id: 'p1', name: 'two', folder: '/a/two', addedAt: NOW })
+  })
+
+  it('外すと一覧から消え、開いているプロジェクトは隣に移る', () => {
+    let s = addProject(emptyState(), '/a/one', NOW).state
+    s = addProject(s, '/a/two', NOW).state
+    const next = removeProject(s, 'p2')
+    expect(next.projects.map((p) => p.id)).toEqual(['p1'])
+    expect(next.currentId).toBe('p1')
+    expect(removeProject(next, 'p1')).toEqual({ projects: [], currentId: null })
   })
 })

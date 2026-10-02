@@ -9,8 +9,6 @@ import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
 export const TAB_H = 40
-/** 古い形のプロジェクトで、タブの下に出す帯の高さ。画面（renderer）の CSS の --bar-h と合わせる */
-export const BAR_H = 36
 /** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
 export const SETUP_HEAD_H = 112
 
@@ -42,11 +40,11 @@ export class ProjectViews {
   private views = new Map<string, WebContentsView>()
   /** ループが無いプロジェクトの、全面のチャット（右の窓と同じページ） */
   private setups = new Map<string, WebContentsView>()
-  private watchers: FSWatcher[] = []
+  private watchers = new Map<string, FSWatcher>()
+  /** 右の窓を開いているか（プロジェクトごと。既定は開く）。殻の rising.js の LOOP_SET_PANE で当てる */
+  private panes = new Map<string, boolean>()
   private changed: () => void = () => undefined
   private shownId: string | null = null
-  /** タブの下の帯の分だけ、ループの画面を下げる */
-  private barH = 0
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
   private covered = false
   private ses: Session
@@ -86,11 +84,6 @@ export class ProjectViews {
     this.layout()
   }
 
-  setBar(h: number): void {
-    this.barH = h
-    this.layout()
-  }
-
   setCovered(on: boolean): void {
     this.covered = on
     this.layout()
@@ -125,8 +118,40 @@ export class ProjectViews {
   private create(p: Project): WebContentsView {
     const v = this.newView()
     void v.webContents.loadFile(loopsIndex(p.folder))
-    this.watch(p.folder, v)
+    // 殻は読み込むたびに右の窓を開いた状態で始まるので、アプリの開閉の状態を当て直す
+    v.webContents.on('did-finish-load', () => this.applyPane(p.id))
+    this.watch(p.id, p.folder, v)
     return v
+  }
+
+  /** 右の窓の開閉（アプリのタブの列の［AI の窓］）。2.1.0 より前の殻には LOOP_SET_PANE が無いので何もしない */
+  setPane(id: string, on: boolean): void {
+    this.panes.set(id, on)
+    this.applyPane(id)
+  }
+
+  paneOpen(id: string): boolean {
+    return this.panes.get(id) ?? true
+  }
+
+  private applyPane(id: string): void {
+    const v = this.views.get(id)
+    if (!v || v.webContents.isDestroyed() || !this.panes.has(id)) return
+    void v.webContents.executeJavaScript(`window.LOOP_SET_PANE && window.LOOP_SET_PANE(${this.paneOpen(id)})`).catch(() => undefined)
+  }
+
+  /** プロジェクトを外す・フォルダを変えるとき。そのプロジェクトの画面と見張りを捨てる */
+  removeProject(id: string): void {
+    this.closeSetup(id)
+    const v = this.views.get(id)
+    if (v) {
+      this.views.delete(id)
+      this.win.contentView.removeChildView(v)
+      v.webContents.close()
+    }
+    this.watchers.get(id)?.close()
+    this.watchers.delete(id)
+    this.layout()
   }
 
   private createSetup(p: Project): WebContentsView {
@@ -149,12 +174,12 @@ export class ProjectViews {
   }
 
   dispose(): void {
-    for (const w of this.watchers) w.close()
-    this.watchers = []
+    for (const w of this.watchers.values()) w.close()
+    this.watchers.clear()
   }
 
   /** AI が loops/ の画面を書き換えたら、書き終わるのを待って読み込み直す */
-  private watch(folder: string, v: WebContentsView): void {
+  private watch(id: string, folder: string, v: WebContentsView): void {
     let changes: Change[] = []
     let timer: NodeJS.Timeout | null = null
     try {
@@ -171,7 +196,7 @@ export class ProjectViews {
         }, QUIET_MS)
       })
       w.on('error', () => w.close())
-      this.watchers.push(w)
+      this.watchers.set(id, w)
     } catch {
       // 見張れないフォルダ（消された・権限が無い）は、読み込み直さないだけにする
     }
@@ -207,7 +232,7 @@ export class ProjectViews {
     const [width, height] = this.win.getContentSize()
     for (const [id, v] of this.views) v.setVisible(!this.covered && id === this.shownId)
     for (const [id, v] of this.setups) v.setVisible(!this.covered && id === this.shownId)
-    const y = TAB_H + this.barH
+    const y = TAB_H
     for (const v of this.views.values()) v.setBounds({ x: 0, y, width, height: Math.max(0, height - y) })
     const top = TAB_H + SETUP_HEAD_H
     for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })

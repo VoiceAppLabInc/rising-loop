@@ -1,6 +1,8 @@
-// 古い形のプロジェクトの知らせ（最初のダイアログ・タブの下の帯・元に戻すときの確認）。
+// 古い形のプロジェクトの知らせ（最初のダイアログ・ループの画面の上のカード・元に戻すときの確認）。
 // 新しい形にする・元に戻すのは main の決まった処理（src/main/index.ts の loops:migrate・loops:undo）。
+import type { ReactNode } from 'react'
 import type { FormInfo, Migration } from '@shared/types'
+import { Button } from './Button'
 
 const WARN = '古い形のままだと、AI の作業（更新・指示など）がうまく動かず、画面や数字が崩れることがあります。'
 
@@ -16,9 +18,9 @@ export function OldFormDialog(p: {
   return (
     <div className="backdrop">
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="old-form-title">
-        <h2 id="old-form-title">画面が前の版の形です</h2>
+        <h2 id="old-form-title">画面が前のバージョンの形です</h2>
         <p>
-          「{p.name}」の画面は {p.label} です。いまの版は {p.latest} です。
+          「{p.name}」の画面は {p.label} です。いまのバージョンは {p.latest} です。
         </p>
         {p.unsupported ? (
           <p>この形（1.5 より前）は、アプリでは新しい形にできません。{WARN}</p>
@@ -27,17 +29,17 @@ export function OldFormDialog(p: {
         )}
         <div className="actions">
           {p.unsupported ? (
-            <button className="primary" onClick={p.onLater}>
+            <Button variant="primary" onClick={p.onLater}>
               閉じる
-            </button>
+            </Button>
           ) : (
             <>
-              <button className="secondary" onClick={p.onLater} disabled={p.busy}>
+              <Button onClick={p.onLater} disabled={p.busy}>
                 あとで
-              </button>
-              <button className="primary" onClick={p.onMigrate} disabled={p.busy}>
+              </Button>
+              <Button variant="primary" onClick={p.onMigrate} disabled={p.busy}>
                 新しい形にする
-              </button>
+              </Button>
             </>
           )}
         </div>
@@ -54,20 +56,23 @@ export function UndoDialog(p: { at: string; busy: boolean; onCancel: () => void;
         <p>{shortTime(p.at)} に新しい形にする前の画面に戻します。そのあとに増えた数字や記録も、その時点に戻ります。</p>
         <p>いまの画面は控えに残します。</p>
         <div className="actions">
-          <button className="secondary" onClick={p.onCancel} disabled={p.busy}>
+          <Button onClick={p.onCancel} disabled={p.busy}>
             やめる
-          </button>
-          <button className="primary" onClick={p.onUndo} disabled={p.busy}>
+          </Button>
+          <Button variant="primary" onClick={p.onUndo} disabled={p.busy}>
             元に戻す
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   )
 }
 
-/** タブの下の帯。古い・作り直しが残る・新しい形にした直後で出し分ける */
-export function OldFormBar(p: {
+/**
+ * ループの画面の上に浮かぶ小さなカード（1行）。前のバージョン・AI が作業中・直っていない・新しい形にした直後で出し分ける。
+ * ループの画面の上に重ねた透明な層（main の overlay）に描く。出すものが無ければ null
+ */
+export function OldFormCard(p: {
   form: FormInfo
   migration: Migration | undefined
   latest: string
@@ -79,54 +84,53 @@ export function OldFormBar(p: {
 }) {
   const f = p.form
   const undo = p.migration && (
-    <button className="link" onClick={p.onUndo} disabled={p.busy}>
+    <Button size="sm" onClick={p.onUndo} disabled={p.busy}>
       元に戻す
-    </button>
+    </Button>
   )
-  if (f.stage === 'unsupported')
-    return (
-      <div className="old-bar" role="status">
-        <span>この画面は前の版の形です（{f.label}）。アプリでは新しい形にできません。AI の作業がうまく動かないことがあります。</span>
-      </div>
-    )
+  const card = (kind: string, icon: ReactNode, msg: string, actions?: ReactNode) => (
+    <div className={`card ${kind}`} role="status">
+      <span className="ico">{icon}</span>
+      <span className="msg">{msg}</span>
+      {actions}
+    </div>
+  )
+  if (f.stage === 'unsupported') return card('warn', '!', `前のバージョンの画面です（${f.label}）。アプリでは新しい形にできません`)
   if (f.stage === 'old')
-    return (
-      <div className="old-bar" role="status">
-        <span>この画面は前の版の形です（{f.label}）。AI の作業がうまく動かないことがあります。</span>
-        <button className="link" onClick={p.onMigrate} disabled={p.busy}>
-          新しい形にする
-        </button>
-      </div>
+    return card(
+      'warn',
+      '!',
+      `前のバージョンの画面です（${f.label}）`,
+      <Button variant="dark" size="sm" onClick={p.onMigrate} disabled={p.busy}>
+        新しい形にする
+      </Button>
     )
-  if (f.stage === 'rework' && f.aiWorking)
-    return (
-      <div className="old-bar" role="status">
-        <span>画面を新しい版に直しています。右のチャットで AI が作業中です。</span>
-      </div>
-    )
+  if (f.stage === 'rework' && f.aiWorking) return card('work', <span className="spin" />, '新しいバージョンに直しています（AI が作業中）')
   if (f.stage === 'rework')
-    return (
-      <div className="old-bar" role="status">
-        <span>
-          {f.reworkPages.length
-            ? `新しい版に直っていないループがあります（${f.reworkPages.map((n) => n.replace(/\.html$/, '')).join('・')}）。`
-            : '新しい版に直っていないところがあります。'}
-        </span>
-        <button className="link" onClick={p.onRework} disabled={p.busy}>
-          続きを AI に頼む
-        </button>
+    return card(
+      'stop',
+      '!',
+      f.reworkPages.length
+        ? `直っていないループがあります（${f.reworkPages.map((n) => n.replace(/\.html$/, '')).join('・')}）`
+        : '直っていないところがあります',
+      <>
         {undo}
-      </div>
+        <Button variant="danger-solid" size="sm" onClick={p.onRework} disabled={p.busy}>
+          続きを AI に頼む
+        </Button>
+      </>
     )
   if (p.migration && !p.migration.closed)
-    return (
-      <div className="old-bar done" role="status">
-        <span>新しい形にしました（{p.migration.from} → {p.latest}）。</span>
+    return card(
+      'done',
+      '✓',
+      `新しい形にしました（${p.migration.from} → ${p.latest}）`,
+      <>
         {undo}
-        <button className="link" onClick={p.onClose} disabled={p.busy}>
-          閉じる
-        </button>
-      </div>
+        <Button variant="quiet" size="sm" className="btn-x" aria-label="閉じる" title="閉じる" onClick={p.onClose} disabled={p.busy}>
+          ✕
+        </Button>
+      </>
     )
   return null
 }

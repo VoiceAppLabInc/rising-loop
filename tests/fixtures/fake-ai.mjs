@@ -4,6 +4,29 @@
 // - RLA_FAKE_DELAY_MS があれば、その分だけ待ってから画面を出す（起動の遅い AI のかわり）
 // - RLA_FAKE_DEAF_MS があれば、画面を出してからその分だけ、入力を捨てる（起動直後の claude のかわり）
 // - 引数の -- のあとの文は、会話を始めるときに送られた文として「受信:」に出す
+// 設定画面が調べる・動かすもの（版・ログインの状態・ログイン）と、codex の会話づくり（exec --json）には、すぐ答えて終わる
+const a0 = process.argv.slice(2)
+const loggedOut = process.env.RLA_FAKE_LOGGED_OUT === '1'
+if (a0[0] === '--version') {
+  process.stdout.write('fake-ai 9.9.9\n')
+  process.exit(0)
+}
+if (a0.join(' ') === 'auth status') {
+  process.stdout.write(JSON.stringify({ loggedIn: !loggedOut }) + '\n')
+  process.exit(0)
+}
+if (a0.join(' ') === 'login status') {
+  process.stdout.write(loggedOut ? 'Not logged in\n' : 'Logged in using fake\n')
+  process.exit(loggedOut ? 1 : 0)
+}
+if (a0.join(' ') === 'auth login' || a0.join(' ') === 'login') {
+  process.stdout.write('LOGIN-FLOW-OK\r\n')
+  process.exit(0)
+}
+if (a0.includes('exec') && a0.includes('--json')) {
+  process.stdout.write(JSON.stringify({ type: 'thread.started', thread_id: 'fake-thread-1' }) + '\n')
+  process.exit(0)
+}
 const delay = Number(process.env.RLA_FAKE_DELAY_MS || 0)
 const deaf = Number(process.env.RLA_FAKE_DEAF_MS || 0)
 const argv = process.argv.slice(2)

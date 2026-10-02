@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findCliIn, killCommand, resolveWinShim, windowChrome } from '../../src/main/platform'
+import { findCliIn, installCommand, killCommand, loginArgs, parseLoggedIn, resolveWinShim, windowChrome } from '../../src/main/platform'
 
 const fsOf = (files: Record<string, string>) => ({
   exists: (p: string) => p in files,
@@ -91,5 +91,32 @@ describe('windowChrome', () => {
   it('Windows は右にウィンドウのボタンを重ねる', () => {
     expect(windowChrome('win32')).toMatchObject({ titleBarStyle: 'hidden', controls: 'right' })
     expect(windowChrome('win32').titleBarOverlay).toBeTruthy()
+  })
+})
+
+describe('入れる・ログインのコマンド', () => {
+  it('claude を入れる：Mac は公式の install.sh、Windows は公式の install.ps1', () => {
+    expect(installCommand('claude', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] })
+    expect(installCommand('claude', 'win32')).toEqual({ file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] })
+  })
+  it('codex を入れる：npm で入れる', () => {
+    expect(installCommand('codex', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'npm install -g @openai/codex'] })
+    expect(installCommand('codex', 'win32')).toEqual({ file: 'cmd.exe', args: ['/d', '/s', '/c', 'npm install -g @openai/codex'] })
+  })
+  it('ログイン：claude は auth login、codex は login', () => {
+    expect(loginArgs('claude')).toEqual(['auth', 'login'])
+    expect(loginArgs('codex')).toEqual(['login'])
+  })
+})
+
+describe('ログインの状態を読む', () => {
+  it('claude は auth status の JSON の loggedIn', () => {
+    expect(parseLoggedIn('claude', '{"loggedIn": true, "authMethod": "claude.ai"}', 0)).toBe(true)
+    expect(parseLoggedIn('claude', '{"loggedIn": false}', 0)).toBe(false)
+    expect(parseLoggedIn('claude', 'error', 1)).toBe(false)
+  })
+  it('codex は login status が成功して「Logged in」を含むか', () => {
+    expect(parseLoggedIn('codex', 'Logged in using ChatGPT', 0)).toBe(true)
+    expect(parseLoggedIn('codex', 'Not logged in', 1)).toBe(false)
   })
 })

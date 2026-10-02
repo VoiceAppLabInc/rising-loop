@@ -2,7 +2,7 @@
 // プロジェクトのフォルダ（loops/ を含む）には何も書かない。
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
-import type { Migration, Project, ProjectsState } from '@shared/types'
+import type { AiKind, Migration, PermMode, Project, ProjectsState } from '@shared/types'
 
 export function emptyState(): ProjectsState {
   return { projects: [], currentId: null }
@@ -22,6 +22,38 @@ export function addProject(s: ProjectsState, folder: string, now: string): { sta
 
 export function selectProject(s: ProjectsState, id: string): ProjectsState {
   return s.projects.some((p) => p.id === id) ? { ...s, currentId: id } : s
+}
+
+/**
+ * 設定画面で変えるもの。名前は常にフォルダ名にするので、フォルダを変えたら名前も変わる。
+ * フォルダを変えたら、前のフォルダについての記録（新しい形にした・知らせた・最初の依頼）は消す
+ */
+export function updateProject(s: ProjectsState, id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }): ProjectsState {
+  if (!s.projects.some((p) => p.id === id)) return s
+  return {
+    ...s,
+    projects: s.projects.map((p) => {
+      if (p.id !== id) return p
+      let next: Project = { ...p }
+      if (patch.ai) next.ai = patch.ai
+      if (patch.perm) next.perm = patch.perm
+      if (patch.folder != null && trimSlash(patch.folder) !== p.folder) {
+        const { migration: _m, noticedForm: _n, kickoffAt: _k, ...rest } = next
+        const folder = trimSlash(patch.folder)
+        next = { ...rest, folder, name: basename(folder) }
+      }
+      return next
+    })
+  }
+}
+
+/** アプリの一覧から外す（フォルダには触れない）。開いていたら、隣のプロジェクトを開く */
+export function removeProject(s: ProjectsState, id: string): ProjectsState {
+  const i = s.projects.findIndex((p) => p.id === id)
+  if (i < 0) return s
+  const projects = s.projects.filter((p) => p.id !== id)
+  const currentId = s.currentId !== id ? s.currentId : (projects[Math.min(i, projects.length - 1)]?.id ?? null)
+  return { projects, currentId }
 }
 
 export function markKickoff(s: ProjectsState, id: string, now: string): ProjectsState {

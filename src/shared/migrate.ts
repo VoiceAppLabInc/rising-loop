@@ -42,8 +42,11 @@ export interface MigrationPlan {
   lost: string[]
 }
 
-/** 2.0.0 で雛形から消した部品の id（ttyd の説明・アップデートのボタン・コピーの知らせ）。移し直させないので「消える」に数えない */
-const DROPPED_IDS = new Set(['cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body'])
+/**
+ * 雛形から消した部品の id。移し直させないので「消える」に数えない（shell-update.py の DROPPED_IDS と同じにする）
+ * 2.0.0: ttyd の説明・アップデートのボタン・コピーの知らせ／2.1.0: 使い方の窓と右上のボタンと、使い方の図の矢印（hw-ah）（アプリに移した）
+ */
+const DROPPED_IDS = new Set(['cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body', 'topbtns', 'howto-btn', 'cc-toggle', 'howto', 'howto-t', 'howto-close', 'hw-ah'])
 
 const trimNl = (s: string) => s.replace(/^\n+|\n+$/g, '')
 
@@ -64,7 +67,7 @@ function put(html: string, name: string, body: string): string {
 }
 
 /** 版の表示は雛形に直書きせず、入れ替えのときに書く（直書きだと版を上げても古い番号が残る） */
-const putVersion = (html: string, v: string) => html.replace(/(<span class="ver">)v?[0-9][0-9.]*(<\/span>)/g, `$1v${v}$2`)
+const putVersion = (html: string, v: string) => html.replace(/(<span class="ver"[^>]*>)v?[0-9][0-9.]*(<\/span>)/g, `$1v${v}$2`)
 
 export function planMigration(files: LoopsFiles, tpl: Templates): MigrationPlan | { error: 'no-markers' } {
   const cur = files.indexHtml

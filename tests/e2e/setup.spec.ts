@@ -15,6 +15,7 @@ const count = (text: string | null, s: string) => (text ?? '').split(s).length -
 async function open(): Promise<void> {
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await win.getByRole('dialog').getByRole('button', { name: '追加する' }).click()
 }
 
 test.beforeEach(async () => {
@@ -35,6 +36,16 @@ test('ループが無いフォルダを開くと、全面のチャットで目�
   await expect(win.getByText('「new-service」をプロジェクトにしました。')).toBeVisible()
   await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeVisible()
   await expect.poll(async () => count(await paneText(app, 's-list'), KICKOFF), { timeout: 15_000 }).toBe(1)
+})
+
+test('ループが無いフォルダは、新しいプロジェクトにしてよいかを聞き、［やめる］なら追加しない', async () => {
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  const d = win.getByRole('dialog')
+  await expect(d).toContainText('「new-service」にはループがありません。新しいプロジェクトとして追加しますか？')
+  await d.getByRole('button', { name: 'やめる' }).click()
+  await expect(d).toHaveCount(0)
+  await expect(win.getByRole('tab')).toHaveCount(0)
 })
 
 test('loops/ ができると通常の形に切り替わり、同じ会話が一覧のチャットとして続く', async () => {

@@ -110,7 +110,7 @@ describe('planMigration', () => {
     const files = filesOf(copyOf('versions/1.7.5'))
     const plan = planMigration(files, tpl)
     if ('error' in plan) throw new Error(plan.error)
-    expect(plan.newIndex).toContain(`<span class="ver">v${tpl.version}</span>`)
+    expect(plan.newIndex).toMatch(new RegExp(`<span class="ver"[^>]*>v${tpl.version.replace(/\./g, '\\.')}</span>`))
     const between = (h: string, name: string) => h.slice(h.indexOf(`<!-- ${name}:BEGIN -->`), h.indexOf(`<!-- ${name}:END -->`))
     expect(between(plan.newIndex, 'CONST').trim()).toBe(between(files.indexHtml, 'CONST').trim())
     expect(between(plan.newIndex, 'LOOPS').trim()).toBe(between(files.indexHtml, 'LOOPS').trim())
@@ -130,7 +130,7 @@ describe('stageOf（版で判定する。頁の書き方は見ない）', () => 
   const withVer = (fixture: string, ver: string) =>
     copyOf(fixture, (l) => {
       const p = join(l, 'index.html')
-      writeFileSync(p, readFileSync(p, 'utf8').replace(/<span class="ver">[^<]*<\/span>/, `<span class="ver">${ver}</span>`))
+      writeFileSync(p, readFileSync(p, 'utf8').replace(/<span class="ver"([^>]*)>[^<]*<\/span>/, `<span class="ver"$1>${ver}</span>`))
     })
 
   it('1.5 より前の形は、アプリでは新しい形にできない', () => {

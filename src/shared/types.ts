@@ -7,6 +7,10 @@ export interface Project {
   /** プロジェクトのフォルダの絶対パス。loops/ はこの下にある */
   folder: string
   addedAt: string
+  /** 右のチャットで動かす AI（無ければ claude） */
+  ai?: AiKind
+  /** コマンド実行の確認。ask: 確認する（使う人の claude / codex の設定のまま）／auto: すべて自動で許可（無ければ ask） */
+  perm?: PermMode
   /** ループが無いときに、最初の依頼をチャットへ送った日時。プロジェクトごとに1回だけ送る */
   kickoffAt?: string
   /** 古い形を知らせた、その形（「1.5-1.7:1.6.1」など）。同じ形について知らせるのは1回だけ */
@@ -47,6 +51,8 @@ export interface FormInfo {
   reworkPages: string[]
   /** rework のとき、一覧のチャットの AI が作業中か */
   aiWorking: boolean
+  /** 殻に書いてある版（分からなければ null）。2.1.0 以降の殻なら、アプリのタブの列に使い方と右の窓の開閉を出す */
+  shellVersion: string | null
   /** 画面に出す呼び名（「1.6.1」「1.5〜1.7 の形」など） */
   label: string
   /** 知らせを判定する鍵（era と版） */
@@ -57,8 +63,20 @@ export interface FormInfo {
 export interface ProjectsSnapshot extends ProjectsState {
   hasLoops: Record<string, boolean>
   forms: Record<string, FormInfo>
+  /** 右の窓を開いているか（プロジェクトごと） */
+  panes: Record<string, boolean>
   skillVersion: string
+  appVersion: string
 }
 
 /** 右のチャットで動かす AI */
 export type AiKind = 'claude' | 'codex'
+
+export type PermMode = 'ask' | 'auto'
+
+/** claude / codex が使えるか。missing: 入っていない／login: ログインしていない／ready: 使える */
+export interface AiStatus {
+  ai: AiKind
+  state: 'missing' | 'login' | 'ready'
+  version: string | null
+}

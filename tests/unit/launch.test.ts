@@ -75,3 +75,21 @@ describe('会話を始めるときに送る文（起動時の引数で渡す）'
     expect(codexArgs({ threadId: 't1', instructions: 'x', prompt: '---\na\n---' }).slice(2)).toEqual(['resume', 't1', '--', '---\na\n---'])
   })
 })
+
+describe('コマンド実行の確認のモード', () => {
+  const base = { sessionId: 'abc', exists: false, pluginDir: '/p', promptFile: '/f', model: null }
+  it('すべて自動で許可：claude は bypassPermissions で起動する', () => {
+    const a = claudeArgs({ ...base, autoApprove: true, prompt: 'x' })
+    expect(a).toContain('--permission-mode')
+    expect(a[a.indexOf('--permission-mode') + 1]).toBe('bypassPermissions')
+    expect(a.slice(-2)).toEqual(['--', 'x'])
+  })
+  it('確認する：何も足さない（使う人の設定のまま）', () => {
+    expect(claudeArgs(base)).not.toContain('--permission-mode')
+    expect(codexArgs({ threadId: 't', instructions: 'x' })).not.toContain('--dangerously-bypass-approvals-and-sandbox')
+  })
+  it('すべて自動で許可：codex は確認も囲いも外して起動する', () => {
+    const a = codexArgs({ threadId: 't', instructions: 'x', autoApprove: true })
+    expect(a.indexOf('--dangerously-bypass-approvals-and-sandbox')).toBeLessThan(a.indexOf('resume'))
+  })
+})

@@ -145,6 +145,39 @@ export class Chats {
     }
   }
 
+  /**
+   * 設定で AI や確認のモードを変えたとき、そのプロジェクトのチャットを起動し直す（会話は続ける）。
+   * 開いていない画面は、次に開いたときに新しい設定で起動する
+   */
+  restartProject(project: Project, ai: AiKind): void {
+    for (const [key, t] of this.terms) {
+      if (!key.startsWith(`${project.id}:`)) continue
+      const p = t.proc
+      t.proc = null
+      if (p) {
+        this.killed.add(p)
+        killTree(p.pid, () => p.kill())
+      }
+      t.buf = ''
+      this.toPane(t, '\x1bc')
+      if (!t.starting) void this.start(t, project, key.slice(project.id.length + 1), ai)
+    }
+  }
+
+  /** プロジェクトを外す・フォルダを変えるとき。そのプロジェクトの AI を止めて、ターミナルを捨てる */
+  killProject(projectId: string): void {
+    for (const [key, t] of [...this.terms]) {
+      if (!key.startsWith(`${projectId}:`)) continue
+      const p = t.proc
+      t.proc = null
+      if (p) {
+        this.killed.add(p)
+        killTree(p.pid, () => p.kill())
+      }
+      this.terms.delete(key)
+    }
+  }
+
   /** その画面の AI が作業中か（起動中・送る文が残っている・少し前まで出力していた） */
   busy(projectId: string, screen: string): boolean {
     const t = this.terms.get(`${projectId}:${screen}`)
@@ -267,8 +300,8 @@ export class Chats {
       const prompt = t.queue.shift()?.text
       const args =
         ai === 'claude'
-          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel(), prompt })
-          : codexArgs({ threadId: id, instructions, prompt })
+          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
+          : codexArgs({ threadId: id, instructions, prompt, autoApprove: project.perm === 'auto' })
       const proc = pty.spawn(cmd.file, [...cmd.args, ...args], { name: 'xterm-256color', cols: t.cols, rows: t.rows, cwd: project.folder, env: env as Record<string, string> })
       t.proc = proc
       t.started = false

@@ -3,7 +3,11 @@
   "versions": [
     {
       "version": "1.7.0",
-      "templates": { "loop": "5cb32d9f5bcb256b", "loops": "9cf865bcc960f1f0", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "5cb32d9f5bcb256b",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
       "changes": [
         {
           "id": "1.7.0-chart-parts",
@@ -15,7 +19,11 @@
     },
     {
       "version": "1.7.1",
-      "templates": { "loop": "42fdeb5d4d1de294", "loops": "9cf865bcc960f1f0", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "42fdeb5d4d1de294",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
       "changes": [
         {
           "id": "1.7.1-goal-bullet",
@@ -33,7 +41,11 @@
     },
     {
       "version": "1.7.2",
-      "templates": { "loop": "e238bd8fcd6b4e01", "loops": "9cf865bcc960f1f0", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "e238bd8fcd6b4e01",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
       "changes": [
         {
           "id": "1.7.2-tid-pill",
@@ -60,12 +72,20 @@
     },
     {
       "version": "1.7.3",
-      "templates": { "loop": "e238bd8fcd6b4e01", "loops": "9cf865bcc960f1f0", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "e238bd8fcd6b4e01",
+        "loops": "9cf865bcc960f1f0",
+        "const": "63976be16b5d2895"
+      },
       "changes": []
     },
     {
       "version": "1.7.4",
-      "templates": { "loop": "47558a9f5fece465", "loops": "c5b917a92ec3733c", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
       "changes": [
         {
           "id": "1.7.4-trial-anchor",
@@ -88,17 +108,29 @@
     },
     {
       "version": "1.7.5",
-      "templates": { "loop": "47558a9f5fece465", "loops": "c5b917a92ec3733c", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
       "changes": []
     },
     {
       "version": "1.7.6",
-      "templates": { "loop": "47558a9f5fece465", "loops": "c5b917a92ec3733c", "const": "63976be16b5d2895" },
+      "templates": {
+        "loop": "47558a9f5fece465",
+        "loops": "c5b917a92ec3733c",
+        "const": "63976be16b5d2895"
+      },
       "changes": []
     },
     {
       "version": "2.0.0",
-      "templates": { "loop": "19bdcf73461b6870", "loops": "77e8dee0e6bda4f0", "const": "e882eb68aa364a59" },
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
       "changes": [
         {
           "id": "2.0.0-page-ver",
@@ -118,6 +150,15 @@
           "what": "CONST ブロックの PANES の注記を「セッションIDはここに持たない。アプリが loops/.chat-sessions を見る」にする（chat-pane.sh は使わない）"
         }
       ]
+    },
+    {
+      "version": "2.1.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

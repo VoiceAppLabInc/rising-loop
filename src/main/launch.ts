@@ -28,6 +28,8 @@ export interface ClaudeLaunch {
    * （2026-10-02 に本物の claude で、起動から約1秒の貼り付けが捨てられるのを確かめた）
    */
   prompt?: string
+  /** コマンド実行の確認を「すべて自動で許可」にする */
+  autoApprove?: boolean
 }
 
 export function claudeArgs(o: ClaudeLaunch): string[] {
@@ -39,6 +41,7 @@ export function claudeArgs(o: ClaudeLaunch): string[] {
     // chat-pane.sh と同じ。右のチャットは長く続くので、20万トークンを超えたら要約させる
     '--autocompact', '200000',
     ...(o.model ? ['--model', o.model] : []),
+    ...(o.autoApprove ? ['--permission-mode', 'bypassPermissions'] : []),
     // -- のあとは文として読ませる（指示文は --- で始まるので、オプションと間違えられる）
     ...(o.prompt ? ['--', o.prompt] : [])
   ]
@@ -47,8 +50,14 @@ export function claudeArgs(o: ClaudeLaunch): string[] {
 /** -c の値は TOML として読まれる。JSON の文字列は TOML の基本文字列としても読める（\\ と " を壊さない） */
 const devInstructions = (text: string) => ['-c', 'developer_instructions=' + JSON.stringify(text)]
 
-export function codexArgs(o: { threadId: string; instructions: string; prompt?: string }): string[] {
-  return [...devInstructions(o.instructions), 'resume', o.threadId, ...(o.prompt ? ['--', o.prompt] : [])]
+export function codexArgs(o: { threadId: string; instructions: string; prompt?: string; autoApprove?: boolean }): string[] {
+  return [
+    ...devInstructions(o.instructions),
+    ...(o.autoApprove ? ['--dangerously-bypass-approvals-and-sandbox'] : []),
+    'resume',
+    o.threadId,
+    ...(o.prompt ? ['--', o.prompt] : [])
+  ]
 }
 
 export function codexCreateArgs(o: { instructions: string; prompt: string }): string[] {

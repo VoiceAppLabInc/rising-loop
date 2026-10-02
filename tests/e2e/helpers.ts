@@ -1,11 +1,22 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 
 export const SAMPLE = resolve('tests/fixtures/sample-project')
 export const FAKE_AI = resolve('tests/fixtures/fake-ai.mjs')
+/** 同梱のスキルのいまの版 */
+export const CURRENT = readFileSync(resolve('skill/skills/rising-loop/VERSION'), 'utf8').trim()
 
 /** アプリを起動する。AI は本物の代わりにテスト用のスクリプトを使い、データ置き場と claude の設定は一時フォルダにする */
-export function launch(root: string, extraEnv: Record<string, string> = {}): Promise<ElectronApplication> {
+export function launch(root: string, extraEnv: Record<string, string> = {}, o: { firstRun?: boolean } = {}): Promise<ElectronApplication> {
+  // 使い方は、いまの版の殻を初めて開いたときに自動で開く。その動きを見るテスト（firstRun）以外は、見たことにしておく
+  if (!o.firstRun) {
+    const app = join(root, 'data', 'app.json')
+    if (!existsSync(app)) {
+      mkdirSync(join(root, 'data'), { recursive: true })
+      writeFileSync(app, JSON.stringify({ howtoSeen: true }))
+    }
+  }
   return electron.launch({
     args: ['.'],
     env: {
@@ -18,6 +29,9 @@ export function launch(root: string, extraEnv: Record<string, string> = {}): Pro
       RISING_LOOP_APP_CLAUDE_PATH: FAKE_AI,
       RISING_LOOP_APP_CODEX_PATH: FAKE_AI,
       CLAUDE_CONFIG_DIR: join(root, 'claude-config'),
+      // ほかの場所の rising-loop を探すホームと、ゴミ箱の代わり（本物のホームとゴミ箱には触れない）
+      RISING_LOOP_APP_HOME: join(root, 'home'),
+      RISING_LOOP_APP_TRASH_DIR: join(root, 'trash'),
       ...extraEnv
     }
   })
@@ -75,4 +89,14 @@ export async function later(win: Page): Promise<void> {
   await d.waitFor({ timeout: 5000 })
   await d.getByRole('button', { name: 'あとで' }).click()
   await d.waitFor({ state: 'hidden' })
+}
+
+/** ループの画面の上に重ねたカードの層（透明な層。アプリの画面とは別のページ） */
+export async function cardPage(app: ElectronApplication): Promise<Page> {
+  for (let i = 0; i < 100; i++) {
+    const p = app.windows().find((w) => w.url().includes('overlay=bar'))
+    if (p) return p
+    await new Promise((r) => setTimeout(r, 100))
+  }
+  throw new Error('カードの層が見つからない')
 }

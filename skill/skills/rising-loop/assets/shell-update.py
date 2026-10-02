@@ -20,15 +20,17 @@ ASSETS = os.path.dirname(os.path.abspath(__file__))
 #===   chat-pane.sh は配らない（右のチャットはアプリが出す）。プロジェクトに残っている loops/chat-pane.sh は消さない
 COMMON = (('rising.css', 'rising.css'), ('rising.js', 'rising.js'),
           ('loopdata.py', 'update/common.py'))
-#=== 2.0.0 で雛形から消した部品の id（ttyd の説明・アップデートのボタン・コピーの知らせ）。移し直させないので「消えるもの」に出さない
-DROPPED_IDS = {'cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body'}
+#=== 雛形から消した部品の id。移し直させないので「消えるもの」に出さない
+#===   2.0.0: ttyd の説明・アップデートのボタン・コピーの知らせ／2.1.0: 使い方の窓と右上のボタン（アプリのタブの列に移した）
+DROPPED_IDS = {'cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body',
+               'topbtns', 'howto-btn', 'cc-toggle', 'howto', 'howto-t', 'howto-close', 'hw-ah'}
 
 
 #=== 殻の使い方の帯に出る版。**テンプレに直書きしない。** 直書きだと VERSION を上げても
 #===   殻は古い番号を出しつづける（1.7.0 を入れたのに v1.6.1 と出て、ユーザーが混乱した）
 def put_version(html):
     v = open(os.path.join(os.path.dirname(ASSETS), 'VERSION'), encoding='utf-8').read().strip()
-    out, n = re.subn(r'(<span class="ver">)v?[0-9][0-9.]*(</span>)', r'\1v%s\2' % v, html)
+    out, n = re.subn(r'(<span class="ver"[^>]*>)v?[0-9][0-9.]*(</span>)', r'\1v%s\2' % v, html)
     if not n:
         print('  ⚠ 殻に版の置き場（<span class="ver">）がありません')
     return out, v

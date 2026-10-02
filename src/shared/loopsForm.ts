@@ -26,7 +26,7 @@ const TTYD_MARKS = ['id="cc-ask"', 'id="cc-help"', 'id="rl-update"']
 
 export function detectForm(o: { indexHtml: string | null; pages: string[] }): LoopsForm {
   if (o.indexHtml == null) return { era: 'unknown', shown: null, current: true }
-  const m = /<span class="ver">v?([0-9][0-9.]*)<\/span>/.exec(o.indexHtml)
+  const m = /<span class="ver"[^>]*>v?([0-9][0-9.]*)<\/span>/.exec(o.indexHtml)
   const shown = m && m[1] !== '0.0.0' ? m[1] : null
   const era: Era = !o.indexHtml.includes('CONST:BEGIN')
     ? '1.2'
@@ -41,5 +41,5 @@ export function detectForm(o: { indexHtml: string | null; pages: string[] }): Lo
 /** 画面に出す呼び名 */
 export function formLabel(f: LoopsForm): string {
   if (f.shown) return f.shown
-  return f.era === '1.2' ? '1.2 以前の形' : f.era === '1.3-1.4' ? '1.3〜1.4 の形' : f.era === '1.5-1.7' ? '1.5〜1.7 の形' : '版の分からない形'
+  return f.era === '1.2' ? '1.2 以前の形' : f.era === '1.3-1.4' ? '1.3〜1.4 の形' : f.era === '1.5-1.7' ? '1.5〜1.7 の形' : 'バージョンの分からない形'
 }

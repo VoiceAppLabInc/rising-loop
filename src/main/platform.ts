@@ -86,6 +86,32 @@ export function windowChrome(platform: Platform): {
   return { titleBarStyle: 'default', controls: 'none' }
 }
 
+/** 公式の手順で入れる。claude は公式のインストーラー、codex は npm（Node が要る） */
+export function installCommand(ai: 'claude' | 'codex', platform: Platform): Command {
+  const win = platform === 'win32'
+  if (ai === 'claude')
+    return win
+      ? { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] }
+      : { file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] }
+  return win ? { file: 'cmd.exe', args: ['/d', '/s', '/c', 'npm install -g @openai/codex'] } : { file: '/bin/zsh', args: ['-lc', 'npm install -g @openai/codex'] }
+}
+
+/** ログインは公式のコマンドで、ブラウザに任せる（アプリはトークンを扱わない） */
+export const loginArgs = (ai: 'claude' | 'codex'): string[] => (ai === 'claude' ? ['auth', 'login'] : ['login'])
+/** ログインの状態を調べるコマンドの引数 */
+export const statusArgs = (ai: 'claude' | 'codex'): string[] => (ai === 'claude' ? ['auth', 'status'] : ['login', 'status'])
+
+export function parseLoggedIn(ai: 'claude' | 'codex', out: string, code: number): boolean {
+  if (ai === 'claude') {
+    try {
+      return JSON.parse(out).loggedIn === true
+    } catch {
+      return false
+    }
+  }
+  return code === 0 && /logged in/i.test(out) && !/not logged in/i.test(out)
+}
+
 // ── ここから下は実際の OS に触る部分 ──
 
 let shellEnv: Promise<NodeJS.ProcessEnv> | null = null
