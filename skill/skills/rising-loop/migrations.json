@@ -227,6 +227,22 @@
           "detail": "例: <p class=\"record-log\"><a href=\"logs/L01.md\" target=\"_blank\" rel=\"noopener\">出来事のLOG<span class=\"arw\">↗</span></a></p>。タイトルの文字と行き先（href）は元の details のものをそのまま使う。畳んだループの LOG（「畳む前の L02 の出来事」など）が複数あれば、それぞれ同じ形にする。LOG が無い頁では何もしない"
         }
       ]
+    },
+    {
+      "version": "2.3.5",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.3.5-back-label",
+          "target": "pages",
+          "what": "頁の上の戻るボタン（<button class=\"back\">）の文字を「ループ一覧」から「一覧へ」にする。左上に浮かぶピルの形は rising.css が出すので、markup は文字だけ直す",
+          "detail": "例: <button class=\"back\" data-go=\"\"><span class=\"arw\">←</span>一覧へ</button>。<span class=\"arw\"> と data-go はそのまま残す"
+        }
+      ]
     }
   ]
 }

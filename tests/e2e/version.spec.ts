@@ -142,7 +142,7 @@ test('［新しい形にする］で、控えを取り、殻と共通の部品�
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
   const [line] = await received()
   // 見本の殻の版の表示は v0.0.0（1.7.1〜1.7.6 のどれか分からない）なので、1.7.0 より後の項目をすべて送る
-  expect(line).toContain('- L01.html（1.7.0 から）：1.7.1-goal-bullet、1.7.1-chart-refs、1.7.2-tid-pill、1.7.2-tid-ref、1.7.2-no-done-tag、1.7.2-status-words、1.7.4-trial-anchor、2.0.0-page-ver、2.3.1-back-link、2.3.4-log-link')
+  expect(line).toContain('- L01.html（1.7.0 から）：1.7.1-goal-bullet、1.7.1-chart-refs、1.7.2-tid-pill、1.7.2-tid-ref、1.7.2-no-done-tag、1.7.2-status-words、1.7.4-trial-anchor、2.0.0-page-ver、2.3.1-back-link、2.3.4-log-link、2.3.5-back-label')
   expect(line).toContain('一覧（1.7.0 から）：1.7.4-list-rows、1.7.4-list-note、2.0.0-list-ver、2.0.0-const-note')
   expect(line).toContain('migrations.json')
   // AI が反映し終えたつもりで印を書く → 帯が「新しい形にしました」に変わる
@@ -156,7 +156,7 @@ test('前の版からの台帳の項目を、漏らさず古い順に送る（1.
   await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
   const [line] = await received()
-  expect(line).toContain('- L01.html（1.6.1 から）：1.7.0-chart-parts、1.7.1-goal-bullet、1.7.1-chart-refs、1.7.2-tid-pill、1.7.2-tid-ref、1.7.2-no-done-tag、1.7.2-status-words、1.7.4-trial-anchor、2.0.0-page-ver、2.3.1-back-link、2.3.4-log-link')
+  expect(line).toContain('- L01.html（1.6.1 から）：1.7.0-chart-parts、1.7.1-goal-bullet、1.7.1-chart-refs、1.7.2-tid-pill、1.7.2-tid-ref、1.7.2-no-done-tag、1.7.2-status-words、1.7.4-trial-anchor、2.0.0-page-ver、2.3.1-back-link、2.3.4-log-link、2.3.5-back-label')
   expect(line).toContain('一覧（1.6.1 から）：1.7.4-list-rows、1.7.4-list-note、2.0.0-list-ver、2.0.0-const-note')
   // 手が止まったあと、続きを頼める（もう動いている AI には貼り付けで送る）
   await (await cardPage(app)).getByRole('status').getByRole('button', { name: '続きを AI に頼む' }).click({ timeout: 15_000 })
