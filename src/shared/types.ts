@@ -70,6 +70,18 @@ export interface ProjectsSnapshot extends ProjectsState {
 }
 
 /** 右のチャットで動かす AI */
+/**
+ * 殻（2.3.0 から）が window.rlaApp.ask で頼む入力の窓の中身。何を聞くかは殻が決め、アプリは窓を出すだけ。
+ * chips は［札の文字, 押したら入力欄に入れる文］の並び
+ */
+export interface AskRequest {
+  kick: string
+  title: string
+  sub: string
+  placeholder: string
+  chips: [string, string][]
+}
+
 export type AiKind = 'claude' | 'codex'
 
 export type PermMode = 'ask' | 'auto'

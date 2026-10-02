@@ -3,7 +3,8 @@
 import { existsSync, readFileSync, watch, type FSWatcher } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BrowserWindow, WebContentsView, net, session, webFrameMain, type Session } from 'electron'
-import { PANE_PORT, parsePaneUrl } from '@shared/intercept'
+import { PANE_PORT, parsePaneUrl, screenOfUrl } from '@shared/intercept'
+import { compareVersions } from '@shared/migrate'
 import { classifyChange, mergeChanges, type Change } from '@shared/reload'
 import type { Project } from '@shared/types'
 
@@ -11,6 +12,11 @@ import type { Project } from '@shared/types'
 export const TAB_H = 40
 /** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
 export const SETUP_HEAD_H = 112
+
+/** 右のチャットの窓の幅。殻が窓を持っていた頃（2.2.0 より前）の殻の --pane と同じ */
+export const PANE_W = 360
+/** この版からの殻は右の窓を持たない。アプリが自分の窓としてループの画面の右に並べる */
+const APP_CHAT_FROM = '2.2.0'
 
 /** 変更が止まってから読み込み直すまでの時間（AI が書いている途中の画面を出さない） */
 const QUIET_MS = 1500
@@ -41,10 +47,15 @@ export class ProjectViews {
   /** ループが無いプロジェクトの、全面のチャット（右の窓と同じページ） */
   private setups = new Map<string, WebContentsView>()
   private watchers = new Map<string, FSWatcher>()
-  /** 右の窓を開いているか（プロジェクトごと。既定は開く）。殻の rising.js の LOOP_SET_PANE で当てる */
+  /** 右の窓を開いているか（プロジェクトごと。既定は開く）。2.1.x の殻には rising.js の LOOP_SET_PANE で当てる */
   private panes = new Map<string, boolean>()
+  /** 2.2.0 からの殻のプロジェクトの、アプリが出す右のチャットの窓 */
+  private chats = new Map<string, WebContentsView>()
+  /** ループの画面の殻が右の窓を持たないか（2.2.0 から）と、チャットを付ける画面（殻の CONST の PANES）。読み込むたびに読み直す */
+  private shells = new Map<string, { appChat: boolean; panes: string[] }>()
   private changed: () => void = () => undefined
   private shownId: string | null = null
+  private projects = new Map<string, Project>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
   private covered = false
   private ses: Session
@@ -75,6 +86,7 @@ export class ProjectViews {
    */
   show(p: Project | null): void {
     this.shownId = p?.id ?? null
+    if (p) this.projects.set(p.id, p)
     if (p && hasLoops(p.folder)) {
       this.closeSetup(p.id)
       if (!this.views.has(p.id)) this.views.set(p.id, this.create(p))
@@ -95,7 +107,7 @@ export class ProjectViews {
   }
 
   projectOf(webContentsId: number): string | null {
-    for (const m of [this.views, this.setups]) for (const [id, v] of m) if (v.webContents.id === webContentsId) return id
+    for (const m of [this.views, this.setups, this.chats]) for (const [id, v] of m) if (v.webContents.id === webContentsId) return id
     return null
   }
 
@@ -118,16 +130,45 @@ export class ProjectViews {
   private create(p: Project): WebContentsView {
     const v = this.newView()
     void v.webContents.loadFile(loopsIndex(p.folder))
-    // 殻は読み込むたびに右の窓を開いた状態で始まるので、アプリの開閉の状態を当て直す
-    v.webContents.on('did-finish-load', () => this.applyPane(p.id))
+    v.webContents.on('did-finish-load', () => void this.readShell(p, v))
+    // 画面の切り替えは殻の hash（#s-L01）。右のチャットをその画面のものにする
+    v.webContents.on('did-navigate-in-page', () => this.syncChat(p))
     this.watch(p.id, p.folder, v)
     return v
   }
 
-  /** 右の窓の開閉（アプリのタブの列の［AI の窓］）。2.1.0 より前の殻には LOOP_SET_PANE が無いので何もしない */
+  /**
+   * 読み込んだ殻を調べる。2.2.0 からの殻なら、アプリの右の窓を出してその画面のチャットにする。
+   * それより前の殻は自分の中に右の窓を持つので、開閉の状態だけ当て直す（殻は読み込むたびに開いた状態で始まる）
+   */
+  private async readShell(p: Project, v: WebContentsView): Promise<void> {
+    const r = (await v.webContents
+      .executeJavaScript(
+        `({ ver: (document.querySelector('span.ver') || {}).textContent || '', panes: (typeof PANES !== 'undefined' && Array.isArray(PANES)) ? PANES.map(String) : [] })`
+      )
+      .catch(() => null)) as { ver: string; panes: string[] } | null
+    if (v.webContents.isDestroyed()) return
+    const ver = /v?(\d+\.\d+\.\d+)/.exec(r?.ver ?? '')?.[1]
+    const appChat = !!ver && compareVersions(ver, APP_CHAT_FROM) >= 0
+    this.shells.set(p.id, { appChat, panes: r?.panes ?? [] })
+    if (!appChat) this.closeChat(p.id)
+    this.applyPane(p.id)
+    this.syncChat(p)
+    this.layout()
+  }
+
+  /** アプリが右のチャットの窓を出すプロジェクトか（殻が 2.2.0 から） */
+  isAppChat(id: string): boolean {
+    return this.shells.get(id)?.appChat ?? false
+  }
+
+  /** 右の窓の開閉（アプリのタブの列の［AI の窓］・指示文が届いたとき）。2.1.0 より前の殻は自分のボタンで開閉する */
   setPane(id: string, on: boolean): void {
     this.panes.set(id, on)
     this.applyPane(id)
+    const p = this.projects.get(id)
+    if (p) this.syncChat(p)
+    this.layout()
   }
 
   paneOpen(id: string): boolean {
@@ -136,13 +177,47 @@ export class ProjectViews {
 
   private applyPane(id: string): void {
     const v = this.views.get(id)
-    if (!v || v.webContents.isDestroyed() || !this.panes.has(id)) return
+    if (!v || v.webContents.isDestroyed() || !this.panes.has(id) || this.isAppChat(id)) return
     void v.webContents.executeJavaScript(`window.LOOP_SET_PANE && window.LOOP_SET_PANE(${this.paneOpen(id)})`).catch(() => undefined)
+  }
+
+  /**
+   * アプリの右の窓に、いま見えている画面のチャットを出す。閉じているあいだは作らない（チャットを起こさない）。
+   * 窓の中は画面ごとのチャットを重ねて置き、表示だけ切り替える（一度つないだチャットは切らない）
+   */
+  private syncChat(p: Project): void {
+    const sh = this.shells.get(p.id)
+    const v = this.views.get(p.id)
+    if (!sh?.appChat || !v || v.webContents.isDestroyed() || !this.paneOpen(p.id)) return
+    const at = screenOfUrl(v.webContents.getURL())
+    const screen = at === 's-list' || sh.panes.includes(at) ? at : 's-list'
+    let c = this.chats.get(p.id)
+    if (!c) {
+      c = this.newView()
+      c.setBackgroundColor('#16171a')
+      this.chats.set(p.id, c)
+      void c.webContents.loadURL(`http://localhost:${PANE_PORT}/_rla/chat.html?arg=${encodeURIComponent(p.folder)}`)
+      this.layout()
+    }
+    const show = `window.RLA_SHOW && window.RLA_SHOW(${JSON.stringify(screen)})`
+    if (c.webContents.isLoading()) c.webContents.once('did-finish-load', () => void c!.webContents.executeJavaScript(show).catch(() => undefined))
+    else void c.webContents.executeJavaScript(show).catch(() => undefined)
+  }
+
+  private closeChat(id: string): void {
+    const c = this.chats.get(id)
+    if (!c) return
+    this.chats.delete(id)
+    this.win.contentView.removeChildView(c)
+    c.webContents.close()
   }
 
   /** プロジェクトを外す・フォルダを変えるとき。そのプロジェクトの画面と見張りを捨てる */
   removeProject(id: string): void {
     this.closeSetup(id)
+    this.closeChat(id)
+    this.shells.delete(id)
+    this.projects.delete(id)
     const v = this.views.get(id)
     if (v) {
       this.views.delete(id)
@@ -232,8 +307,15 @@ export class ProjectViews {
     const [width, height] = this.win.getContentSize()
     for (const [id, v] of this.views) v.setVisible(!this.covered && id === this.shownId)
     for (const [id, v] of this.setups) v.setVisible(!this.covered && id === this.shownId)
+    for (const [id, v] of this.chats) v.setVisible(!this.covered && id === this.shownId && this.paneOpen(id))
     const y = TAB_H
-    for (const v of this.views.values()) v.setBounds({ x: 0, y, width, height: Math.max(0, height - y) })
+    const h = Math.max(0, height - y)
+    for (const [id, v] of this.views) {
+      // アプリが右の窓を出すときは、ループの画面をその幅だけ狭める
+      const w = this.chats.has(id) && this.paneOpen(id) ? Math.max(0, width - PANE_W) : width
+      v.setBounds({ x: 0, y, width: w, height: h })
+    }
+    for (const c of this.chats.values()) c.setBounds({ x: Math.max(0, width - PANE_W), y, width: Math.min(PANE_W, width), height: h })
     const top = TAB_H + SETUP_HEAD_H
     for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
   }
@@ -247,6 +329,33 @@ const PANE_HTML = `<!doctype html><html><head><meta charset="utf-8">
 <script src="/_rla/xterm.js"></script><script src="/_rla/addon-fit.js"></script><script src="/_rla/pane.js"></script>
 </body></html>`
 
+/**
+ * アプリが出す右のチャットの窓（2.2.0 からの殻）。画面ごとのチャット（PANE_HTML）を iframe で重ねて置き、
+ * main が RLA_SHOW(画面ID) で見せるものを切り替える。iframe の src は二度と触らない（触るとつなぎ直しになる）。
+ * 隠すのは visibility。display:none だと幅が 0 になり、戻したときにターミナルが組み直されて崩れる
+ */
+const CHAT_HTML = `<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;height:100%;background:#16171a;overflow:hidden}
+body{border-left:1px solid #2a2c31;box-sizing:border-box}
+iframe{position:absolute;inset:0 0 0 1px;width:calc(100% - 1px);height:100%;border:0;background:#16171a;visibility:hidden}
+iframe.on{visibility:visible}</style>
+</head><body><script>
+(function () {
+  var folder = new URLSearchParams(location.search).get('arg') || ''
+  var frames = {}
+  window.RLA_SHOW = function (screen) {
+    if (!frames[screen]) {
+      var f = document.createElement('iframe')
+      f.title = 'AI のチャット'
+      f.src = '/?arg=' + encodeURIComponent(folder) + '&arg=' + encodeURIComponent(screen)
+      document.body.appendChild(f)
+      frames[screen] = f
+    }
+    for (var k in frames) frames[k].classList.toggle('on', k === screen)
+  }
+})()
+</script></body></html>`
+
 function paneAsset(url: string, paneDir: string): Response | null {
   let u: URL
   try {
@@ -255,6 +364,7 @@ function paneAsset(url: string, paneDir: string): Response | null {
     return null
   }
   if (u.port !== PANE_PORT || !u.pathname.startsWith('/_rla/')) return null
+  if (u.pathname === '/_rla/chat.html') return new Response(CHAT_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } })
   const a = u.pathname === '/_rla/pane.js' ? { file: () => join(paneDir, 'pane.js'), type: 'text/javascript' } : PANE_ASSETS[u.pathname]
   if (!a) return new Response('', { status: 404 })
   return new Response(readFileSync(a.file()), { headers: { 'content-type': a.type + '; charset=utf-8' } })

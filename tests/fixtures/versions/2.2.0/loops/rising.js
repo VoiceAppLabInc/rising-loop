@@ -2,7 +2,7 @@
    rising.js — 殻（index.html）とループ頁（LXX.html）の共通 JS
 
    1本のファイルを両方が読む。先頭の IS_SHELL で、自分がどちらかを見分ける。
-     殻   : #loop-frame を持つ → 画面の切り替え・何を聞くかと指示文の組み立て（入力の窓・右のチャットの窓・使い方はアプリが持つ）
+     殻   : #loop-frame を持つ → 画面の切り替え・モーダル・指示文を送る（右のチャットの窓・使い方はアプリが持つ）
      ループ頁 : 持たない       → ボタンを postMessage に変換・グラフの描画
 
    ★ このファイルは共通部品です。中身（ループ名・数字・パス）を書かないこと。
@@ -46,18 +46,26 @@ if (IS_SHELL) (function(){
   var listTitle = document.querySelector('#s-list h1.goal-name');
   if (listTitle) listTitle.textContent = SERVICE + 'ライジング・ループ';
 
-  /* ── 指示文を送る・聞く（アプリとの約束） ── */
-  //=== 指示文はアプリに直接渡す。アプリがいま見えている画面のチャットに貼って Enter まで押す
-  //===   （右のチャットの窓もアプリが持つ。閉じていればアプリが開く）。クリップボードは使わない
-  //=== 入力の窓もアプリが出す。殻が決めるのは「何を聞くか」（キッカー・タイトル・説明・札）と、指示文の組み立てだけ
-  //===   window.rlaApp.ask({ kick, title, sub, placeholder, chips }) → 入力された文（キャンセルなら null）
-  //===   window.rlaApp.send(指示文)
-  var APP = window.rlaApp;
-  function sendToApp(text){ if (APP) APP.send(text); }
-  function askApp(cfg){
-    if (!APP) return;
-    APP.ask({ kick: cfg.kick, title: cfg.title, sub: cfg.sub || '', placeholder: cfg.ph, chips: cfg.chips || [] })
-      .then(function(v){ v = String(v || '').trim(); if (v) sendToApp(cfg.compose(v)); });
+  /* ── 指示文を送る ── */
+  //=== 指示文をクリップボードに書く。アプリがそれを受け取り、右のチャットに貼って Enter まで押す。
+  //===   右のチャットの窓はアプリが持つ（閉じていればアプリが開く）。殻は窓を持たない
+  //=== ★ iframe 内のクリックによる user activation は親フレームに伝わるので、
+  //===   「頁クリック → postMessage → 殻が writeText」は仕様上通る。
+  //===   通らない環境のために legacyCopy を残す
+  function copyText(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){}, function(){ legacyCopy(text); });
+    } else { legacyCopy(text); }
+  }
+  function legacyCopy(text){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.setAttribute('readonly','');
+      ta.style.cssText='position:fixed;top:0;left:0;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }catch(e){}
   }
 
   /* ── 画面の切り替え ── */
@@ -96,9 +104,56 @@ if (IS_SHELL) (function(){
     (window.LOOP_REDRAWS || []).forEach(function(f){ f(); });
   }
 
-  /* ── 入力の窓のプレースホルダ ── */
+  /* ── モーダル ── */
+  var modal=document.getElementById('modal'), mInput=document.getElementById('m-input');
+  var mTitle=document.getElementById('m-title'), mSub=document.getElementById('m-sub');
   var PH_CMT='このセクションへのフィードバックをどうぞ。';
   var PH_DO='これを TRIAL に移して手順を出して（実装はしない）／これは消して／この認識は違う、など。そのままどうぞ。';
+  var cur=null;
+  function openModal(cfg){
+    cur=cfg;
+    modal.querySelector('.m-kick').textContent = cfg.kick;
+    mTitle.textContent = cfg.title;
+    mSub.textContent = cfg.sub || '';
+    mInput.placeholder = cfg.ph;
+    //=== 定型の札。指示のときだけ。施策案は「TRIAL に移す」（本文は「これを TRIAL に移して手順を出して（実装はしない）」）、TRIAL は「完了にして（評価に移す）」が先頭
+    var chips = document.getElementById('m-chips'); chips.innerHTML = '';
+    (cfg.chips || []).forEach(function(c){
+      var b = document.createElement('button'); b.type = 'button'; b.setAttribute('data-chip', c[1]); b.textContent = c[0]; chips.appendChild(b);
+    });
+    chips.hidden = !(cfg.chips && cfg.chips.length);
+    mInput.value=''; modal.classList.add('on');
+    setTimeout(function(){ mInput.focus(); }, 30);
+  }
+  function closeModal(){ modal.classList.remove('on'); }
+  function submitModal(){
+    var v=mInput.value.trim();
+    if(!v){ mInput.focus(); return; }
+    var text = cur.compose(v);
+    closeModal();
+    copyText(text);
+  }
+  document.getElementById('m-ok').addEventListener('click', submitModal);
+  document.getElementById('m-chips').addEventListener('click', function(e){
+    var c = e.target.closest('[data-chip]'); if(!c) return;
+    mInput.value = c.getAttribute('data-chip'); mInput.focus();   //=== 入れるだけ。送信はしない
+  });
+  document.getElementById('m-cancel').addEventListener('click', closeModal);
+  // ★ドラッグで閉じないようにする。click は mousedown と mouseup の共通祖先で発火するため、
+  //   テキストエリアで押して背景で離すと e.target が背景になり、誤って閉じてしまう。
+  //   押した場所も背景だったときだけ閉じる。
+  var downTarget = null;
+  modal.addEventListener('pointerdown', function(e){ downTarget = e.target; });
+  modal.addEventListener('click', function(e){
+    if(e.target === modal && downTarget === modal) closeModal();
+    downTarget = null;
+  });
+  mInput.addEventListener('keydown', function(e){
+    if((e.metaKey||e.ctrlKey) && e.key==='Enter') submitModal();
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Escape' && modal.classList.contains('on')) closeModal();
+  });
 
   /* ── 指示文の組み立て。殻に1つだけ置く（用途が増えても分岐が増えない） ── */
   //=== 送る文言は、チャットで読める形に固定する。
@@ -127,26 +182,26 @@ if (IS_SHELL) (function(){
   function doAction(kind, d){
     d = d || {};
     if (kind === 'add-loop'){
-      askApp({ kick:'INSTRUCTION', title:'ループを追加', sub:'どんな数字を上げたいですか。ひとことで', ph:'例: 申し込みを増やしたい',
+      openModal({ kick:'INSTRUCTION', title:'ループを追加', sub:'どんな数字を上げたいですか。ひとことで', ph:'例: 申し込みを増やしたい',
         chips:[['申し込みを増やしたい','申し込みを増やしたい'],['見込み客を増やしたい','見込み客を増やしたい'],['翌日また来る人を増やしたい','翌日また来る人を増やしたい'],['有料に切り替える人を増やしたい','有料に切り替える人を増やしたい'],['解約を減らしたい','解約を減らしたい'],['TOEIC の点を上げたい','TOEIC の点を上げたい'],['YouTube の登録者を増やしたい','YouTube の登録者を増やしたい'],['株の含み益を増やしたい','株の含み益を増やしたい'],['体重を落としたい','体重を落としたい'],['貯金を毎月積みたい','貯金を毎月積みたい']],
         compose:function(v){ return block('', 'LOOPS', '', 'ループを追加して: ' + v, 'task'); } });
       return;
     }
     if (kind === 'upd'){
       var ul = d.upd;
-      sendToApp(block(ul, ul === 'all' ? 'ALL' : 'GOAL', '', ul === 'all' ? TASK.all : TASK.one, 'task'));
+      copyText(block(ul, ul === 'all' ? 'ALL' : 'GOAL', '', ul === 'all' ? TASK.all : TASK.one, 'task'));
       return;
     }
     if (kind === 'ins'){
       var iid = d.id, itx = d.text;
-      askApp({ kick:'INSTRUCTION', title:'施策について', sub:itx, ph:PH_DO,
+      openModal({ kick:'INSTRUCTION', title:'施策について', sub:itx, ph:PH_DO,
         chips:[['完了にして（評価に移す）','完了にして（評価に移す）'],['これは消して','これは消して'],['この認識は違う','この認識は違う。']],
         compose:function(v){ return block(iid, 'TRIAL', itx, v); } });
       return;
     }
     if (kind === 'do'){
       var did = d.id, dno = d.no, dtx = d.text;
-      askApp({ kick:'INSTRUCTION', title:'施策案 '+dno+'について', sub:dtx, ph:PH_DO,
+      openModal({ kick:'INSTRUCTION', title:'施策案 '+dno+'について', sub:dtx, ph:PH_DO,
         chips:[['TRIAL に移す','これを TRIAL に移して手順を出して（実装はしない）'],['これは消して','これは消して'],['この認識は違う','この認識は違う。']],
         compose:function(v){ return block(did, 'BOTTLENECK', dtx, v); } });
       return;
@@ -155,12 +210,11 @@ if (IS_SHELL) (function(){
       var cid = d.id, clp = d.loop, csec = d.sec;
       //=== 施策の評価「◯◯」のときだけ、◯◯ を target にする
       var mt = csec && csec.match(/「(.+)」$/);
-      askApp({ kick:'COMMENT', title:csec+'について', sub:(clp===csec?'':clp), ph:PH_CMT,
+      openModal({ kick:'COMMENT', title:csec+'について', sub:(clp===csec?'':clp), ph:PH_CMT,
         compose:function(v){ return block(cid, kickOf(csec), mt ? mt[1] : '', v); } });
       return;
     }
-    //=== 💡 のコマンドなど、指示文でないものは普通のコピー
-    if (kind === 'copy'){ if (navigator.clipboard) navigator.clipboard.writeText(d.text).catch(function(){}); return; }
+    if (kind === 'copy'){ copyText(d.text); return; }
     if (kind === 'go'){ location.hash = d.id; return; }
   }
 

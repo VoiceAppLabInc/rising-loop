@@ -1,6 +1,6 @@
 // アプリの周りの画面（タブ・設定）用
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { AiKind, AiStatus, PermMode, ProjectsSnapshot } from '@shared/types'
+import type { AiKind, AiStatus, AskRequest, PermMode, ProjectsSnapshot } from '@shared/types'
 
 const api = {
   /** ウィンドウのボタンがタブの列のどちら側に来るか（main/platform.ts の windowChrome と合わせる） */
@@ -49,6 +49,13 @@ const api = {
     ipcRenderer.on('ui:ask-undo', h)
     return () => ipcRenderer.removeListener('ui:ask-undo', h)
   },
+  /** ループの画面（2.3.0 からの殻）が頼んだ入力の窓。答えは askReply で返す（キャンセルは null） */
+  onAsk: (cb: (req: AskRequest & { id: number }) => void): (() => void) => {
+    const h = (_e: IpcRendererEvent, req: AskRequest & { id: number }) => cb(req)
+    ipcRenderer.on('ui:ask', h)
+    return () => ipcRenderer.removeListener('ui:ask', h)
+  },
+  askReply: (id: number, value: string | null): void => ipcRenderer.send('ui:ask-reply', id, value),
   /** 前の版の画面の「⬆ アップデート」を押したとき（main が横取りして知らせる） */
   onOpenNotice: (cb: (id: string) => void): (() => void) => {
     const h = (_e: IpcRendererEvent, id: string) => cb(id)

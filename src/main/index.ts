@@ -6,7 +6,7 @@ import { BrowserWindow, WebContentsView, app, dialog, ipcMain, shell } from 'ele
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
-import type { AiKind, AiStatus, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
+import type { AiKind, AiStatus, AskRequest, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
 import { loadSettings, saveSettings } from './appSettings'
 import { findOldSkills } from './oldSkills'
 import { ToolRunner } from './tools'
@@ -16,7 +16,7 @@ import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
-import { ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
+import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
 
 // テストでは、データ置き場を一時フォルダに変える
 if (process.env.RISING_LOOP_APP_DATA_DIR) app.setPath('userData', process.env.RISING_LOOP_APP_DATA_DIR)
@@ -152,9 +152,6 @@ function showCurrent(snap = snapshot()): ProjectsSnapshot {
   return snap
 }
 
-/** 右の窓の幅（rising.css の --pane）。カードは右の窓を除いた幅の真ん中に置く */
-const PANE_W = 360
-
 /**
  * カードの層の置き場所。ループの画面があり、カードがあり、ダイアログや設定を出していないときだけ見せる。
  * ループの画面は後から足すと上に重なるので、そのたびにカードの層を足し直していちばん上にする
@@ -167,6 +164,7 @@ function layoutOverlay(): void {
   overlay.setVisible(show)
   if (!show) return
   const [width] = win.getContentSize()
+  // カードは右の窓を除いた幅の真ん中に置く
   const area = width - (views?.paneOpen(p!.id) ? PANE_W : 0)
   const w = Math.min(overlaySize.w, width)
   overlay.setBounds({ x: Math.max(0, Math.round((area - w) / 2)), y: TAB_H, width: w, height: overlaySize.h })
@@ -484,7 +482,27 @@ ipcMain.on('loops:instruction', (e, text: string) => {
     win?.webContents.send('projects:open-notice', p.id)
     return
   }
+  // 2.2.0 からの殻は右の窓をアプリが持つので、閉じていればアプリが開く（それより前の殻は殻が開く）
+  if (views?.isAppChat(p.id) && !views.paneOpen(p.id)) {
+    views.setPane(p.id, true)
+    layoutOverlay()
+    broadcast(snapshot())
+  }
   chats.send(p, screenOfUrl(e.sender.getURL()), aiOf(p), text)
+})
+
+// 殻（2.3.0 から）の入力の窓。アプリの画面に出させ、答えを殻に返す（キャンセルは null）
+let askSeq = 0
+const asks = new Map<number, (v: string | null) => void>()
+ipcMain.handle('loops:ask', (e, req: AskRequest) => {
+  if (!win || !paneProject(e.sender.id)) return null
+  const id = ++askSeq
+  win.webContents.send('ui:ask', { ...req, id })
+  return new Promise<string | null>((resolve) => asks.set(id, resolve))
+})
+ipcMain.on('ui:ask-reply', (_e, id: number, value: string | null) => {
+  asks.get(id)?.(typeof value === 'string' ? value : null)
+  asks.delete(id)
 })
 
 /** 右の窓（main は送ってきた画面の webContents からプロジェクトを決める） */

@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeF
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { CURRENT, inLoops, later, launch, nextFolder, paneText } from './helpers'
+import { CURRENT, cardPage, inLoops, later, launch, nextFolder, paneText } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -32,6 +32,24 @@ async function lastArgv(): Promise<string[] | null> {
 }
 
 const openSettings = () => win.getByRole('button', { name: '設定' }).click()
+
+/** 重ねている画面の置き場所。ループの画面と、アプリが出す右のチャットの窓（2.2.0 からの殻） */
+const layoutOf = () =>
+  app.evaluate(({ BrowserWindow }) => {
+    const w = BrowserWindow.getAllWindows()[0]
+    const find = (part: string) => w.contentView.children.find((c) => (c as Electron.WebContentsView).webContents?.getURL().includes(part)) as Electron.WebContentsView | undefined
+    const at = (v?: Electron.WebContentsView) => (v ? { visible: v.getVisible(), x: v.getBounds().x, width: v.getBounds().width } : null)
+    return { width: w.getContentSize()[0], loops: at(find('/loops/index.html')), chat: at(find('/_rla/chat.html')) }
+  })
+
+/** そのチャット（画面ID）が、アプリの右の窓の中にあるか */
+const chatInAppPane = (screen: string) =>
+  app.evaluate(({ webContents }, screen) => {
+    for (const w of webContents.getAllWebContents()) {
+      if (w.mainFrame.framesInSubtree.some((f) => f.url.includes('&arg=' + screen))) return w.getURL().includes('/_rla/chat.html')
+    }
+    return null
+  }, screen)
 
 test.beforeEach(() => {
   root = mkdtempSync(join(tmpdir(), 'rla-settings-'))
@@ -136,14 +154,21 @@ test('いまの殻では、タブの列に使い方と AI の窓の開閉を出�
   const howto = win.getByRole('dialog')
   await expect(howto).toContainText('ライジング・ループの使い方')
   await howto.getByRole('button', { name: 'わかった' }).click()
-  // 殻には使い方と開閉のボタンを置かない
-  expect((await inLoops(app, folder, '!!document.getElementById("howto") || !!document.getElementById("cc-toggle")'))?.value).toBe(false)
+  // 殻には使い方・開閉のボタンも、右の窓も置かない
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("howto") || !!document.getElementById("cc-toggle") || !!document.getElementById("cc")'))?.value).toBe(false)
+  // 右の窓はアプリが出し、ループの画面はその幅だけ狭まる
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
+  let l = await layoutOf()
+  expect(l.chat!.width).toBe(360)
+  expect(l.chat!.x).toBe(l.width - 360)
+  expect(l.loops!.width).toBe(l.width - 360)
   // 開閉はアプリのボタンから
-  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(true)
   await win.getByRole('button', { name: 'AI ▸' }).click()
-  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(false)
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(false)
+  l = await layoutOf()
+  expect(l.loops!.width).toBe(l.width)
   await win.getByRole('button', { name: 'AI ◂' }).click()
-  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(true)
+  await expect.poll(async () => (await layoutOf()).loops?.width).toBe(l.width - 360)
   // 使い方は、いつでも開ける（開き直しても自動では開かない）
   await win.getByRole('button', { name: '? 使い方' }).click()
   await expect(win.getByRole('dialog')).toContainText(`スキル v${CURRENT}`)
@@ -159,4 +184,55 @@ test('前の版の殻では、殻が自分のボタンを持つので、アプ�
   await expect(win.getByRole('button', { name: '? 使い方' })).toHaveCount(0)
   await expect(win.getByRole('button', { name: /AI [▸◂]/ })).toHaveCount(0)
   await expect(win.getByRole('button', { name: '設定' })).toBeVisible()
+})
+
+test('2.2.0 からの殻では、画面を切り替えると、アプリの右の窓がそのループのチャットになる', async () => {
+  await start()
+  const folder = await openCurrent()
+  await expect.poll(() => paneText(app, 's-list')).not.toBeNull()
+  expect(await chatInAppPane('s-list')).toBe(true)
+  await inLoops(app, folder, 'location.hash = "#s-L01"; 1')
+  await expect.poll(() => paneText(app, 's-L01'), { timeout: 15_000 }).not.toBeNull()
+  expect(await chatInAppPane('s-L01')).toBe(true)
+})
+
+test('右の窓を閉じていても、指示文が届いたらアプリが開いて送る', async () => {
+  await start()
+  const folder = await openCurrent()
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
+  await win.getByRole('button', { name: 'AI ▸' }).click()
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(false)
+  await inLoops(app, folder, 'navigator.clipboard.writeText("---\\n受け取ってください\\n---"); 1')
+  await expect.poll(async () => (await layoutOf()).chat?.visible).toBe(true)
+  await expect(win.getByRole('button', { name: 'AI ▸' })).toBeVisible()
+  await expect.poll(async () => (await paneText(app, 's-list')) ?? '', { timeout: 15_000 }).toContain('受け取ってください')
+})
+
+test('2.1.0 の殻は、新しい形にするまで殻の中の右の窓を使う', async () => {
+  await start()
+  const folder = join(root, 'v21')
+  cpSync(resolve('tests/fixtures/versions/2.1.0'), folder, { recursive: true })
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await later(win)
+  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on") && !!document.getElementById("cc")'))?.value).toBe(true)
+  await expect.poll(() => paneText(app, 's-list')).not.toBeNull()
+  expect(await chatInAppPane('s-list')).toBe(false)
+  expect((await layoutOf()).chat).toBeNull()
+  await win.getByRole('button', { name: 'AI ▸' }).click()
+  await expect.poll(async () => (await inLoops(app, folder, 'document.body.classList.contains("pane-on")'))?.value).toBe(false)
+})
+
+test('2.1.0 から新しい形にすると、殻の入れ替えだけで AI に作業を送らず、チャットはアプリの窓に移る', async () => {
+  await start()
+  const folder = join(root, 'v21')
+  cpSync(resolve('tests/fixtures/versions/2.1.0'), folder, { recursive: true })
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await win.getByRole('dialog').getByRole('button', { name: '新しい形にする' }).click()
+  await expect((await cardPage(app)).getByRole('status')).toContainText(`新しい形にしました（2.1.0 → ${CURRENT}）`)
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("cc")'))?.value).toBe(false)
+  await expect.poll(() => chatInAppPane('s-list'), { timeout: 15_000 }).toBe(true)
+  await win.waitForTimeout(1500)
+  expect((await paneText(app, 's-list')) ?? '').not.toContain('新しい形への作り直し')
 })

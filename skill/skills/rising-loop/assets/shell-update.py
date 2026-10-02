@@ -22,8 +22,10 @@ COMMON = (('rising.css', 'rising.css'), ('rising.js', 'rising.js'),
           ('loopdata.py', 'update/common.py'))
 #=== 雛形から消した部品の id。移し直させないので「消えるもの」に出さない
 #===   2.0.0: ttyd の説明・アップデートのボタン・コピーの知らせ／2.1.0: 使い方の窓と右上のボタン（アプリのタブの列に移した）
+#===   2.2.0: 右のチャットの窓（アプリが自分の窓として出す）／2.3.0: コメント・指示の入力の窓（アプリが出す）
 DROPPED_IDS = {'cc-ask', 'cc-help', 'cc-help-close', 'cc-help-t', 'rl-update', 'toast', 'toast-body',
-               'topbtns', 'howto-btn', 'cc-toggle', 'howto', 'howto-t', 'howto-close', 'hw-ah'}
+               'topbtns', 'howto-btn', 'cc-toggle', 'howto', 'howto-t', 'howto-close', 'hw-ah', 'cc',
+               'modal', 'm-title', 'm-sub', 'm-input', 'm-chips', 'm-ok', 'm-cancel'}
 
 
 #=== 殻の使い方の帯に出る版。**テンプレに直書きしない。** 直書きだと VERSION を上げても

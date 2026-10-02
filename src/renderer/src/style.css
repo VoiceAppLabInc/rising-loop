@@ -152,7 +152,17 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .dialog { width: 420px; padding: 20px 22px 16px; border-radius: 10px; background: #fff; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18); }
 .dialog h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
 .dialog p { margin: 0 0 8px; line-height: 1.6; color: var(--fg); }
-.dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.dialog .actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 16px; }
+
+/* コメント・指示の入力の窓（2.3.0 からの殻が頼む） */
+.dialog.ask { width: 540px; max-width: calc(100vw - 32px); }
+.ask-kick { margin-bottom: 6px; color: var(--sub); font: 700 10px ui-monospace, monospace; letter-spacing: 0.12em; }
+.dialog .ask-sub { color: var(--sub); white-space: pre-wrap; }
+.ask-input { display: block; width: 100%; min-height: 110px; margin-top: 10px; padding: 10px 12px; border: 1px solid #d3d5da; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.7; resize: vertical; }
+.ask-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47, 111, 222, 0.2); }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.ask-chips .btn { font-weight: 400; }
+.ask-hint { margin-right: auto; }
 
 /* タブの列の右端（使い方・AI の窓・設定） */
 .tab-actions { margin-left: auto; align-self: center; display: flex; gap: 6px; -webkit-app-region: no-drag; }

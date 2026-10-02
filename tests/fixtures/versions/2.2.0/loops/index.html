@@ -117,11 +117,25 @@
      rising.js が contentWindow.location.replace で差し替える（履歴は殻の hash だけに一本化） -->
 <iframe id="loop-frame" title="ループの画面"></iframe>
 
-<!-- コメント・指示の入力の窓はアプリが出す（rising.js が window.rlaApp.ask を呼ぶ） -->
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="m-panel">
+    <div class="m-kick">COMMENT</div>
+    <h3 class="m-title" id="m-title">ボトルネックについて</h3>
+    <div class="m-sub" id="m-sub"></div>
+    <textarea class="m-input" id="m-input"></textarea>
+    <div class="m-chips" id="m-chips" hidden></div>
+    <div class="m-actions">
+      <button class="button button-secondary" id="m-cancel">キャンセル</button>
+      <button class="button button-primary" id="m-ok">送る</button>
+    </div>
+    <div class="m-hint">⌘/Ctrl + Enter でも確定します</div>
+  </div>
+</div>
+
 <!-- 右のチャットの窓はアプリが持ち、この画面の右に並べる（殻には置かない）。
      どの画面にチャットを付けるかは、アプリが CONST の PANES を読んで決める -->
 <!-- 殻の版。アプリが版の判定に使う（見えない）。使い方・右の窓の開閉・版の表示はアプリのタブの列にある -->
-<span class="ver" hidden>v2.3.0</span>
+<span class="ver" hidden>v2.2.0</span>
 
 <script src="rising.js"></script>
 

@@ -159,6 +159,24 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.2.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.3.0",
+      "templates": {
+        "loop": "19bdcf73461b6870",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

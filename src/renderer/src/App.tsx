@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
-import type { ProjectsSnapshot } from '@shared/types'
+import type { AskRequest, ProjectsSnapshot } from '@shared/types'
+import { AskDialog } from './Ask'
 import { Button } from './Button'
 import { Howto } from './Howto'
 import { OldFormDialog, UndoDialog } from './OldForm'
@@ -21,6 +22,8 @@ export function App() {
   const [oldSkills, setOldSkills] = useState<string[]>([])
   // ループが無いフォルダを選んだとき、新しいプロジェクトにしてよいかを聞く
   const [askAdd, setAskAdd] = useState<{ folder: string; name: string } | null>(null)
+  // ループの画面（2.3.0 からの殻）が頼んだ、コメント・指示の入力の窓
+  const [ask, setAsk] = useState<(AskRequest & { id: number }) | null>(null)
 
   useEffect(() => {
     void window.rla.settings().then((s) => setHowtoSeen(!!s.howtoSeen))
@@ -30,10 +33,12 @@ export function App() {
     const off2 = window.rla.onOpenNotice(setForced)
     // ループの画面の上のカードで［元に戻す］が押されたら、確認をこちらで出す
     const off3 = window.rla.onAskUndo(() => setAskUndo(true))
+    const off4 = window.rla.onAsk(setAsk)
     return () => {
       off1()
       off2()
       off3()
+      off4()
     }
   }, [])
 
@@ -53,7 +58,7 @@ export function App() {
   }, [shellNew, howtoSeen, notice, oldSkills.length])
 
   // ダイアログや設定を出しているあいだは、main が重ねている画面を隠す（ダイアログが下に隠れるため）
-  const covered = notice || undoing || settingsOpen || howtoOpen || oldSkills.length > 0 || !!askAdd
+  const covered = notice || undoing || settingsOpen || howtoOpen || oldSkills.length > 0 || !!askAdd || !!ask
   useEffect(() => {
     window.rla.setCovered(covered)
   }, [covered])
@@ -162,6 +167,16 @@ export function App() {
           onKeep={() => {
             setOldSkills([])
             void window.rla.keepOldSkills()
+          }}
+        />
+      )}
+      {ask && (
+        <AskDialog
+          key={ask.id}
+          req={ask}
+          onAnswer={(v) => {
+            window.rla.askReply(ask.id, v)
+            setAsk(null)
           }}
         />
       )}
