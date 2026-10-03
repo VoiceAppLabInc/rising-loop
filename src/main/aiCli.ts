@@ -5,7 +5,8 @@ import { execFile } from 'node:child_process'
 import type { AiKind } from '@shared/types'
 import { childEnv, cliCandidates, type Command } from './platform'
 
-export type Probe = (file: string, args: string[]) => Promise<{ out: string; code: number }>
+/** out は普通の出力、err はエラー用の出力（codex の login status は「Logged in」を err に出す） */
+export type Probe = (file: string, args: string[]) => Promise<{ out: string; err?: string; code: number }>
 
 /** 見つけた結果。ok：使える／old：動くが古い／broken：あるが動かない／none：どこにも無い */
 export interface Picked {
@@ -25,7 +26,7 @@ export async function pickCli(ai: AiKind, candidates: Command[], probe: Probe): 
   let broken = false
   for (const c of candidates) {
     const v = await probe(c.file, [...c.args, '--version'])
-    const version = v.out.trim().split('\n')[0] ?? ''
+    const version = (v.out.trim() || (v.err ?? '').trim()).split('\n')[0] ?? ''
     if (v.code !== 0 || !/\d+\.\d+/.test(version)) {
       broken = true
       continue
@@ -45,9 +46,9 @@ export const runProbe =
   (env: NodeJS.ProcessEnv): Probe =>
   (file, args) =>
     new Promise((resolve) => {
-      execFile(file, args, { env, timeout: 20_000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout) => {
+      execFile(file, args, { env, timeout: 20_000, windowsHide: true, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
         const code = err && typeof (err as { code?: unknown }).code === 'number' ? (err as { code: number }).code : err ? 1 : 0
-        resolve({ out: String(stdout ?? ''), code })
+        resolve({ out: String(stdout ?? ''), err: String(stderr ?? ''), code })
       })
     })
 

@@ -537,7 +537,9 @@ async function aiStatus(ai: AiKind): Promise<AiStatus> {
   const picked = await resolveCli(ai)
   if (!picked.cmd) return { ai, state: picked.state === 'old' || picked.state === 'broken' ? picked.state : 'missing', version: picked.version }
   const st = await runProbe(await childEnv())(picked.cmd.file, [...picked.cmd.args, ...statusArgs(ai)])
-  return { ai, state: parseLoggedIn(ai, st.out, st.code) ? 'ready' : 'login', version: picked.version }
+  // claude は普通の出力の JSON、codex は「Logged in」をエラー用の出力に出す
+  const text = ai === 'codex' ? `${st.out}\n${st.err ?? ''}` : st.out
+  return { ai, state: parseLoggedIn(ai, text, st.code) ? 'ready' : 'login', version: picked.version }
 }
 ipcMain.handle('ai:status', async () => {
   // 確かめ直すときは、覚えていた結果を捨てる（よそで入れ直した・消した、を拾う）

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { pickCli } from '../../src/main/aiCli'
+import { pickCli, runProbe } from '../../src/main/aiCli'
+import { parseLoggedIn } from '../../src/main/platform'
 
 // 候補ごとの答え（--version と、使う機能の --help）
 type Reply = { version?: { out: string; code: number }; help?: { out: string; code: number } }
@@ -36,5 +37,21 @@ describe('pickCli（動くもの・新しさが足りるものを選ぶ）', () 
   it('--version が 0 で終わっても、数字が出なければ動かないとみなす', async () => {
     const probe = probeOf({ '/x': { version: { out: 'usage: something\n', code: 0 } } })
     expect(await pickCli('claude', [cmd('/x')], probe)).toMatchObject({ state: 'broken' })
+  })
+})
+
+describe('runProbe（本物のプロセスで確かめる）', () => {
+  it('普通の出力とエラー用の出力の両方を読む（codex の login status は「Logged in」をエラー用の出力に出す）', async () => {
+    const probe = runProbe({ ...process.env })
+    const r = await probe(process.execPath, ['-e', "process.stdout.write('A ');process.stderr.write('Logged in using ChatGPT\\n')"])
+    expect(r.code).toBe(0)
+    expect(r.out).toBe('A ')
+    expect(r.err).toContain('Logged in using ChatGPT')
+    // 状態の確かめ（index.ts の aiStatus）は、codex なら両方をつないで見る
+    expect(parseLoggedIn('codex', `${r.out}\n${r.err}`, r.code)).toBe(true)
+  })
+  it('終了コードを返す', async () => {
+    const r = await runProbe({ ...process.env })(process.execPath, ['-e', 'process.exit(3)'])
+    expect(r.code).toBe(3)
   })
 })

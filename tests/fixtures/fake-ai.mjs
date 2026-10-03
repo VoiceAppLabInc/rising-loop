@@ -37,7 +37,8 @@ if (a0.join(' ') === 'auth status') {
   process.exit(0)
 }
 if (a0.join(' ') === 'login status') {
-  process.stdout.write(loggedOut ? 'Not logged in\n' : 'Logged in using fake\n')
+  // 本物の codex と同じく、エラー用の出力に出す
+  process.stderr.write(loggedOut ? 'Not logged in\n' : 'Logged in using fake\n')
   process.exit(loggedOut ? 1 : 0)
 }
 if (a0.join(' ') === 'auth login' || a0.join(' ') === 'login') {
