@@ -61,6 +61,9 @@ rm -rf "$DEST/$APP.new"
 ditto "$MNT/$APP" "$DEST/$APP.new"
 rm -rf "$DEST/$APP"
 mv "$DEST/$APP.new" "$DEST/$APP"
+# 日時を今にして登録し直す（同じ場所で入れ替えても、Mac は古いアイコンを覚えたままのため）
+touch "$DEST/$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST/$APP" >/dev/null 2>&1 || true
 # 前にブラウザで落として入れていた場合の印も外す
 xattr -dr com.apple.quarantine "$DEST/$APP" 2>/dev/null || true
 

@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -18,7 +18,7 @@ import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledge
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, readWithProgress, type UpdateCheck } from './update'
+import { LSREGISTER, MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, needsIconRefresh, readWithProgress, type UpdateCheck } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
 const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
@@ -205,6 +205,19 @@ async function checkUpdateFromMenu(): Promise<void> {
     message: r.status === 'latest' ? '最新です' : '確かめられませんでした',
     detail: r.status === 'latest' ? `Rising Loop v${app.getVersion()} は最新の版です。` : 'ネットにつながっているか確かめて、もう一度やってください。'
   })
+}
+
+/**
+ * 版が変わって初めて開いたら、Mac にアイコンを覚え直させる（同じ場所で入れ替えても、Mac は古い絵を覚えたままのため）。
+ * 配ったアプリ（Mac）だけ。いま開いている Dock の絵は、次に開いたときに変わることがある
+ */
+function refreshIconOnce(): void {
+  const bundle = app.isPackaged ? bundleOf(app.getPath('exe'), process.platform) : null
+  if (!bundle) return
+  const settings = loadSettings(settingsFile())
+  if (!needsIconRefresh(settings.lastVersion, app.getVersion())) return
+  saveSettings(settingsFile(), { ...settings, lastVersion: app.getVersion() })
+  execFile('/usr/bin/touch', [bundle], () => execFile(LSREGISTER, ['-f', bundle], () => undefined))
 }
 
 /** Mac のメニュー。いつものメニューに「アップデートを確認…」を足す（「Rising Loop について」の下） */
@@ -736,6 +749,7 @@ app.whenReady().then(() => {
     changes: changelogSummary(readText(join(skillDir(), 'CHANGELOG.md')) ?? '', tpl.version)
   })
   setMacMenu()
+  refreshIconOnce()
   createWindow()
   void lookForUpdate()
   setInterval(() => void lookForUpdate(), UPDATE_EVERY_MS)

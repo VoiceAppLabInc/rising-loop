@@ -7,6 +7,8 @@ export interface AppSettings {
   howtoSeen?: boolean
   /** 新しい版のお知らせを自動で出した、その版（同じ版については1回だけ） */
   updateSeen?: string
+  /** 前回開いたときのアプリの版。変わっていたら、Mac にアイコンを覚え直させる */
+  lastVersion?: string
 }
 
 export function loadSettings(file: string): AppSettings {

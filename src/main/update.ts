@@ -87,6 +87,17 @@ export function bundleOf(exe: string, platform: string): string | null {
   return m ? m[1] : null
 }
 
+/** Mac のアプリの登録（アイコンなど）を覚え直させるプログラム */
+export const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
+
+/**
+ * 版が変わって初めて開いたか。Mac は同じ場所でアプリを入れ替えてもアイコンの絵を覚え直さないので、そのときに1回だけ覚え直させる
+ * （入れ替えは前の版の処理が動かすので、入れ替えの処理だけに足しても、前の版から上げた人には効かない）
+ */
+export function needsIconRefresh(last: string | undefined, current: string): boolean {
+  return last !== current
+}
+
 /**
  * Mac でアプリを新しい版に入れ替えるシェル。アプリが自分で落とした .dmg を使う（ブラウザで落としたものと違って、
  * 「ダウンロードしたもの」の印が付かないので、署名していなくても「壊れている」と言われない）。
@@ -105,6 +116,8 @@ ok=0
 if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg" >/dev/null 2>&1; then
   src="$(ls -d "$mnt"/*.app 2>/dev/null | head -1)"
   if [ -n "$src" ] && rm -rf "$app.new" && ditto "$src" "$app.new" && rm -rf "$app" && mv "$app.new" "$app"; then ok=1; fi
+  # 日時を今にして登録し直す（Mac が新しいアイコンを覚え直す）
+  if [ "$ok" = 1 ]; then touch "$app"; ${LSREGISTER} -f "$app" >/dev/null 2>&1; fi
   hdiutil detach -quiet "$mnt" >/dev/null 2>&1 || hdiutil detach -quiet -force "$mnt" >/dev/null 2>&1
 fi
 rmdir "$mnt" 2>/dev/null
