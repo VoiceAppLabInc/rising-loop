@@ -64,6 +64,11 @@ describe('findCliIn（Windows）', () => {
     expect(findCliIn({ ...base, path: 'C:\\Windows', ...fs })).toEqual({ file: 'C:\\Users\\t\\.local\\bin\\claude.exe', args: [] })
   })
 
+  it('codex の公式インストーラーの置き場所（%LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin）を見る', () => {
+    const fs = fsOf({ 'C:\\Users\\t\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe': '' })
+    expect(findCliIn({ ...base, name: 'codex', path: 'C:\\Windows', ...fs })).toEqual({ file: 'C:\\Users\\t\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin\\codex.exe', args: [] })
+  })
+
   it('npm の .cmd は、cmd.exe を通さずに中身の node スクリプトを node で起動する', () => {
     const shim = '@ECHO off\r\nSETLOCAL\r\n"%_prog%"  "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*\r\n'
     const fs = fsOf({ 'C:\\npm\\codex.cmd': shim, 'C:\\npm\\node_modules\\@openai\\codex\\bin\\codex.js': '', 'C:\\nodejs\\node.exe': '' })
@@ -115,19 +120,12 @@ describe('入れる・ログインのコマンド', () => {
     expect(installCommand('claude', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] })
     expect(installCommand('claude', 'win32')).toEqual({ file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] })
   })
-  it('codex を入れる：Node が無くても入るよう、公式の Releases から1つのファイルを落として ~/.local/bin に置く', () => {
-    const mac = installCommand('codex', 'darwin')
-    expect(mac.file).toBe('/bin/zsh')
-    expect(mac.args[0]).toBe('-lc')
-    expect(mac.args[1]).toContain('https://github.com/openai/codex/releases/latest/download/codex-$a-apple-darwin.tar.gz')
-    expect(mac.args[1]).toContain('$HOME/.local/bin')
-    expect(mac.args[1]).not.toContain('npm')
-    const win = installCommand('codex', 'win32')
-    expect(win.file).toBe('powershell.exe')
-    expect(win.args.slice(0, 4)).toEqual(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'])
-    expect(win.args[4]).toContain('https://github.com/openai/codex/releases/latest/download/codex-x86_64-pc-windows-msvc.exe.zip')
-    expect(win.args[4]).toContain("'codex.exe'")
-    expect(win.args[4]).not.toContain('npm')
+  it('codex を入れる：公式の単体版インストーラー（本体と補助のプログラムを一緒に入れる。Node は要らない）。途中で質問を出さない', () => {
+    expect(installCommand('codex', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh'] })
+    expect(installCommand('codex', 'win32')).toEqual({
+      file: 'powershell.exe',
+      args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', "$env:CODEX_NON_INTERACTIVE='1'; irm https://chatgpt.com/codex/install.ps1 | iex"]
+    })
   })
   it('ログイン：claude は auth login、codex は login', () => {
     expect(loginArgs('claude')).toEqual(['auth', 'login'])

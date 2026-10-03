@@ -22,7 +22,9 @@ const CLAUDE_CODE_MARKERS = ['CLAUDECODE', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_COD
 
 /** PATH に無いときに見る、よくある置き場所 */
 function knownDirs(platform: Platform, home: string): string[] {
-  if (platform === 'win32') return [win32.join(home, '.local', 'bin'), win32.join(home, 'AppData', 'Roaming', 'npm')]
+  // Windows の codex の公式インストーラーは %LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin に入れる（PATH に足すが、開いているアプリには届かない）
+  if (platform === 'win32')
+    return [win32.join(home, '.local', 'bin'), win32.join(home, 'AppData', 'Local', 'Programs', 'OpenAI', 'Codex', 'bin'), win32.join(home, 'AppData', 'Roaming', 'npm')]
   return [posix.join(home, '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin']
 }
 
@@ -104,41 +106,18 @@ export function windowChrome(
   return { titleBarStyle: 'default', controls: 'none' }
 }
 
-const CODEX_DL = 'https://github.com/openai/codex/releases/latest/download'
-
 /**
- * 公式の手順で入れる。claude は公式のインストーラー。codex は公式の Releases から1つのファイルを落として ~/.local/bin に置く
- * （npm で入れると Node が要る。初めての人は Node を入れていないことが多い）。~/.local/bin は findCli が見る置き場所
+ * 公式の手順で入れる。どちらも公式の単体版のインストーラーで、Node は要らない。
+ * claude は ~/.local/bin に入れる。codex は本体と補助のプログラム（codex-code-mode-host。無いとファイルを読むなどの作業ができない）を
+ * ~/.local/bin（Windows は %LOCALAPPDATA%\\Programs\\OpenAI\\Codex\\bin）に入れる。途中で質問を出さない（CODEX_NON_INTERACTIVE）
  */
 export function installCommand(ai: 'claude' | 'codex', platform: Platform): Command {
   const win = platform === 'win32'
-  if (ai === 'claude')
-    return win
-      ? { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] }
-      : { file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] }
-  if (win)
-    return {
-      file: 'powershell.exe',
-      args: [
-        '-NoProfile',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        "$ErrorActionPreference='Stop'; $d=Join-Path $env:USERPROFILE '.local\\bin'; New-Item -ItemType Directory -Force $d | Out-Null; " +
-          `$z=Join-Path $env:TEMP 'codex.zip'; Invoke-WebRequest -UseBasicParsing '${CODEX_DL}/codex-x86_64-pc-windows-msvc.exe.zip' -OutFile $z; ` +
-          "Expand-Archive -Force $z $d; Move-Item -Force (Join-Path $d 'codex-x86_64-pc-windows-msvc.exe') (Join-Path $d 'codex.exe'); Remove-Item $z; " +
-          "Write-Output \"codex を $d に入れました\""
-      ]
-    }
-  return {
-    file: '/bin/zsh',
-    args: [
-      '-lc',
-      'set -e; d="$HOME/.local/bin"; mkdir -p "$d"; a=$(uname -m); [ "$a" = arm64 ] && a=aarch64; ' +
-        `curl -fL --progress-bar "${CODEX_DL}/codex-$a-apple-darwin.tar.gz" | tar -xz -C "$d"; ` +
-        'mv -f "$d/codex-$a-apple-darwin" "$d/codex"; echo "codex を $d に入れました"'
-    ]
-  }
+  const ps = (cmd: string): Command => ({ file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', cmd] })
+  if (ai === 'claude') return win ? ps('irm https://claude.ai/install.ps1 | iex') : { file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] }
+  return win
+    ? ps("$env:CODEX_NON_INTERACTIVE='1'; irm https://chatgpt.com/codex/install.ps1 | iex")
+    : { file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh'] }
 }
 
 /**
