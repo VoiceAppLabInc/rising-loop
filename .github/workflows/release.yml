@@ -10,7 +10,17 @@ permissions:
   contents: write
 
 jobs:
+  # 先に下書きを1つだけ作る。Mac と Windows がそれぞれ作ると、同じタグの下書きが2つに分かれる
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --notes ""
+
   build:
+    needs: draft
     strategy:
       fail-fast: false
       matrix:

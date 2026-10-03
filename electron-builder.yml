@@ -34,6 +34,9 @@ mac:
   notarize: false
 dmg:
   title: Rising Loop ${version}
+  # HFS+ だと、濁点のある日本語のファイル名（同梱のスキルの references/なぜこの規約か.md）が .dmg の中で別の表し方に変わり、
+  # アプリの署名と合わなくなって「壊れているため開けません」になる。APFS はファイル名をそのまま保つ
+  filesystem: APFS
 win:
   target:
     - target: nsis
