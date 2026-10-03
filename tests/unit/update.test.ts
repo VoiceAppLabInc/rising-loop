@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkUpdate, checkUpdateNow, updateFrom } from '../../src/main/update'
+import { checkUpdate, checkUpdateNow, readWithProgress, updateFrom } from '../../src/main/update'
 
 const release = (o: Record<string, unknown> = {}) => ({
   tag_name: 'v0.2.0',
@@ -83,5 +83,28 @@ describe('いますぐ確かめる（設定のボタン・メニュー）', () =
     }
     expect(await checkUpdateNow('https://x', '0.1.0', 'darwin', 'arm64', down)).toEqual({ status: 'error' })
     expect(await checkUpdateNow('off', '0.1.0', 'darwin', 'arm64', ok(release()))).toEqual({ status: 'latest' })
+  })
+})
+
+describe('落としながら % を数える', () => {
+  const chunks = (n: number, size: number) =>
+    new ReadableStream<Uint8Array>({
+      start(c) {
+        for (let i = 0; i < n; i++) c.enqueue(new Uint8Array(size).fill(i))
+        c.close()
+      }
+    })
+  it('大きさが分かれば、変わったときだけ % を知らせ、全部をつないで返す', async () => {
+    const seen: number[] = []
+    const buf = await readWithProgress(new Response(chunks(4, 25), { headers: { 'content-length': '100' } }), (p) => seen.push(p))
+    expect(seen).toEqual([25, 50, 75, 100])
+    expect(buf.length).toBe(100)
+    expect([buf[0], buf[25], buf[99]]).toEqual([0, 1, 3])
+  })
+  it('大きさが分からなければ % は知らせない（中身は返す）', async () => {
+    const seen: number[] = []
+    const buf = await readWithProgress(new Response(chunks(3, 10)), (p) => seen.push(p))
+    expect(seen).toEqual([])
+    expect(buf.length).toBe(30)
   })
 })

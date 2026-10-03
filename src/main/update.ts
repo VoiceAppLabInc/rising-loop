@@ -53,6 +53,33 @@ export async function checkUpdate(url: string, current: string, platform: string
   return r.status === 'new' ? r.update : null
 }
 
+/** 応答を少しずつ読み、何%まで来たかを変わったときだけ知らせて、全部をつないで返す。大きさ（content-length）が分からなければ % は知らせない */
+export async function readWithProgress(
+  res: { headers: { get: (name: string) => string | null }; body: ReadableStream<Uint8Array> | null; arrayBuffer: () => Promise<ArrayBuffer> },
+  onPercent: (p: number) => void
+): Promise<Buffer> {
+  if (!res.body) return Buffer.from(await res.arrayBuffer())
+  const total = Number(res.headers.get('content-length')) || 0
+  const parts: Uint8Array[] = []
+  let got = 0
+  let last = -1
+  const reader = res.body.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    parts.push(value)
+    got += value.length
+    if (total > 0) {
+      const p = Math.min(100, Math.floor((got / total) * 100))
+      if (p !== last) {
+        last = p
+        onPercent(p)
+      }
+    }
+  }
+  return Buffer.concat(parts)
+}
+
 /** Mac のアプリの置き場所（〜/Rising Loop.app）。実行ファイルの3つ上。Mac でなければ・.app の中でなければ null */
 export function bundleOf(exe: string, platform: string): string | null {
   if (platform !== 'darwin') return null

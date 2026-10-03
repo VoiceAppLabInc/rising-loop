@@ -17,7 +17,7 @@ import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledge
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, type UpdateCheck } from './update'
+import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, readWithProgress, type UpdateCheck } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
 const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
@@ -592,7 +592,7 @@ ipcMain.handle('app:update-seen', (_e, version: string) => saveSettings(settings
  * ブラウザで落とすと「ダウンロードしたもの」の印が付き、署名していないアプリは「壊れている」と言われて開けないため。
  * Windows・開発版・置き場所に書けない（.dmg から直接開いている など）ときは、ファイル（無ければリリースの頁）をいつものブラウザで開く
  */
-ipcMain.handle('app:install-update', async (): Promise<{ ok: boolean; message?: string }> => {
+ipcMain.handle('app:install-update', async (e): Promise<{ ok: boolean; message?: string }> => {
   if (!update) return { ok: false, message: '新しい版が見つかりません。' }
   const bundle = app.isPackaged ? bundleOf(app.getPath('exe'), process.platform) : null
   const canWrite = (dir: string) => {
@@ -613,7 +613,9 @@ ipcMain.handle('app:install-update', async (): Promise<{ ok: boolean; message?: 
     const dir = join(app.getPath('userData'), 'update')
     mkdirSync(dir, { recursive: true })
     const dmg = join(dir, `Rising-Loop-${update.version}.dmg`)
-    writeFileSync(dmg, Buffer.from(await res.arrayBuffer()))
+    // 何%まで落としたかを、押した画面（お知らせのダイアログ）に知らせる。落とし終わったら「入れ替えています」
+    writeFileSync(dmg, await readWithProgress(res, (pct) => e.sender.send('update:progress', pct)))
+    e.sender.send('update:progress', 'installing')
     // 入れ替えたあとで開き直す（テストでは開かない）
     const after = process.env.RISING_LOOP_APP_UPDATE_NO_OPEN === '1' ? 'no-open' : 'open'
     spawn('/bin/sh', ['-c', MAC_SWAP_SH, 'sh', String(process.pid), dmg, bundle, after], { detached: true, stdio: 'ignore' }).unref()

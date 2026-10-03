@@ -1,7 +1,7 @@
 // 新しい版のアプリのお知らせ。新しい版を見つけたら1回だけ自動で開き、あとはタブの列の「新しい版」から開く。
 // Mac は［アップデート］で、アプリが自分で新しい版を落として入れ替え、開き直す（ブラウザで落とすと、署名していないアプリは「壊れている」と言われて開けないため）。
 // Windows は［ダウンロード］でインストーラーを落としてもらう
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppUpdate } from '@shared/types'
 import { Button } from './Button'
 
@@ -9,9 +9,13 @@ export function UpdateDialog(p: { update: AppUpdate; appVersion: string; onLater
   const mac = window.rla.controls === 'left'
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** 落としている途中の %（分からなければ null）。'installing' は入れ替えに入ったところ */
+  const [progress, setProgress] = useState<number | 'installing' | null>(null)
+  useEffect(() => window.rla.onUpdateProgress(setProgress), [])
   const go = () => {
     setBusy(true)
     setError(null)
+    setProgress(null)
     void window.rla.installUpdate().then((r) => {
       setBusy(false)
       if (r.ok) p.onDone()
@@ -41,7 +45,7 @@ export function UpdateDialog(p: { update: AppUpdate; appVersion: string; onLater
             あとで
           </Button>
           <Button variant="primary" onClick={go} disabled={busy}>
-            {busy ? '落としています…' : mac ? 'アップデート' : 'ダウンロード'}
+            {!busy ? (mac ? 'アップデート' : 'ダウンロード') : progress === 'installing' ? '入れ替えています…' : progress == null ? 'ダウンロード中…' : `ダウンロード中… ${progress}%`}
           </Button>
         </div>
       </div>

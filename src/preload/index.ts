@@ -43,6 +43,12 @@ const api = {
   updateSeen: (version: string): Promise<void> => ipcRenderer.invoke('app:update-seen', version),
   checkUpdate: (): Promise<{ status: 'new' | 'latest' | 'error'; snap: ProjectsSnapshot }> => ipcRenderer.invoke('app:check-update'),
   installUpdate: (): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke('app:install-update'),
+  /** 新しい版を落としている途中の %（大きさが分からなければ来ない）。落とし終わって入れ替えに入ると 'installing' */
+  onUpdateProgress: (cb: (p: number | 'installing') => void): (() => void) => {
+    const h = (_e: IpcRendererEvent, p: number | 'installing') => cb(p)
+    ipcRenderer.on('update:progress', h)
+    return () => ipcRenderer.removeListener('update:progress', h)
+  },
   oldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:old'),
   trashOldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:trash'),
   /** ループの画面の上のカード（透明な層）の大きさを伝える */
