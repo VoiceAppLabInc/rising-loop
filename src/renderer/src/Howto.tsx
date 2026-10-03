@@ -1,18 +1,22 @@
 // この画面の使い方。2.1.0 でスキルの殻からアプリのタブの列に移した（中身はスキルの使い方の窓のまま）
 import fig from './assets/howto-fig.svg?raw'
+import mark from './assets/mark.png'
 import { Button } from './Button'
 
 export function Howto(p: { skillVersion: string; appVersion: string; onClose: () => void }) {
   return (
     <div className="backdrop" onClick={(e) => e.target === e.currentTarget && p.onClose()}>
       <div className="dialog howto" role="dialog" aria-modal="true" aria-labelledby="howto-title">
-        {/* 左にロゴとバージョン、右に見出し */}
+        {/* 左にアイコン（竜巻だけ）とロゴとバージョン、右に見出し */}
         <header className="howto-head">
           <span className="brand">
-            <b>RISING LOOP</b>
-            <i>
-              スキル v{p.skillVersion} · アプリ v{p.appVersion} · Created by Voice App Lab
-            </i>
+            <img className="brand-mark" src={mark} alt="" />
+            <span className="brand-text">
+              <b>RISING LOOP</b>
+              <i>
+                スキル v{p.skillVersion} · アプリ v{p.appVersion} · Created by Voice App Lab
+              </i>
+            </span>
           </span>
           <h2 id="howto-title">ライジング・ループの使い方</h2>
         </header>
