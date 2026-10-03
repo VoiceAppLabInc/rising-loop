@@ -26,29 +26,41 @@ function knownDirs(platform: Platform, home: string): string[] {
   return [posix.join(home, '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin']
 }
 
+/** アプリの［入れる］（公式の単体版）が入れる置き場所。ここを最初に見る（Node の切り替えなどに左右されない） */
+const officialDir = (platform: Platform, home: string) => (platform === 'win32' ? win32.join(home, '.local', 'bin') : posix.join(home, '.local', 'bin'))
+
 /**
- * CLI の探し方: 環境変数での指定 → PATH → よくある置き場所。
- * Windows では .exe を先に使う。npm の .cmd は cmd.exe を通さずに中身を直接起動する
- * （cmd.exe を通すと、日本語や空白を含む引数が壊れやすい）。
+ * CLI の候補を、使いたい順に並べる：環境変数での指定（あればそれだけ）→ アプリが入れる置き場所（~/.local/bin）→ PATH → よくある置き場所。
+ * 入っているかではなく「動くか」で選ぶのは aiCli.ts の pickCli（nodenv の入口のように、あっても動かないものがあるため）。
+ * Windows では .exe を先に使う。npm の .cmd は cmd.exe を通さずに中身を直接起動する（cmd.exe を通すと、日本語や空白を含む引数が壊れやすい）
  */
-export function findCliIn(o: { platform: Platform; name: string; override: string | undefined; path: string; home: string } & Fs): Command | null {
-  if (o.override && o.exists(o.override)) return { file: o.override, args: [] }
+export function cliCandidatesIn(o: { platform: Platform; name: string; override: string | undefined; path: string; home: string } & Fs): Command[] {
+  if (o.override) return o.exists(o.override) ? [{ file: o.override, args: [] }] : []
   const win = o.platform === 'win32'
   const p = win ? win32 : posix
   const pathDirs = o.path.split(win ? ';' : ':').filter(Boolean)
-  const dirs = [...pathDirs, ...knownDirs(o.platform, o.home)]
+  const dirs = [...new Set([officialDir(o.platform, o.home), ...pathDirs, ...knownDirs(o.platform, o.home)])]
   const exts = win ? ['.exe', '.cmd'] : ['']
+  const out: Command[] = []
   for (const ext of exts) {
     for (const dir of dirs) {
       const f = p.join(dir, o.name + ext)
       if (!o.exists(f)) continue
-      if (ext !== '.cmd') return { file: f, args: [] }
+      if (ext !== '.cmd') {
+        out.push({ file: f, args: [] })
+        continue
+      }
       const shim = o.read(f)
       const resolved = shim == null ? null : resolveWinShim(f, shim, pathDirs, o.exists)
-      return resolved ?? { file: 'cmd.exe', args: ['/d', '/s', '/c', f] }
+      out.push(resolved ?? { file: 'cmd.exe', args: ['/d', '/s', '/c', f] })
     }
   }
-  return null
+  return out
+}
+
+/** いちばん目の候補（動くかは見ない）。テストと、動くかを確かめる前の目安に使う */
+export function findCliIn(o: Parameters<typeof cliCandidatesIn>[0]): Command | null {
+  return cliCandidatesIn(o)[0] ?? null
 }
 
 /** npm が作る .cmd の中身から、実際に起動するもの（node とスクリプト、または .exe）を読み取る */
@@ -268,9 +280,10 @@ export async function childEnv(): Promise<NodeJS.ProcessEnv> {
 
 const OVERRIDE: Record<string, string> = { claude: 'RISING_LOOP_APP_CLAUDE_PATH', codex: 'RISING_LOOP_APP_CODEX_PATH' }
 
-export async function findCli(name: 'claude' | 'codex'): Promise<Command | null> {
+/** claude / codex の候補（使いたい順）。動くかは aiCli.ts の resolveCli が確かめる */
+export async function cliCandidates(name: 'claude' | 'codex'): Promise<Command[]> {
   const env = await loadShellEnv()
-  return findCliIn({
+  return cliCandidatesIn({
     platform: process.platform,
     name,
     override: env[OVERRIDE[name]] ?? process.env[OVERRIDE[name]],

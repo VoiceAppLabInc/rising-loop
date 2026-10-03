@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { launch, mainWindow } from './helpers'
+import { FAKE_AI, launch, mainWindow } from './helpers'
 
 let app: ElectronApplication
 let win: Page
@@ -33,5 +33,38 @@ test('ログインしていなければ、その場で［ログイン］から�
   await expect(claude).toContainText('ログインしていません')
   await expect(win.locator('.welcome-steps > li').first()).not.toHaveClass(/done/)
   await claude.getByRole('button', { name: 'ログイン' }).click()
-  await expect(win.locator('.tool-head')).toContainText('（終わりました）', { timeout: 10_000 })
+  await expect(win.locator('.tool-head')).toContainText('ログインしました', { timeout: 10_000 })
+})
+
+test('入口だけあって動かない（nodenv などで本体が無い）ときは「動きません」と［入れ直す］。入れたら、そのままログインへ進む', async () => {
+  const flag = join(root, 'installed')
+  app = await launch(root, { RLA_FAKE_INSTALLED_FLAG: flag, RLA_FAKE_LOGGED_OUT: '1', RISING_LOOP_APP_INSTALL_CMD: FAKE_AI })
+  win = await mainWindow(app)
+  const claude = win.locator('.ai-row[data-ai="claude"]')
+  await expect(claude).toContainText('入っていますが動きません')
+  // 中身（command not found など）は見せない
+  await expect(win.locator('.welcome')).not.toContainText('command not found')
+  await claude.getByRole('button', { name: '入れ直す' }).click()
+  await expect(win.locator('.tool-head')).toContainText('Claude Codeを入れています')
+  // 入れ終わったら、押さなくてもログインが始まる
+  await expect(win.locator('.tool-head')).toContainText('ログインしました', { timeout: 15_000 })
+  expect(existsSync(flag)).toBe(true)
+})
+
+test('アプリが使う機能が無い古い版は「古い版です」と［入れ直す］', async () => {
+  app = await launch(root, { RLA_FAKE_OLD: '1' })
+  win = await mainWindow(app)
+  const claude = win.locator('.ai-row[data-ai="claude"]')
+  await expect(claude).toContainText('古い版です')
+  await expect(claude.getByRole('button', { name: '入れ直す' })).toBeVisible()
+  await expect(win.locator('.welcome-steps > li').first()).not.toHaveClass(/done/)
+})
+
+test('ようこその画面では Claude Code だけを出し、Codex は「Codex を使う場合」の中にしまう', async () => {
+  app = await launch(root, { RLA_FAKE_LOGGED_OUT: '1' })
+  win = await mainWindow(app)
+  await expect(win.locator('.ai-row[data-ai="claude"]')).toBeVisible()
+  await expect(win.locator('.ai-row[data-ai="codex"]')).toBeHidden()
+  await win.getByText('Codex を使う場合').click()
+  await expect(win.locator('.ai-row[data-ai="codex"]')).toBeVisible()
 })

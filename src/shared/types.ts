@@ -113,6 +113,10 @@ export type PermMode = 'ask' | 'auto'
 /** claude / codex が使えるか。missing: 入っていない／login: ログインしていない／ready: 使える */
 export interface AiStatus {
   ai: AiKind
-  state: 'missing' | 'login' | 'ready'
+  /**
+   * missing：入っていない／broken：あるが動かない（nodenv などの入口で、いまの Node に本体が無い など）／old：動くがアプリが使う機能が無い古い版／
+   * login：ログインしていない／ready：使える。missing・broken・old は［入れる］（公式の単体版）で直る
+   */
+  state: 'missing' | 'broken' | 'old' | 'login' | 'ready'
   version: string | null
 }

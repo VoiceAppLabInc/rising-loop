@@ -7,6 +7,27 @@
 // 設定画面が調べる・動かすもの（版・ログインの状態・ログイン）と、codex の会話づくり（exec --json）には、すぐ答えて終わる
 const a0 = process.argv.slice(2)
 const loggedOut = process.env.RLA_FAKE_LOGGED_OUT === '1'
+// RLA_FAKE_INSTALLED_FLAG があれば、そのファイルが無いあいだは「入口だけあって動かない」（nodenv の入口のかわり）。install で作る
+const flag = process.env.RLA_FAKE_INSTALLED_FLAG
+if (a0[0] === 'install') {
+  if (flag) (await import('node:fs')).writeFileSync(flag, 'installed')
+  process.stdout.write('INSTALL-OK ' + (a0[1] ?? '') + '\r\n')
+  process.exit(0)
+}
+if (flag && !(await import('node:fs')).existsSync(flag)) {
+  process.stderr.write('nodenv: codex: command not found\n')
+  process.exit(127)
+}
+// RLA_FAKE_OLD=1 なら、アプリが使う機能（--plugin-dir・exec の --json）が無い古い版のふり
+const old = process.env.RLA_FAKE_OLD === '1'
+if (a0.join(' ') === '--help') {
+  process.stdout.write(old ? '  --print\n' : '  --plugin-dir <path>  Load a plugin\n')
+  process.exit(0)
+}
+if (a0.join(' ') === 'exec --help') {
+  process.stdout.write(old ? '      --json\n' : '      --json\n      --skip-git-repo-check\n')
+  process.exit(0)
+}
 if (a0[0] === '--version') {
   process.stdout.write('fake-ai 9.9.9\n')
   process.exit(0)

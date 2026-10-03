@@ -126,9 +126,9 @@ function Welcome(p: { onOpen: () => void }) {
         <ol className="welcome-steps">
           <li className={ready ? 'done' : ''}>
             <h2>AI を使えるようにする</h2>
-            <p className="sub">Claude Code か Codex の、どちらか1つが使えれば始められます。</p>
+            <p className="sub">AI（Claude Code）を入れて、ログインします。Node などの準備は要りません。</p>
             <div className="ai-box">
-              <AiRows onStatus={(s) => setReady(s.some((x) => x.state === 'ready'))} />
+              <AiRows focus="claude" onStatus={(s) => setReady(s.some((x) => x.state === 'ready'))} />
             </div>
           </li>
           <li>

@@ -1,4 +1,4 @@
-import { execFile, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
@@ -11,7 +11,8 @@ import { dataDirOf, loadSettings, saveSettings } from './appSettings'
 import { findOldSkills } from './oldSkills'
 import { ToolRunner } from './tools'
 import { Chats } from './chat'
-import { childEnv, findCli, installCommand, loadShellEnv, loginArgs, navKeyDir, parseLoggedIn, setBundledPython, statusArgs, windowChrome } from './platform'
+import { childEnv, installCommand, loadShellEnv, loginArgs, navKeyDir, parseLoggedIn, setBundledPython, statusArgs, windowChrome } from './platform'
+import { forgetCli, resolveCli, runProbe } from './aiCli'
 import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
@@ -531,31 +532,27 @@ ipcMain.handle('loops:pane', (_e, id: string, on: boolean) => {
   return snapshot()
 })
 
-/** claude / codex が入っているか・ログインしているか */
-function run(file: string, args: string[], env: NodeJS.ProcessEnv): Promise<{ out: string; code: number }> {
-  return new Promise((resolve) => {
-    execFile(file, args, { env, timeout: 20_000, windowsHide: true }, (err, stdout) => {
-      const code = err && typeof (err as { code?: unknown }).code === 'number' ? ((err as { code: number }).code) : err ? 1 : 0
-      resolve({ out: String(stdout ?? ''), code })
-    })
-  })
-}
+/** claude / codex が使えるか（動くもの・アプリが使う機能があるものを選んだうえで）・ログインしているか */
 async function aiStatus(ai: AiKind): Promise<AiStatus> {
-  const cmd = await findCli(ai)
-  if (!cmd) return { ai, state: 'missing', version: null }
-  const env = await childEnv()
-  const v = await run(cmd.file, [...cmd.args, '--version'], env)
-  const st = await run(cmd.file, [...cmd.args, ...statusArgs(ai)], env)
-  return { ai, state: parseLoggedIn(ai, st.out, st.code) ? 'ready' : 'login', version: v.out.trim().split('\n')[0] || null }
+  const picked = await resolveCli(ai)
+  if (!picked.cmd) return { ai, state: picked.state === 'old' || picked.state === 'broken' ? picked.state : 'missing', version: picked.version }
+  const st = await runProbe(await childEnv())(picked.cmd.file, [...picked.cmd.args, ...statusArgs(ai)])
+  return { ai, state: parseLoggedIn(ai, st.out, st.code) ? 'ready' : 'login', version: picked.version }
 }
-ipcMain.handle('ai:status', async () => Promise.all((['claude', 'codex'] as AiKind[]).map(aiStatus)))
+ipcMain.handle('ai:status', async () => {
+  // 確かめ直すときは、覚えていた結果を捨てる（よそで入れ直した・消した、を拾う）
+  forgetCli()
+  return Promise.all((['claude', 'codex'] as AiKind[]).map(aiStatus))
+})
 
 /** ［入れる］［ログイン］。公式の手順をアプリの中のターミナルで動かす（1つずつ） */
 const tools = new ToolRunner()
 ipcMain.handle('ai:run', async (e, ai: AiKind, kind: 'install' | 'login', cols: number, rows: number) => {
-  let cmd = kind === 'install' ? installCommand(ai, process.platform) : null
+  // テストでは、本物のインストーラーの代わりに決まったコマンドを動かす（引数に install と AI の名前）
+  const testInstall = process.env.RISING_LOOP_APP_INSTALL_CMD
+  let cmd = kind === 'install' ? (testInstall ? { file: testInstall, args: ['install', ai] } : installCommand(ai, process.platform)) : null
   if (kind === 'login') {
-    const cli = await findCli(ai)
+    const cli = (await resolveCli(ai)).cmd
     if (!cli) return false
     cmd = { file: cli.file, args: [...cli.args, ...loginArgs(ai)] }
   }
@@ -568,7 +565,11 @@ ipcMain.handle('ai:run', async (e, ai: AiKind, kind: 'install' | 'login', cols: 
     rows,
     // 出力は、ターミナルを出している画面（設定のダイアログ＝透明な層）に返す
     onData: (d) => !e.sender.isDestroyed() && e.sender.send('tool:data', d),
-    onExit: (code) => !e.sender.isDestroyed() && e.sender.send('tool:exit', code)
+    onExit: (code) => {
+      // 入れた・ログインした。次に使うときは確かめ直す
+      forgetCli()
+      if (!e.sender.isDestroyed()) e.sender.send('tool:exit', code)
+    }
   })
   return true
 })

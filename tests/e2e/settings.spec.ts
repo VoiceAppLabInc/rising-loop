@@ -166,7 +166,7 @@ test('AI の状態を出し、ログインしていなければ［ログイン�
   await expect(claude).toContainText('ログインしていません')
   await expect(claude).toContainText('fake-ai 9.9.9')
   await claude.getByRole('button', { name: 'ログイン' }).click()
-  await expect(s.locator('.tool-head')).toContainText('（終わりました）', { timeout: 10_000 })
+  await expect(s.locator('.tool-head')).toContainText('ログインしました', { timeout: 10_000 })
   const out = await s.evaluate(() => {
     const t = (window as unknown as { __rlaToolTerm: { buffer: { active: { length: number; getLine: (i: number) => { translateToString: () => string } } } } }).__rlaToolTerm
     let s = ''

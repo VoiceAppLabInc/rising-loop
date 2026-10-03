@@ -197,10 +197,17 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .danger-text p { margin: 3px 0 0; }
 .state { font-weight: 600; }
 .state-ready { color: #3f7a2a; }
-.state-login, .state-missing { color: #b0661a; }
+.state-login, .state-missing, .state-broken, .state-old { color: #b0661a; }
 .tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .tool-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f4f4f2; font-size: 12px; }
 .tool-term { height: 260px; padding: 6px; background: #16171a; }
+.tool-term.folded { height: 0; padding: 0; overflow: hidden; }
+.tool-acts { display: flex; gap: 6px; flex: none; }
+.tool-msg { padding-right: 12px; line-height: 1.5; }
+.tool-failed .tool-msg { color: #b3261e; }
+/* ようこその画面で、Codex を「使う場合」の中にしまう */
+.ai-other { margin-top: 6px; }
+.ai-other summary { cursor: pointer; color: var(--sub); font-size: 13px; padding: 6px 0; }
 
 /* 使い方 */
 .dialog.howto { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 80px); overflow: auto; padding-top: 0; }
@@ -247,3 +254,6 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .dialog .update-error { color: #b3261e; }
 /* ダウンロード中の % で幅が揺れないように */
 .dialog.update .actions .btn-primary { min-width: 176px; font-variant-numeric: tabular-nums; }
+/* 状態の文字は途中で折り返さない。補足は入りきらなければ次の行へ */
+.ai-row .state { white-space: nowrap; }
+.ai-row .val { flex-wrap: wrap; row-gap: 2px; }

@@ -10,7 +10,8 @@ import type { WebFrameMain } from 'electron'
 import { pasteForTerminal } from '@shared/intercept'
 import type { AiKind, Project } from '@shared/types'
 import { CLAUDE_PROMPT, claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from './launch'
-import { childEnv, findCli, killTree } from './platform'
+import { childEnv, killTree } from './platform'
+import { resolveCli } from './aiCli'
 import { findSession, loadBook, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
 
 /** 1つのターミナルが持っておく出力の上限（開き直したときに出す分） */
@@ -288,9 +289,11 @@ export class Chats {
   private async start(t: Term, project: Project, screen: string, ai: AiKind): Promise<void> {
     t.starting = true
     try {
-      const cmd = await findCli(ai)
+      // 動くもの・アプリが使う機能があるものだけを使う（nodenv の入口や古い版は飛ばす）
+      const cmd = (await resolveCli(ai)).cmd
       if (!cmd) {
-        this.out(t, `\r\n${ai} が見つかりませんでした。インストールしてから Enter を押してください。\r\n`)
+        const name = ai === 'claude' ? 'Claude Code' : 'Codex'
+        this.out(t, `\r\n${name} が使えません。右上の ⚙（設定）の「AI」で［入れる］を押し、終わったらここで Enter を押してください。\r\n`)
         return
       }
       const env = await childEnv()

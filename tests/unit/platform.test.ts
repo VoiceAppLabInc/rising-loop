@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findCliIn, installCommand, killCommand, loginArgs, navKeyDir, needsBundledPython, parseLoggedIn, resolveWinShim, windowChrome, withBundledPython } from '../../src/main/platform'
+import { cliCandidatesIn, findCliIn, installCommand, killCommand, loginArgs, navKeyDir, needsBundledPython, parseLoggedIn, resolveWinShim, windowChrome, withBundledPython } from '../../src/main/platform'
 
 const fsOf = (files: Record<string, string>) => ({
   exists: (p: string) => p in files,
@@ -26,6 +26,23 @@ describe('findCliIn（Mac）', () => {
 
   it('どこにも無ければ null', () => {
     expect(findCliIn({ ...base, path: '/usr/bin', ...fsOf({}) })).toBeNull()
+  })
+})
+
+describe('cliCandidatesIn（候補の並び）', () => {
+  const base = { platform: 'darwin' as const, name: 'codex', override: undefined, home: '/Users/t' }
+  it('アプリが［入れる］で入れる置き場所（~/.local/bin）を、PATH より先に見る。同じ場所は1回だけ', () => {
+    const fs = fsOf({ '/Users/t/.nodenv/shims/codex': '', '/Users/t/.local/bin/codex': '', '/opt/homebrew/bin/codex': '' })
+    expect(cliCandidatesIn({ ...base, path: '/Users/t/.nodenv/shims:/Users/t/.local/bin:/opt/homebrew/bin', ...fs }).map((c) => c.file)).toEqual([
+      '/Users/t/.local/bin/codex',
+      '/Users/t/.nodenv/shims/codex',
+      '/opt/homebrew/bin/codex'
+    ])
+  })
+  it('環境変数で指定されていれば、それだけ（無ければ空）', () => {
+    const fs = fsOf({ '/x/codex': '', '/Users/t/.local/bin/codex': '' })
+    expect(cliCandidatesIn({ ...base, override: '/x/codex', path: '', ...fs }).map((c) => c.file)).toEqual(['/x/codex'])
+    expect(cliCandidatesIn({ ...base, override: '/nope', path: '', ...fs })).toEqual([])
   })
 })
 
