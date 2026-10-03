@@ -306,6 +306,15 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.4.5",
+      "templates": {
+        "loop": "89b069beff3c1e17",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

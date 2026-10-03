@@ -512,15 +512,21 @@ test('LOG のタイトルを押すと、頁の中に広げずに LOG の md を�
     .toBe(true)
 })
 
-test('頁の見出しは、そのセクションのあいだ上に貼り付き、上に色の線を出す。「← 一覧へ」と重なるときだけ、重なる分だけ文字をずらす（一覧の見出しは貼り付かない）', async () => {
+test('頁の見出しは、そのセクションのあいだ上に貼り付き、上に色の線を出す。「← 一覧へ」と重なるときだけ、重なる分だけ文字をずらす（一覧の見出しも貼り付く）', async () => {
   await start()
   const folder = join(root, 'proj-sticky')
   cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L01"]\')'))?.value).toBe(true)
-  // 一覧の見出し（LOOPS）は今のまま
-  expect((await inLoops(app, folder, 'getComputedStyle(document.querySelector(".section.tabbed .sec-tab")).position'))?.value).toBe('absolute')
+  // 一覧の見出し（LOOPS）も貼り付く（一覧には「← 一覧へ」が無いので、ずらさない）。一覧を長くしてスクロールできるようにする
+  await inLoops(app, folder, 'document.querySelector(".section.t-loops").insertAdjacentHTML("beforeend", "<div style=\\"height:3000px\\"></div>"); 1')
+  const list = () =>
+    inLoops(app, folder, `(function(){ var t = document.querySelector(".section.t-loops .sec-tab"); return [getComputedStyle(t).position, t.classList.contains("stuck"), Math.round(t.getBoundingClientRect().top) <= 4, getComputedStyle(t.querySelector(".k")).marginLeft] })()`).then((r) => r?.value)
+  await inLoops(app, folder, 'scrollTo(0, document.querySelector(".section.t-loops").offsetTop + 300); 1')
+  await expect.poll(list).toEqual(['sticky', true, true, '0px'])
+  await inLoops(app, folder, 'scrollTo(0, 0); 1')
+  await expect.poll(list).toEqual(['sticky', false, false, '0px'])
   await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
   await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.back")')).toBe(true)
   // GOAL の見出しの様子：[貼り付いているか, 上に止まっているか, 線の幅がセクションと同じか, ずらした幅, ボタンの右端から文字までの間]
