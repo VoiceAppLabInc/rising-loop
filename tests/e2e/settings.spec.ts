@@ -512,6 +512,44 @@ test('LOG のタイトルを押すと、頁の中に広げずに LOG の md を�
     .toBe(true)
 })
 
+test('頁の見出しは、そのセクションのあいだ上に貼り付き、上に色の線を出す。「← 一覧へ」と重なるときだけ、重なる分だけ文字をずらす（一覧の見出しは貼り付かない）', async () => {
+  await start()
+  const folder = join(root, 'proj-sticky')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: 'フォルダを開く…' }).click()
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector(\'[data-go="s-L01"]\')'))?.value).toBe(true)
+  // 一覧の見出し（LOOPS）は今のまま
+  expect((await inLoops(app, folder, 'getComputedStyle(document.querySelector(".section.tabbed .sec-tab")).position'))?.value).toBe('absolute')
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click(); 1')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.back")')).toBe(true)
+  // GOAL の見出しの様子：[貼り付いているか, 上に止まっているか, 線の幅がセクションと同じか, ずらした幅, ボタンの右端から文字までの間]
+  const goal = () =>
+    inFrame(
+      app,
+      '/L01.html',
+      `(function(){
+        var t = document.querySelector(".section.t-goal .sec-tab"), sec = t.parentElement.getBoundingClientRect(), line = getComputedStyle(t, "::after")
+        var k = t.querySelector(".k"), back = document.querySelector("button.back").getBoundingClientRect()
+        return [t.classList.contains("stuck"), Math.round(t.getBoundingClientRect().top) <= 4, line.content !== "none" && Math.round(parseFloat(line.width)) === Math.round(sec.width), parseFloat(getComputedStyle(k).marginLeft), Math.round(k.getBoundingClientRect().left - back.right)]
+      })()`
+    ) as Promise<[boolean, boolean, boolean, number, number]>
+  const scrollIntoGoal = () => inFrame(app, '/L01.html', 'scrollTo(0, document.querySelector(".section.t-goal").offsetTop + 300); 1')
+  await expect.poll(async () => (await goal()).slice(0, 4)).toEqual([false, false, false, 0])
+  // 広い画面：本体が中央寄りでボタンと重ならないので、貼り付いてもずらさない
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(2400, 900))
+  await scrollIntoGoal()
+  await expect.poll(async () => { const g = await goal(); return [g[0], g[1], g[2], g[3], g[4] >= 12] }).toEqual([true, true, true, 0, true])
+  // 狭い画面：重なる分だけずらし、ボタンの右端から 12px 空ける
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(800, 700))
+  await inFrame(app, '/L01.html', 'scrollBy(0, 1); 1')
+  // ボタンの右端は小数なので、切り上げの分の 1px は許す
+  await expect.poll(async () => { const g = await goal(); return [g[0], g[3] > 0, g[4] >= 12 && g[4] <= 13] }).toEqual([true, true, true])
+  // 先頭に戻すと元どおり
+  await inFrame(app, '/L01.html', 'scrollTo(0, 0); 1')
+  await expect.poll(async () => (await goal()).slice(0, 4)).toEqual([false, false, false, 0])
+})
+
 test('頁の「← 一覧へ」は左上に浮かび、頁をスクロールしても動かず、押すと一覧に戻る', async () => {
   await start()
   const folder = join(root, 'proj-back')
