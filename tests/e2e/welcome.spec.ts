@@ -68,3 +68,14 @@ test('ようこその画面では Claude Code だけを出し、Codex は「Code
   await win.getByText('Codex を使う場合').click()
   await expect(win.locator('.ai-row[data-ai="codex"]')).toBeVisible()
 })
+
+test('確かめているあいだも Claude Code の行を出しておき、状態だけを「確かめています…」にする（高さが変わらない）', async () => {
+  app = await launch(root, { RLA_FAKE_STATUS_DELAY_MS: '1500' })
+  win = await mainWindow(app)
+  const claude = win.locator('.ai-row[data-ai="claude"]')
+  await expect(claude).toContainText('確かめています…')
+  const h1 = await claude.evaluate((el) => el.getBoundingClientRect().height)
+  await expect(claude).toContainText('使えます', { timeout: 10_000 })
+  const h2 = await claude.evaluate((el) => el.getBoundingClientRect().height)
+  expect(h2).toBe(h1)
+})

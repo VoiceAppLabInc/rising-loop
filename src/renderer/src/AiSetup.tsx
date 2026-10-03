@@ -34,16 +34,19 @@ export function AiRows(p: { onStatus?: (s: AiStatus[]) => void; focus?: AiKind }
     })
   useEffect(() => void refresh(), [])
   const busy = !!tool && tool.done == null
-  const row = (s: AiStatus) => (
+  // 確かめているあいだも行は出しておき、状態だけを「確かめています…」にする（あとから行が増えて高さが変わらないように）
+  type Shown = { ai: AiKind; state: AiStatus['state'] | null; version: string | null }
+  const shown: Shown[] = status ?? (['claude', 'codex'] as AiKind[]).map((ai) => ({ ai, state: null, version: null }))
+  const row = (s: Shown) => (
     <div key={s.ai} className="row ai-row" data-ai={s.ai}>
       <span className="key">{NAME[s.ai]}</span>
       <span className="val">
-        <span className={`state state-${s.state}`}>{STATE_LABEL[s.state]}</span>
+        {s.state == null ? <span className="state state-checking">確かめています…</span> : <span className={`state state-${s.state}`}>{STATE_LABEL[s.state]}</span>}
         {(s.state === 'ready' || s.state === 'login') && s.version && <span className="sub">{s.version}</span>}
         {(s.state === 'broken' || s.state === 'old') && <span className="sub">［入れ直す］で新しく入れます（ほかのアプリの {NAME[s.ai]} には触りません）</span>}
       </span>
       <span className="act">
-        {needsInstall(s.state) && (
+        {s.state != null && needsInstall(s.state) && (
           <Button variant={p.focus === s.ai ? 'primary' : undefined} disabled={busy} onClick={() => setTool({ ai: s.ai, kind: 'install', done: null })}>
             {s.state === 'missing' ? '入れる' : '入れ直す'}
           </Button>
@@ -56,11 +59,10 @@ export function AiRows(p: { onStatus?: (s: AiStatus[]) => void; focus?: AiKind }
       </span>
     </div>
   )
-  const main = status?.filter((s) => !p.focus || s.ai === p.focus) ?? []
-  const others = p.focus ? (status?.filter((s) => s.ai !== p.focus) ?? []) : []
+  const main = shown.filter((s) => !p.focus || s.ai === p.focus)
+  const others = p.focus ? shown.filter((s) => s.ai !== p.focus) : []
   return (
     <>
-      {!status && <p className="sub">確かめています…</p>}
       {main.map(row)}
       {others.length > 0 && (
         <details className="ai-other" open={others.some((s) => s.state === 'ready') || tool?.ai === others[0].ai}>

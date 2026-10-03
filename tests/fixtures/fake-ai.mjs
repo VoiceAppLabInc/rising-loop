@@ -28,6 +28,8 @@ if (a0.join(' ') === 'exec --help') {
   process.stdout.write(old ? '      --json\n' : '      --json\n      --skip-git-repo-check\n')
   process.exit(0)
 }
+// RLA_FAKE_STATUS_DELAY_MS があれば、版を答えるまでその分だけ待つ（状態を確かめるのが遅い AI のかわり）
+if (a0[0] === '--version' && process.env.RLA_FAKE_STATUS_DELAY_MS) await new Promise((r) => setTimeout(r, Number(process.env.RLA_FAKE_STATUS_DELAY_MS)))
 if (a0[0] === '--version') {
   process.stdout.write('fake-ai 9.9.9\n')
   process.exit(0)

@@ -198,6 +198,7 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .state { font-weight: 600; }
 .state-ready { color: #3f7a2a; }
 .state-login, .state-missing, .state-broken, .state-old { color: #b0661a; }
+.state-checking { color: var(--sub); font-weight: 400; }
 .tool { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
 .tool-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #f4f4f2; font-size: 12px; }
 .tool-term { height: 260px; padding: 6px; background: #16171a; }
