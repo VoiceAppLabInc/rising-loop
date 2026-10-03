@@ -42,3 +42,38 @@ export async function checkUpdate(url: string, current: string, platform: string
     return null
   }
 }
+
+/** Mac のアプリの置き場所（〜/Rising Loop.app）。実行ファイルの3つ上。Mac でなければ・.app の中でなければ null */
+export function bundleOf(exe: string, platform: string): string | null {
+  if (platform !== 'darwin') return null
+  const m = exe.match(/^(.*\.app)\/Contents\/MacOS\/[^/]+$/)
+  return m ? m[1] : null
+}
+
+/**
+ * Mac でアプリを新しい版に入れ替えるシェル。アプリが自分で落とした .dmg を使う（ブラウザで落としたものと違って、
+ * 「ダウンロードしたもの」の印が付かないので、署名していなくても「壊れている」と言われない）。
+ * 引数：$1 終わるのを待つアプリのプロセス番号、$2 .dmg、$3 入れ替えるアプリ（〜.app）、$4 open なら最後に開く。
+ * .dmg が開けない・中にアプリが無いときは、前のアプリを残したまま（開き直して）止まる
+ */
+export const MAC_SWAP_SH = `
+pid="$1"; dmg="$2"; app="$3"; after="$4"
+i=0
+while kill -0 "$pid" 2>/dev/null; do
+  i=$((i+1)); [ "$i" -gt 120 ] && exit 1
+  sleep 0.5
+done
+mnt="$(mktemp -d)"
+ok=0
+if hdiutil attach -nobrowse -readonly -noautoopen -mountpoint "$mnt" "$dmg" >/dev/null 2>&1; then
+  src="$(ls -d "$mnt"/*.app 2>/dev/null | head -1)"
+  if [ -n "$src" ] && rm -rf "$app.new" && ditto "$src" "$app.new" && rm -rf "$app" && mv "$app.new" "$app"; then ok=1; fi
+  hdiutil detach -quiet "$mnt" >/dev/null 2>&1 || hdiutil detach -quiet -force "$mnt" >/dev/null 2>&1
+fi
+rmdir "$mnt" 2>/dev/null
+rm -rf "$app.new"
+[ "$ok" = 1 ] && rm -f "$dmg"
+xattr -dr com.apple.quarantine "$app" 2>/dev/null
+[ "$after" = open ] && open "$app"
+[ "$ok" = 1 ]
+`

@@ -54,12 +54,12 @@ test('新しい版があれば、起動したときに1回だけお知らせを�
   await win.getByRole('button', { name: '新しい版' }).click()
   await expect(dlg).toBeVisible()
 
-  // ［ダウンロード］は、この OS・CPU 向けのファイルをいつものブラウザで開く
+  // 開発版（配ったアプリでない）では入れ替えられないので、［アップデート］（Windows は［ダウンロード］）は、この OS・CPU 向けのファイルをいつものブラウザで開く
   await app.evaluate(({ shell }) => {
     ;(globalThis as { opened?: string[] }).opened = []
     shell.openExternal = (async (url: string) => void (globalThis as { opened?: string[] }).opened!.push(url)) as typeof shell.openExternal
   })
-  await dlg.getByRole('button', { name: 'ダウンロード' }).click()
+  await dlg.getByRole('button', { name: process.platform === 'darwin' ? 'アップデート' : 'ダウンロード' }).click()
   await expect(dlg).toBeHidden()
   const want = process.platform === 'darwin' ? `https://example.com/mac-${process.arch}.dmg` : process.platform === 'win32' ? 'https://example.com/win-x64.exe' : 'https://example.com/release'
   await expect.poll(() => app.evaluate(() => (globalThis as { opened?: string[] }).opened)).toEqual([want])

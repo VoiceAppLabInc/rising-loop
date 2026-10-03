@@ -175,10 +175,7 @@ export function Overlay() {
           update={update}
           appVersion={snap.appVersion}
           onLater={() => setUpdateOpen(false)}
-          onDownload={() => {
-            void window.rla.downloadUpdate()
-            setUpdateOpen(false)
-          }}
+          onDone={() => setUpdateOpen(false)}
         />
       )}
       {oldSkills.length > 0 && (

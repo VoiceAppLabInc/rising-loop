@@ -1,7 +1,7 @@
-import { execFile } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs'
+import { execFile, spawn } from 'node:child_process'
+import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { BrowserWindow, WebContentsView, app, dialog, ipcMain, net, shell } from 'electron'
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
@@ -17,7 +17,7 @@ import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledge
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { UPDATE_EVERY_MS, UPDATE_URL, checkUpdate } from './update'
+import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdate } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
 const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
@@ -538,9 +538,41 @@ ipcMain.handle('app:settings', () => loadSettings(settingsFile()))
 ipcMain.handle('app:howto-seen', () => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), howtoSeen: true }))
 /** 新しい版のお知らせを出した（その版については、もう自動では出さない） */
 ipcMain.handle('app:update-seen', (_e, version: string) => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), updateSeen: version }))
-/** 新しい版のファイル（無ければリリースの頁）を、いつものブラウザで開く */
-ipcMain.handle('app:download-update', () => {
-  if (update) void shell.openExternal(update.download)
+/**
+ * 新しい版に入れ替える。Mac の配ったアプリは、アプリが自分で .dmg を落とし、終了してから入れ替えて開き直す（MAC_SWAP_SH）。
+ * ブラウザで落とすと「ダウンロードしたもの」の印が付き、署名していないアプリは「壊れている」と言われて開けないため。
+ * Windows・開発版・置き場所に書けない（.dmg から直接開いている など）ときは、ファイル（無ければリリースの頁）をいつものブラウザで開く
+ */
+ipcMain.handle('app:install-update', async (): Promise<{ ok: boolean; message?: string }> => {
+  if (!update) return { ok: false, message: '新しい版が見つかりません。' }
+  const bundle = app.isPackaged ? bundleOf(app.getPath('exe'), process.platform) : null
+  const canWrite = (dir: string) => {
+    try {
+      accessSync(dir, constants.W_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+  if (!bundle || !update.download.endsWith('.dmg') || !canWrite(dirname(bundle))) {
+    void shell.openExternal(update.download)
+    return { ok: true }
+  }
+  try {
+    const res = await net.fetch(update.download)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const dir = join(app.getPath('userData'), 'update')
+    mkdirSync(dir, { recursive: true })
+    const dmg = join(dir, `Rising-Loop-${update.version}.dmg`)
+    writeFileSync(dmg, Buffer.from(await res.arrayBuffer()))
+    // 入れ替えたあとで開き直す（テストでは開かない）
+    const after = process.env.RISING_LOOP_APP_UPDATE_NO_OPEN === '1' ? 'no-open' : 'open'
+    spawn('/bin/sh', ['-c', MAC_SWAP_SH, 'sh', String(process.pid), dmg, bundle, after], { detached: true, stdio: 'ignore' }).unref()
+    app.quit()
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, message: `新しい版を落とせませんでした（${(e as Error).message}）。ネットにつながっているか確かめて、もう一度押してください。` }
+  }
 })
 
 /** ほかの場所に入っている rising-loop。［残す］と答えていれば空（ただし 1.8.0 より前のものがあれば、答えに関係なく出す） */

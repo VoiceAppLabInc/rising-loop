@@ -244,3 +244,4 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 
 /* 開発版の印（タブの列の右） */
 .dev-badge { align-self: center; padding: 2px 8px; border: 1px solid #5a5a56; border-radius: 999px; color: #c8c8c4; font-size: 11px; letter-spacing: 0.04em; }
+.dialog .update-error { color: #b3261e; }
