@@ -1,0 +1,44 @@
+# タグ v*（例: v0.2.0）を押すと、Mac（arm64・x64）と Windows（x64）の配る形を作って、Releases の下書きに置く。
+# 下書きを確かめてから、GitHub の画面で「公開」を押す（公開した時点でアプリの更新のお知らせに出る）
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            python: mac-arm64 mac-x64
+            target: --mac
+          - os: windows-latest
+            python: win-x64
+            target: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # タグの版と package.json の版がずれていたら止める（アプリは package.json の版を自分の版として比べる）
+      - name: check version
+        shell: bash
+        run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
+      - run: node scripts/fetch-python.mjs ${{ matrix.python }}
+      - run: pnpm build
+      - run: pnpm exec electron-builder ${{ matrix.target }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

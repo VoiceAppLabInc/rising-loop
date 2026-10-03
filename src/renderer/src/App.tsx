@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
 import type { ProjectsSnapshot } from '@shared/types'
+import { AiRows } from './AiSetup'
 import { Button } from './Button'
 import { Icon } from './Icon'
 
@@ -62,6 +63,15 @@ export function App() {
           プロジェクトを追加
         </Button>
         <div className="tab-actions">
+          {/* 開発版（pnpm dev）は、普段使いのアプリと見分けられるようにする（データ置き場も別） */}
+          {snap.dev && <span className="dev-badge">開発版</span>}
+          {/* 新しい版のアプリがあるあいだだけ出す（お知らせを閉じたあとも、ここから開き直せる） */}
+          {snap.update && (
+            <Button variant="bar" size="sm" title="新しい版のお知らせを開く" onClick={() => window.rla.openDialog({ kind: 'update' })}>
+              <Icon name="up" />
+              新しい版
+            </Button>
+          )}
           {current && shellNew && (
             <>
               <Button variant="bar" size="sm" onClick={() => window.rla.openDialog({ kind: 'howto' })}>
@@ -88,13 +98,7 @@ export function App() {
       </header>
       <main className="body">
         {!current ? (
-          <div className="empty">
-            <h1>プロジェクトのフォルダを開きましょう</h1>
-            <p>サービスのフォルダを選ぶと、そのフォルダのループを開きます。</p>
-            <Button variant="primary" onClick={add}>
-              フォルダを開く…
-            </Button>
-          </div>
+          <Welcome onOpen={add} />
         ) : !snap.hasLoops[current.id] ? (
           // ループが無いあいだは、この下に全面のチャット（main が重ねる）を出す
           <div className="setup-head">
@@ -104,6 +108,38 @@ export function App() {
           </div>
         ) : null}
       </main>
+    </div>
+  )
+}
+
+/**
+ * プロジェクトが無いときの画面（初めての人の入口）。① AI を使えるようにする（入れる・ログイン）② フォルダを開く。
+ * AI はこのアプリに入っていないので、ここで公式の手順を動かす（設定の「AI」と同じ部品）
+ */
+function Welcome(p: { onOpen: () => void }) {
+  const [ready, setReady] = useState<boolean | null>(null)
+  return (
+    <div className="welcome">
+      <div className="welcome-in">
+        <h1>ライジング・ループへようこそ</h1>
+        <p className="sub">ひとつの数字を測り、それを上げる施策を AI と一緒に回していくアプリです。</p>
+        <ol className="welcome-steps">
+          <li className={ready ? 'done' : ''}>
+            <h2>AI を使えるようにする</h2>
+            <p className="sub">Claude Code か Codex の、どちらか1つが使えれば始められます。</p>
+            <div className="ai-box">
+              <AiRows onStatus={(s) => setReady(s.some((x) => x.state === 'ready'))} />
+            </div>
+          </li>
+          <li>
+            <h2>プロジェクトのフォルダを開く</h2>
+            <p className="sub">サービスごとにフォルダを1つ選びます（企画書などがあれば入れておくと、AI が読みます）。ループがまだ無ければ、AI と目標を決めるところから始めます。</p>
+            <Button variant="primary" onClick={p.onOpen}>
+              フォルダを開く…
+            </Button>
+          </li>
+        </ol>
+      </div>
     </div>
   )
 }

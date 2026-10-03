@@ -1,6 +1,6 @@
 {
-  "name": "rising-loop-app2",
-  "productName": "Rising Loop App",
+  "name": "rising-loop-app",
+  "productName": "Rising Loop",
   "version": "0.1.0",
   "private": true,
   "description": "rising-loop スキルを同梱し、ループの画面と claude / codex のチャットを1つにまとめるデスクトップアプリ",
@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "test": "vitest run",
     "test:e2e": "pnpm build && playwright test",
-    "postinstall": "electron-rebuild -f -o node-pty"
+    "postinstall": "electron-rebuild -f -o node-pty",
+    "python": "node scripts/fetch-python.mjs",
+    "dist": "pnpm build && electron-builder --publish never",
+    "dist:mac": "node scripts/fetch-python.mjs mac-arm64 mac-x64 && pnpm build && electron-builder --mac --publish never",
+    "dist:win": "node scripts/fetch-python.mjs win-x64 && pnpm build && electron-builder --win --publish never"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.2.0",
@@ -21,6 +25,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "typescript": "^7.0.2",
     "vite": "^7.3.6",
@@ -39,5 +44,6 @@
       "esbuild",
       "node-pty"
     ]
-  }
+  },
+  "author": "Voice App Lab"
 }

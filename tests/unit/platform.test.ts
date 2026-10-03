@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findCliIn, installCommand, killCommand, loginArgs, navKeyDir, parseLoggedIn, resolveWinShim, windowChrome } from '../../src/main/platform'
+import { findCliIn, installCommand, killCommand, loginArgs, navKeyDir, needsBundledPython, parseLoggedIn, resolveWinShim, windowChrome, withBundledPython } from '../../src/main/platform'
 
 const fsOf = (files: Record<string, string>) => ({
   exists: (p: string) => p in files,
@@ -98,9 +98,19 @@ describe('入れる・ログインのコマンド', () => {
     expect(installCommand('claude', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] })
     expect(installCommand('claude', 'win32')).toEqual({ file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] })
   })
-  it('codex を入れる：npm で入れる', () => {
-    expect(installCommand('codex', 'darwin')).toEqual({ file: '/bin/zsh', args: ['-lc', 'npm install -g @openai/codex'] })
-    expect(installCommand('codex', 'win32')).toEqual({ file: 'cmd.exe', args: ['/d', '/s', '/c', 'npm install -g @openai/codex'] })
+  it('codex を入れる：Node が無くても入るよう、公式の Releases から1つのファイルを落として ~/.local/bin に置く', () => {
+    const mac = installCommand('codex', 'darwin')
+    expect(mac.file).toBe('/bin/zsh')
+    expect(mac.args[0]).toBe('-lc')
+    expect(mac.args[1]).toContain('https://github.com/openai/codex/releases/latest/download/codex-$a-apple-darwin.tar.gz')
+    expect(mac.args[1]).toContain('$HOME/.local/bin')
+    expect(mac.args[1]).not.toContain('npm')
+    const win = installCommand('codex', 'win32')
+    expect(win.file).toBe('powershell.exe')
+    expect(win.args.slice(0, 4)).toEqual(['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command'])
+    expect(win.args[4]).toContain('https://github.com/openai/codex/releases/latest/download/codex-x86_64-pc-windows-msvc.exe.zip')
+    expect(win.args[4]).toContain("'codex.exe'")
+    expect(win.args[4]).not.toContain('npm')
   })
   it('ログイン：claude は auth login、codex は login', () => {
     expect(loginArgs('claude')).toEqual(['auth', 'login'])
@@ -149,5 +159,28 @@ describe('戻る・進むのキー（Chrome・Safari と同じ）', () => {
     expect(navKeyDir(key('[', { control: true }), 'win32')).toBeNull()
     expect(navKeyDir(key('ArrowLeft', { alt: true, control: true }), 'win32')).toBeNull()
     expect(navKeyDir(key('ArrowLeft', { meta: true }), 'win32')).toBeNull()
+  })
+})
+
+describe('同梱の Python を使うか', () => {
+  const has = (...files: string[]) => (p: string) => files.includes(p)
+  it('Mac：PATH に本物の python3 があれば使わない', () => {
+    expect(needsBundledPython({ platform: 'darwin', path: '/opt/homebrew/bin:/usr/bin', exists: has('/opt/homebrew/bin/python3', '/usr/bin/python3'), macTools: false })).toBe(false)
+    expect(needsBundledPython({ platform: 'darwin', path: '/usr/bin', exists: has('/usr/bin/python3'), macTools: true })).toBe(false)
+  })
+  it('Mac：/usr/bin/python3 しか無く、コマンドラインツールが入っていなければ使う（それは入れるよう促すだけの代役）', () => {
+    expect(needsBundledPython({ platform: 'darwin', path: '/usr/bin:/bin', exists: has('/usr/bin/python3'), macTools: false })).toBe(true)
+  })
+  it('Mac：python3 がどこにも無ければ使う', () => {
+    expect(needsBundledPython({ platform: 'darwin', path: '/usr/bin:/bin', exists: has(), macTools: true })).toBe(true)
+  })
+  it('Windows：Microsoft Store へ案内するだけの python3（WindowsApps の中）は数えない', () => {
+    const apps = 'C:\\Users\\u\\AppData\\Local\\Microsoft\\WindowsApps'
+    expect(needsBundledPython({ platform: 'win32', path: apps, exists: has(apps + '\\python3.exe'), macTools: false })).toBe(true)
+    expect(needsBundledPython({ platform: 'win32', path: 'C:\\Python312;' + apps, exists: has('C:\\Python312\\python3.exe'), macTools: false })).toBe(false)
+  })
+  it('PATH の先頭に足す（Mac は bin、Windows はフォルダそのもの。Windows は Path の名前のままにする）', () => {
+    expect(withBundledPython({ PATH: '/usr/bin' }, '/App/Resources/python', 'darwin')).toEqual({ PATH: '/App/Resources/python/bin:/usr/bin' })
+    expect(withBundledPython({ Path: 'C:\\Windows' }, 'C:\\App\\python', 'win32')).toEqual({ Path: 'C:\\App\\python;C:\\App\\python\\Scripts;C:\\Windows' })
   })
 })

@@ -22,7 +22,7 @@ user-invokable: true
 
 なぜその規約になったのか（実際に起きた失敗）は `references/なぜこの規約か.md`。
 
-このスキルは、デスクトップアプリ「Rising Loop App」に同梱されている。
+このスキルは、デスクトップアプリ「Rising Loop」に同梱されている。
 `<スキル>` は、このスキルを読み込んだときに示されるフォルダ（Claude Code では "Base directory for this skill"、codex では起動時の指示にある場所）。`~/.claude/skills/rising-loop` ではない。
 
 ## 何を扱うスキルか

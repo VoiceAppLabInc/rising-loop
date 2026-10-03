@@ -1,0 +1,49 @@
+# 配る形（Mac の .dmg と Windows のインストーラー）。タグ v* を押すと .github/workflows/release.yml がこれで作って Releases に置く
+# 署名はしない（はじめて開くときの手順は README と更新のお知らせに書く）
+appId: com.voiceapplab.rising-loop
+productName: Rising Loop
+artifactName: Rising-Loop-${version}-${os}-${arch}.${ext}
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+# node-pty はネイティブのモジュールなので asar の外に出す
+asarUnpack:
+  - '**/node_modules/node-pty/**'
+# 同梱のスキル・右の窓の動き・Python は Resources の下に置く（src/main/index.ts の resourceRoot が見る）
+extraResources:
+  - from: skill
+    to: skill
+    filter: ['**/*', '!**/__pycache__/**', '!**/.DS_Store']
+  - from: resources/pane
+    to: resources/pane
+  - from: vendor/python/${os}-${arch}/python
+    to: python
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  category: public.app-category.productivity
+  # Apple の証明書では署名しない。ただし署名がまったく無いと、ダウンロードしたアプリが「壊れているため開けません」になる。
+  # 証明書の要らない仮の署名（ad-hoc）をしておくと「開発元を確認できない」になり、システム設定の「このまま開く」で開ける
+  identity: '-'
+  # 仮の署名と hardened runtime を一緒にすると、Electron の部品の署名とかみ合わずに起動しない
+  hardenedRuntime: false
+  notarize: false
+dmg:
+  title: Rising Loop ${version}
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+publish:
+  provider: github
+  owner: toru0325
+  repo: rising-loop
+  releaseType: draft

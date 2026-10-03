@@ -176,10 +176,11 @@ test('AI の状態を出し、ログインしていなければ［ログイン�
   expect(out).toContain('LOGIN-FLOW-OK')
 })
 
-test('ほかの場所の rising-loop を見つけたら聞き、ゴミ箱に入れる', async () => {
+test('ほかの場所の rising-loop（1.8.0 の案内のスキル）を見つけたら聞き、ゴミ箱に入れる', async () => {
   const dir = join(root, 'home', '.claude', 'skills', 'rising-loop')
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), '---\nname: rising-loop\n---\n')
+  writeFileSync(join(dir, 'VERSION'), '1.8.0\n')
   await start()
   const d = (await dialogOf(app))
   await expect(d).toContainText('ほかの場所に rising-loop が入っています')
@@ -190,10 +191,29 @@ test('ほかの場所の rising-loop を見つけたら聞き、ゴミ箱に入�
   expect(readdirSync(join(root, 'trash'))).toHaveLength(1)
 })
 
-test('［残す］と答えたら、次からは聞かない', async () => {
+test('1.8.0 より前の rising-loop は、［残す］を出さず［OK］でゴミ箱に入れる（前に［残す］と答えていても出す）', async () => {
+  const dir = join(root, 'home', '.claude', 'skills', 'rising-loop')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'SKILL.md'), '---\nname: rising-loop\n---\n')
+  writeFileSync(join(dir, 'VERSION'), '1.7.5\n')
+  mkdirSync(join(root, 'data'), { recursive: true })
+  writeFileSync(join(root, 'data', 'app.json'), JSON.stringify({ howtoSeen: true, keepOldSkills: true }))
+  await start()
+  const d = await dialogOf(app)
+  await expect(d).toContainText('古い rising-loop が入っています')
+  await expect(d).toContainText(dir)
+  await expect(d.getByRole('button', { name: '残す' })).toHaveCount(0)
+  await d.getByRole('button', { name: 'OK' }).click()
+  await expect(d).toHaveCount(0)
+  expect(existsSync(dir)).toBe(false)
+  expect(readdirSync(join(root, 'trash'))).toHaveLength(1)
+})
+
+test('［残す］と答えたら、次からは聞かない（1.8.0 の案内のスキル）', async () => {
   const dir = join(root, 'home', '.agents', 'skills', 'old')
   mkdirSync(dir, { recursive: true })
-  writeFileSync(join(dir, 'SKILL.md'), '---\nname: loop-manager\n---\n')
+  writeFileSync(join(dir, 'SKILL.md'), '---\nname: rising-loop\n---\n')
+  writeFileSync(join(dir, 'VERSION'), '1.8.0\n')
   await start()
   await (await dialogOf(app)).getByRole('button', { name: '残す' }).click()
   await app.close()

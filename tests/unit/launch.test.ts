@@ -24,12 +24,12 @@ describe('claudeArgs', () => {
 
 describe('codex', () => {
   it('起動時の指示は TOML の文字列として渡す（Windows のパスの \\ と引用符を壊さない）', () => {
-    const text = codexInstructions('C:\\Program Files\\Rising Loop App\\skill\\skills\\rising-loop')
+    const text = codexInstructions('C:\\Program Files\\Rising Loop\\skill\\skills\\rising-loop')
     const [flag, kv] = codexArgs({ threadId: 't1', instructions: text }).slice(0, 2)
     expect(flag).toBe('-c')
     expect(kv.startsWith('developer_instructions="')).toBe(true)
     expect(JSON.parse(kv.slice('developer_instructions='.length))).toBe(text)
-    expect(text).toContain('C:\\Program Files\\Rising Loop App\\skill\\skills\\rising-loop')
+    expect(text).toContain('C:\\Program Files\\Rising Loop\\skill\\skills\\rising-loop')
   })
 
   it('続きから開く', () => {

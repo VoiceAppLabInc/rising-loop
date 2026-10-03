@@ -346,7 +346,7 @@ export class Chats {
   }
 
   private createCodexThread(file: string, pre: string[], project: Project, screen: string, instructions: string, env: NodeJS.ProcessEnv): Promise<string | null> {
-    const prompt = `これは ${project.name} の Rising Loop App の右のチャット（${screen}）専用の窓口です。返事は「了解」だけ。`
+    const prompt = `これは ${project.name} の Rising Loop の右のチャット（${screen}）専用の窓口です。返事は「了解」だけ。`
     return new Promise((resolve) => {
       const child = execFile(file, [...pre, ...codexCreateArgs({ instructions, prompt })], { cwd: project.folder, env, windowsHide: true, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 }, (_err, stdout) =>
         resolve(parseCodexThreadId(String(stdout ?? '')))

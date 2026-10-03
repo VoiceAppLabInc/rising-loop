@@ -1,13 +1,9 @@
 // 設定のダイアログ。プロジェクトごと（フォルダ・AI・コマンド実行の確認・外す）と、アプリ全体（claude / codex の状態・版）。
 // ほかのダイアログと同じく、ループの画面より上の透明な層（Overlay.tsx）に描き、後ろのループの画面を隠さない
 import { useEffect, useRef, useState } from 'react'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
-import type { AiKind, AiStatus, PermMode, Project, ProjectsSnapshot } from '@shared/types'
+import type { AiKind, PermMode, Project, ProjectsSnapshot } from '@shared/types'
+import { AiRows } from './AiSetup'
 import { Button } from './Button'
-
-const STATE_LABEL: Record<AiStatus['state'], string> = { missing: '入っていません', login: 'ログインしていません', ready: '使えます' }
 
 /** プロジェクトの設定の下書き。［OK］を押すまで適用しない */
 type Draft = { folder: string; ai: AiKind; perm: PermMode }
@@ -203,91 +199,10 @@ function ProjectSettings(p: {
 }
 
 function AiSettings() {
-  const [status, setStatus] = useState<AiStatus[] | null>(null)
-  const [tool, setTool] = useState<{ ai: AiKind; kind: 'install' | 'login'; done: number | null } | null>(null)
-  const refresh = () => void window.rla.aiStatus().then(setStatus)
-  useEffect(refresh, [])
   return (
     <section className="settings-sec">
       <h3>AI</h3>
-      {!status && <p className="sub">確かめています…</p>}
-      {status?.map((s) => (
-        <div key={s.ai} className="row ai-row" data-ai={s.ai}>
-          <span className="key">{s.ai === 'claude' ? 'Claude Code' : 'Codex'}</span>
-          <span className="val">
-            <span className={`state state-${s.state}`}>{STATE_LABEL[s.state]}</span>
-            {s.version && <span className="sub">{s.version}</span>}
-          </span>
-          <span className="act">
-            {s.state === 'missing' && (
-              <Button disabled={!!tool && tool.done == null} onClick={() => setTool({ ai: s.ai, kind: 'install', done: null })}>
-                入れる
-              </Button>
-            )}
-            {s.state === 'login' && (
-              <Button disabled={!!tool && tool.done == null} onClick={() => setTool({ ai: s.ai, kind: 'login', done: null })}>
-                ログイン
-              </Button>
-            )}
-          </span>
-        </div>
-      ))}
-      {tool && (
-        <ToolTerminal
-          key={`${tool.ai}-${tool.kind}`}
-          ai={tool.ai}
-          kind={tool.kind}
-          onExit={(code) => {
-            setTool({ ...tool, done: code })
-            refresh()
-          }}
-          onClose={() => setTool(null)}
-          done={tool.done}
-        />
-      )}
+      <AiRows />
     </section>
-  )
-}
-
-/** 公式のインストールとログインを動かすターミナル。終わったら状態を確かめ直す */
-function ToolTerminal(p: { ai: AiKind; kind: 'install' | 'login'; done: number | null; onExit: (code: number) => void; onClose: () => void }) {
-  const box = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const term = new Terminal({ fontSize: 12, fontFamily: '"SF Mono", Menlo, "Cascadia Mono", Consolas, monospace', theme: { background: '#16171a' }, convertEol: false })
-    const fit = new FitAddon()
-    term.loadAddon(fit)
-    term.open(box.current!)
-    try {
-      fit.fit()
-    } catch {
-      // 大きさが測れないときは決まった大きさで始める
-    }
-    ;(window as unknown as { __rlaToolTerm: Terminal }).__rlaToolTerm = term // 画面の流れのテストで中身を読む
-    const offData = window.rla.onToolData((d) => term.write(d))
-    const offExit = window.rla.onToolExit((code) => p.onExit(code))
-    term.onData((d) => window.rla.toolInput(d))
-    void window.rla.runTool(p.ai, p.kind, term.cols, term.rows)
-    return () => {
-      offData()
-      offExit()
-      window.rla.toolStop()
-      term.dispose()
-    }
-    // 起動は1回だけ
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  return (
-    <div className="tool">
-      <div className="tool-head">
-        <span>
-          {p.ai === 'claude' ? 'Claude Code' : 'Codex'}を{p.kind === 'install' ? '入れています' : 'ログインしています'}
-          {p.done != null && (p.done === 0 ? '（終わりました）' : `（終わりました。コード ${p.done}）`)}
-        </span>
-        <Button size="sm" onClick={p.onClose}>
-          {p.done == null ? '止める' : '閉じる'}
-        </Button>
-      </div>
-      <div className="tool-term" ref={box} />
-    </div>
   )
 }

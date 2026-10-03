@@ -42,7 +42,7 @@ test.afterEach(async () => {
 })
 
 test('フォルダを開くとタブができ、スキルの画面がそのまま出る', async () => {
-  await expect(win.getByText('プロジェクトのフォルダを開きましょう')).toBeVisible()
+  await expect(win.getByRole('heading', { name: 'ライジング・ループへようこそ' })).toBeVisible()
   await nextFolder(withLoops)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   await later(app) // 見本は古い形なので、知らせに「あとで」と答える

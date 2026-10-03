@@ -4,13 +4,14 @@
 // 後ろのループの画面とチャットは動いたまま薄暗く見せる
 import { useEffect, useRef, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
-import type { AskRequest, DialogRequest, ProjectsSnapshot } from '@shared/types'
+import type { AskRequest, DialogRequest, FoundSkill, ProjectsSnapshot } from '@shared/types'
 import { AskDialog } from './Ask'
 import { Button } from './Button'
 import { Howto } from './Howto'
 import { OldFormCard, OldFormDialog, UndoDialog } from './OldForm'
 import { OldSkillsDialog } from './OldSkills'
 import { Settings } from './Settings'
+import { UpdateDialog } from './Update'
 
 export function Overlay() {
   const [snap, setSnap] = useState<ProjectsSnapshot | null>(null)
@@ -22,12 +23,15 @@ export function Overlay() {
   /** 使い方を一度見たか（最初の1回だけ自動で開く）。読み終わるまでは null */
   const [howtoSeen, setHowtoSeen] = useState<boolean | null>(null)
   /** ほかの場所に入っている rising-loop（起動したときに1回だけ聞く） */
-  const [oldSkills, setOldSkills] = useState<string[]>([])
+  const [oldSkills, setOldSkills] = useState<FoundSkill[]>([])
   // ループが無いフォルダを選んだとき、新しいプロジェクトにしてよいかを聞く
   const [askAdd, setAskAdd] = useState<{ folder: string; name: string } | null>(null)
   // ループの画面（2.3.0 からの殻）が頼んだ、コメント・指示の入力の窓
   const [ask, setAsk] = useState<(AskRequest & { id: number }) | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** 新しい版のお知らせ。updateSeen は、自動で出した版（読み終わるまでは null） */
+  const [updateOpen, setUpdateOpen] = useState(false)
+  const [updateSeen, setUpdateSeen] = useState<string | null | undefined>(null)
   /** 設定を開いたときのプロジェクト。いまのプロジェクトがこれと違うものになったら、設定を閉じる（別のプロジェクトの設定を開いたままにしない） */
   const [settingsFor, setSettingsFor] = useState<string | null>(null)
   const currentIdRef = useRef<string | null>(null)
@@ -35,7 +39,10 @@ export function Overlay() {
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    void window.rla.settings().then((s) => setHowtoSeen(!!s.howtoSeen))
+    void window.rla.settings().then((s) => {
+      setHowtoSeen(!!s.howtoSeen)
+      setUpdateSeen(s.updateSeen)
+    })
     void window.rla.oldSkills().then(setOldSkills)
     void window.rla.getProjects().then(setSnap)
     const offs = [
@@ -45,6 +52,7 @@ export function Overlay() {
       // アプリの画面（タブの列）から頼まれたダイアログ
       window.rla.onOpenDialog((req: DialogRequest) => {
         if (req.kind === 'howto') setHowtoOpen(true)
+        if (req.kind === 'update') setUpdateOpen(true)
         if (req.kind === 'settings') {
           setSettingsFor(currentIdRef.current)
           setSettingsOpen(true)
@@ -69,12 +77,23 @@ export function Overlay() {
     if (shellNew && howtoSeen === false && !notice && !oldSkills.length) setHowtoOpen(true)
   }, [shellNew, howtoSeen, notice, oldSkills.length])
 
+  // 新しい版は、見つけたときに1回だけ自動で開く（同じ版については二度と自動では出さない）。ほかのお知らせが先
+  const update = snap?.update ?? null
+  useEffect(() => {
+    if (update && updateSeen !== null && updateSeen !== update.version && !notice && !oldSkills.length && !howtoOpen) {
+      setUpdateOpen(true)
+      setUpdateSeen(update.version)
+      void window.rla.updateSeen(update.version)
+    }
+  }, [update, updateSeen, notice, oldSkills.length, howtoOpen])
+
   // ダイアログを出しているかを main に伝える（main が層を窓いっぱいに広げ、層に入力を向ける）
   useEffect(() => {
     if (settingsOpen && (snap?.currentId ?? null) !== settingsFor) setSettingsOpen(false)
   }, [settingsOpen, settingsFor, snap?.currentId])
 
-  const dialog = notice || undoing || howtoOpen || oldSkills.length > 0 || !!askAdd || !!ask || settingsOpen
+  const showUpdate = updateOpen && !!update
+  const dialog = notice || undoing || howtoOpen || oldSkills.length > 0 || !!askAdd || !!ask || settingsOpen || showUpdate
   useEffect(() => {
     window.rla.overlayDialog(dialog)
   }, [dialog])
@@ -151,9 +170,20 @@ export function Overlay() {
           }}
         />
       )}
+      {showUpdate && update && snap && (
+        <UpdateDialog
+          update={update}
+          appVersion={snap.appVersion}
+          onLater={() => setUpdateOpen(false)}
+          onDownload={() => {
+            void window.rla.downloadUpdate()
+            setUpdateOpen(false)
+          }}
+        />
+      )}
       {oldSkills.length > 0 && (
         <OldSkillsDialog
-          dirs={oldSkills}
+          found={oldSkills}
           busy={busy}
           onTrash={() => {
             setBusy(true)

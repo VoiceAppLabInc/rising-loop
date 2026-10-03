@@ -1,25 +1,28 @@
 import { execFile } from 'node:child_process'
-import { mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
-import { BrowserWindow, WebContentsView, app, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, WebContentsView, app, dialog, ipcMain, net, shell } from 'electron'
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
-import type { AiKind, AiStatus, AskRequest, DialogRequest, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
-import { loadSettings, saveSettings } from './appSettings'
+import type { AiKind, AiStatus, AppUpdate, AskRequest, DialogRequest, FormInfo, PermMode, Project, ProjectsSnapshot, ProjectsState } from '@shared/types'
+import { dataDirOf, loadSettings, saveSettings } from './appSettings'
 import { findOldSkills } from './oldSkills'
 import { ToolRunner } from './tools'
 import { Chats } from './chat'
-import { childEnv, findCli, installCommand, loadShellEnv, loginArgs, navKeyDir, parseLoggedIn, statusArgs, windowChrome } from './platform'
+import { childEnv, findCli, installCommand, loadShellEnv, loginArgs, navKeyDir, parseLoggedIn, setBundledPython, statusArgs, windowChrome } from './platform'
 import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
+import { UPDATE_EVERY_MS, UPDATE_URL, checkUpdate } from './update'
 
-// テストでは、データ置き場を一時フォルダに変える
-if (process.env.RISING_LOOP_APP_DATA_DIR) app.setPath('userData', process.env.RISING_LOOP_APP_DATA_DIR)
+// データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
+const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
+if (data.copyFrom) cpSync(data.copyFrom, data.dir, { recursive: true })
+app.setPath('userData', data.dir)
 
 /** テストでは、ウィンドウを出さず Dock にも出さない（操作中の画面を奪わない） */
 const hidden = process.env.RISING_LOOP_APP_HIDDEN === '1'
@@ -57,6 +60,9 @@ const ledgerPath = () => join(skillDir(), 'migrations.json')
 const backupsOf = (id: string) => join(app.getPath('userData'), 'backups', id)
 const KEEP_BACKUPS = 3
 const paneDir = () => join(resourceRoot(), 'resources', 'pane')
+/** 同梱の Python（python3 が無い人のため）。配るときは Resources/python、開発中は scripts/fetch-python.mjs が落とした vendor/ の中 */
+const pythonDir = () =>
+  app.isPackaged ? join(process.resourcesPath, 'python') : join(app.getAppPath(), 'vendor', 'python', `${process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`, 'python')
 
 /** 受け取ったものの記録（画面の流れのテストで読む） */
 const received = { panes: [] as PaneOpen[], instructions: [] as { projectId: string | null; text: string }[] }
@@ -169,7 +175,19 @@ function snapshot(): ProjectsSnapshot {
     panes[p.id] = views?.paneOpen(p.id) ?? true
     nav[p.id] = views?.navState(p.id) ?? { back: false, forward: false }
   }
-  return { ...state, hasLoops: hasLoopsMap, forms, panes, nav, skillVersion: skillVersion(), appVersion: app.getVersion() }
+  return { ...state, hasLoops: hasLoopsMap, forms, panes, nav, skillVersion: skillVersion(), appVersion: app.getVersion(), dev: !app.isPackaged, update }
+}
+
+/** 新しい版のアプリ（見つけたら一覧に添えて、タブの列とお知らせに出す） */
+let update: AppUpdate | null = null
+async function lookForUpdate(): Promise<void> {
+  const url = process.env.RISING_LOOP_APP_UPDATE_URL || UPDATE_URL
+  // テストは file:// の見本を読む（本物の GitHub には見に行かない）
+  const fetcher = url.startsWith('file:') ? async (u: string) => ({ ok: true, json: async () => JSON.parse(readFileSync(new URL(u), 'utf8')) }) : (u: string) => net.fetch(u)
+  const found = await checkUpdate(url, app.getVersion(), process.platform, process.arch, fetcher)
+  if (found?.version === update?.version) return
+  update = found
+  if (state) broadcast(snapshot())
 }
 
 /** いまのプロジェクトを出し、カードの層をループの画面のさらに上に置き直す */
@@ -279,7 +297,7 @@ function createWindow(): void {
     height: 900,
     minWidth: 800,
     minHeight: 500,
-    title: 'Rising Loop App',
+    title: 'Rising Loop',
     titleBarStyle: chrome.titleBarStyle,
     ...(chrome.titleBarOverlay ? { titleBarOverlay: chrome.titleBarOverlay } : {}),
     ...(chrome.trafficLightPosition ? { trafficLightPosition: chrome.trafficLightPosition } : {}),
@@ -518,13 +536,22 @@ ipcMain.on('tool:stop', () => tools.stop())
 
 ipcMain.handle('app:settings', () => loadSettings(settingsFile()))
 ipcMain.handle('app:howto-seen', () => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), howtoSeen: true }))
+/** 新しい版のお知らせを出した（その版については、もう自動では出さない） */
+ipcMain.handle('app:update-seen', (_e, version: string) => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), updateSeen: version }))
+/** 新しい版のファイル（無ければリリースの頁）を、いつものブラウザで開く */
+ipcMain.handle('app:download-update', () => {
+  if (update) void shell.openExternal(update.download)
+})
 
-/** ほかの場所に入っている rising-loop。［残す］と答えていれば空 */
-ipcMain.handle('skills:old', () => (loadSettings(settingsFile()).keepOldSkills ? [] : findOldSkills(homeDir())))
+/** ほかの場所に入っている rising-loop。［残す］と答えていれば空（ただし 1.8.0 より前のものがあれば、答えに関係なく出す） */
+ipcMain.handle('skills:old', () => {
+  const found = findOldSkills(homeDir())
+  return loadSettings(settingsFile()).keepOldSkills && !found.some((f) => f.old) ? [] : found
+})
 /** ゴミ箱に入れる（見つけたものだけ）。テストでは本物のゴミ箱ではなく、決まったフォルダに移す */
 ipcMain.handle('skills:trash', async () => {
   const testTrash = process.env.RISING_LOOP_APP_TRASH_DIR
-  for (const dir of findOldSkills(homeDir())) {
+  for (const { dir } of findOldSkills(homeDir())) {
     if (testTrash) {
       mkdirSync(testTrash, { recursive: true })
       renameSync(dir, join(testTrash, `${basename(dir)}-${Date.now()}`))
@@ -612,6 +639,7 @@ app.whenReady().then(() => {
   if (hidden && process.platform === 'darwin') app.setActivationPolicy('accessory')
   // ログインシェルの環境変数は読むのに数秒かかるので、起動してすぐ読み始める（最初のチャットを待たせない）
   void loadShellEnv()
+  setBundledPython(pythonDir())
   state = loadState(projectsFile())
   // 前に起動していたあいだに、消えた部品を移し終えていれば記録する
   settleLost()
@@ -626,6 +654,8 @@ app.whenReady().then(() => {
     changes: changelogSummary(readText(join(skillDir(), 'CHANGELOG.md')) ?? '', tpl.version)
   })
   createWindow()
+  void lookForUpdate()
+  setInterval(() => void lookForUpdate(), UPDATE_EVERY_MS)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

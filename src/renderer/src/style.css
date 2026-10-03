@@ -220,3 +220,27 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .free ul { margin: 4px 0 0; padding-left: 18px; }
 .dialog .actions .note { margin-right: auto; color: var(--sub); font-size: 12px; align-self: center; }
 .paths { margin: 6px 0 10px; padding-left: 18px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; word-break: break-all; }
+
+/* 新しい版のお知らせ */
+.dialog.update { width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); overflow: auto; }
+.dialog.update .sub { color: var(--sub); }
+.update-notes { margin: 4px 0 12px; padding: 10px 12px; max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
+
+/* プロジェクトが無いときの画面（初めての人の入口） */
+.welcome { position: absolute; inset: 0; overflow: auto; padding: 48px 24px; }
+.welcome-in { max-width: 640px; margin: 0 auto; }
+.welcome h1 { margin-top: 0; margin-bottom: 6px; font-size: 20px; font-weight: 700; }
+.welcome .sub { color: var(--sub); margin: 0 0 8px; line-height: 1.6; }
+.welcome-steps { list-style: none; counter-reset: step; padding: 0; margin-top: 24px; }
+.welcome-steps > li { counter-increment: step; position: relative; padding: 18px 0 20px 44px; border-top: 1px solid var(--line); }
+.welcome-steps > li::before { content: counter(step); position: absolute; left: 0; top: 18px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--ink); font-weight: 700; font-size: 13px; }
+.welcome-steps > li.done::before { content: '✓'; background: var(--ink); color: #fff; }
+.welcome-steps h2 { margin: 3px 0 4px; font-size: 15px; font-weight: 600; }
+.ai-box .row { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+.ai-box .key { width: 120px; flex: none; }
+.ai-box .val { flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; }
+.ai-box .act { flex: none; margin-left: auto; display: flex; gap: 8px; }
+.ai-box .act .btn { min-width: 96px; }
+
+/* 開発版の印（タブの列の右） */
+.dev-badge { align-self: center; padding: 2px 8px; border: 1px solid #5a5a56; border-radius: 999px; color: #c8c8c4; font-size: 11px; letter-spacing: 0.04em; }

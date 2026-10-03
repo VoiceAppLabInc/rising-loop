@@ -32,6 +32,8 @@ export function launch(root: string, extraEnv: Record<string, string> = {}, o: {
       // ほかの場所の rising-loop を探すホームと、ゴミ箱の代わり（本物のホームとゴミ箱には触れない）
       RISING_LOOP_APP_HOME: join(root, 'home'),
       RISING_LOOP_APP_TRASH_DIR: join(root, 'trash'),
+      // 新しい版は見に行かない（見るテストは file:// の見本を渡す）
+      RISING_LOOP_APP_UPDATE_URL: 'off',
       ...extraEnv
     }
   })

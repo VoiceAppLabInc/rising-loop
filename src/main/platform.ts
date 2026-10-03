@@ -92,14 +92,68 @@ export function windowChrome(
   return { titleBarStyle: 'default', controls: 'none' }
 }
 
-/** 公式の手順で入れる。claude は公式のインストーラー、codex は npm（Node が要る） */
+const CODEX_DL = 'https://github.com/openai/codex/releases/latest/download'
+
+/**
+ * 公式の手順で入れる。claude は公式のインストーラー。codex は公式の Releases から1つのファイルを落として ~/.local/bin に置く
+ * （npm で入れると Node が要る。初めての人は Node を入れていないことが多い）。~/.local/bin は findCli が見る置き場所
+ */
 export function installCommand(ai: 'claude' | 'codex', platform: Platform): Command {
   const win = platform === 'win32'
   if (ai === 'claude')
     return win
       ? { file: 'powershell.exe', args: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://claude.ai/install.ps1 | iex'] }
       : { file: '/bin/zsh', args: ['-lc', 'curl -fsSL https://claude.ai/install.sh | bash'] }
-  return win ? { file: 'cmd.exe', args: ['/d', '/s', '/c', 'npm install -g @openai/codex'] } : { file: '/bin/zsh', args: ['-lc', 'npm install -g @openai/codex'] }
+  if (win)
+    return {
+      file: 'powershell.exe',
+      args: [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        "$ErrorActionPreference='Stop'; $d=Join-Path $env:USERPROFILE '.local\\bin'; New-Item -ItemType Directory -Force $d | Out-Null; " +
+          `$z=Join-Path $env:TEMP 'codex.zip'; Invoke-WebRequest -UseBasicParsing '${CODEX_DL}/codex-x86_64-pc-windows-msvc.exe.zip' -OutFile $z; ` +
+          "Expand-Archive -Force $z $d; Move-Item -Force (Join-Path $d 'codex-x86_64-pc-windows-msvc.exe') (Join-Path $d 'codex.exe'); Remove-Item $z; " +
+          "Write-Output \"codex を $d に入れました\""
+      ]
+    }
+  return {
+    file: '/bin/zsh',
+    args: [
+      '-lc',
+      'set -e; d="$HOME/.local/bin"; mkdir -p "$d"; a=$(uname -m); [ "$a" = arm64 ] && a=aarch64; ' +
+        `curl -fL --progress-bar "${CODEX_DL}/codex-$a-apple-darwin.tar.gz" | tar -xz -C "$d"; ` +
+        'mv -f "$d/codex-$a-apple-darwin" "$d/codex"; echo "codex を $d に入れました"'
+    ]
+  }
+}
+
+/**
+ * 同梱の Python を使うか。スキルの数字取りのスクリプトは python3 で動く。本物の python3 があればそれを使い、無いときだけ同梱のものを足す。
+ * Mac の /usr/bin/python3 は、コマンドラインツール（Xcode）が無いと「入れますか」と出すだけの代役なので、そのときは無いとみなす。
+ * Windows の WindowsApps の中の python3 は、Microsoft Store へ案内するだけの代役なので数えない
+ */
+export function needsBundledPython(o: { platform: Platform; path: string; exists: (p: string) => boolean; macTools: boolean }): boolean {
+  const win = o.platform === 'win32'
+  const p = win ? win32 : posix
+  for (const dir of o.path.split(win ? ';' : ':').filter(Boolean)) {
+    if (win && /\\WindowsApps\\?$/i.test(dir)) continue
+    const f = p.join(dir, win ? 'python3.exe' : 'python3')
+    if (!o.exists(f)) continue
+    if (!win && f === '/usr/bin/python3' && !o.macTools) continue
+    return false
+  }
+  return true
+}
+
+/** 同梱の Python を PATH の先頭に足す。Mac は bin/、Windows はフォルダそのもの（python.exe・python3.exe がある）と Scripts\\ */
+export function withBundledPython(env: NodeJS.ProcessEnv, dir: string, platform: Platform): NodeJS.ProcessEnv {
+  const win = platform === 'win32'
+  const key = win ? (Object.keys(env).find((k) => k.toUpperCase() === 'PATH') ?? 'Path') : 'PATH'
+  const add = win ? [dir, win32.join(dir, 'Scripts')] : [posix.join(dir, 'bin')]
+  const rest = env[key]
+  return { ...env, [key]: [...add, ...(rest ? [rest] : [])].join(win ? ';' : ':') }
 }
 
 /** ログインは公式のコマンドで、ブラウザに任せる（アプリはトークンを扱わない） */
@@ -182,13 +236,33 @@ function readShellEnv(): Promise<NodeJS.ProcessEnv> {
   })
 }
 
+/** 同梱の Python の置き場所（index が起動したときに決める。無ければ足さない） */
+let bundledPython: string | null = null
+export function setBundledPython(dir: string | null): void {
+  bundledPython = dir && existsSync(dir) ? dir : null
+}
+
+let macTools: Promise<boolean> | null = null
+/** Mac のコマンドラインツール（Xcode）が入っているか。xcode-select -p が通れば入っている */
+function hasMacTools(): Promise<boolean> {
+  macTools ??= new Promise((resolve) => execFile('xcode-select', ['-p'], { timeout: 5000 }, (err) => resolve(!err)))
+  return macTools
+}
+
 /** claude / codex に渡す環境変数 */
 export async function childEnv(): Promise<NodeJS.ProcessEnv> {
-  const env = { ...(await loadShellEnv()) }
+  let env = { ...(await loadShellEnv()) }
   for (const k of CLAUDE_CODE_MARKERS) delete env[k]
   delete env.ELECTRON_RUN_AS_NODE
   env.TERM = 'xterm-256color'
   env.COLORTERM = 'truecolor'
+  // アプリの中で動いている目印。~/.claude/skills に残ったスキル版の案内（legacy/rising-loop）は、これを見て黙る
+  env.RISING_LOOP_APP = '1'
+  if (bundledPython) {
+    const path = env.PATH ?? env.Path ?? ''
+    const tools = process.platform === 'darwin' ? await hasMacTools() : false
+    if (needsBundledPython({ platform: process.platform, path, exists: existsSync, macTools: tools })) env = withBundledPython(env, bundledPython, process.platform)
+  }
   return env
 }
 

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Rising Loop のアイコン。濃い緑の角丸に、右上へ抜けていく輪（回すたびに上がる） -->
+  <rect x="100" y="100" width="824" height="824" rx="190" fill="#1c2821"/>
+  <path d="M640 330 A215 215 0 1 0 727 560" fill="none" stroke="#ccef67" stroke-width="84" stroke-linecap="round"/>
+  <path d="M600 250 L760 270 L700 420 Z" fill="#ccef67" stroke="#ccef67" stroke-width="30" stroke-linejoin="round"/>
+</svg>

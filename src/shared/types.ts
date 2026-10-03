@@ -71,6 +71,21 @@ export interface ProjectsSnapshot extends ProjectsState {
   panes: Record<string, boolean>
   skillVersion: string
   appVersion: string
+  /** 開発版（pnpm dev）で動いているか。タブの列に「開発版」と出す */
+  dev: boolean
+  /** 新しい版のアプリ（GitHub の Releases の最新が、いまの版より新しいとき）。無ければ null */
+  update: AppUpdate | null
+}
+
+/** 新しい版のアプリ */
+export interface AppUpdate {
+  version: string
+  /** Releases に書いた説明 */
+  notes: string
+  /** ［ダウンロード］で開く先。この OS・CPU 向けのファイルがあればそれ、無ければリリースの頁 */
+  download: string
+  /** リリースの頁 */
+  page: string
 }
 
 /** 右のチャットで動かす AI */
@@ -89,7 +104,14 @@ export interface AskRequest {
 }
 
 /** アプリの画面（タブの列）から、ダイアログの層に出してもらうダイアログ */
-export type DialogRequest = { kind: 'howto' } | { kind: 'settings' } | { kind: 'add'; folder: string; name: string }
+export type DialogRequest = { kind: 'howto' } | { kind: 'settings' } | { kind: 'update' } | { kind: 'add'; folder: string; name: string }
+
+/** ほかの場所に入っている rising-loop（main/oldSkills.ts） */
+export interface FoundSkill {
+  dir: string
+  /** 1.8.0 より前（VERSION が古い・無い、または古い名前の loop-manager）。アプリの中で黙れないので、聞かずにゴミ箱に入れる */
+  old: boolean
+}
 
 export type AiKind = 'claude' | 'codex'
 
