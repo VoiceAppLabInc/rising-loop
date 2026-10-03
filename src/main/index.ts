@@ -575,15 +575,12 @@ ipcMain.handle('app:install-update', async (): Promise<{ ok: boolean; message?: 
   }
 })
 
-/** ほかの場所に入っている rising-loop。［残す］と答えていれば空（ただし 1.8.0 より前のものがあれば、答えに関係なく出す） */
-ipcMain.handle('skills:old', () => {
-  const found = findOldSkills(homeDir())
-  return loadSettings(settingsFile()).keepOldSkills && !found.some((f) => f.old) ? [] : found
-})
+/** ほかの場所に入っている rising-loop（見つけたら、版に関係なく［OK］だけでゴミ箱に入れる） */
+ipcMain.handle('skills:old', () => findOldSkills(homeDir()))
 /** ゴミ箱に入れる（見つけたものだけ）。テストでは本物のゴミ箱ではなく、決まったフォルダに移す */
 ipcMain.handle('skills:trash', async () => {
   const testTrash = process.env.RISING_LOOP_APP_TRASH_DIR
-  for (const { dir } of findOldSkills(homeDir())) {
+  for (const dir of findOldSkills(homeDir())) {
     if (testTrash) {
       mkdirSync(testTrash, { recursive: true })
       renameSync(dir, join(testTrash, `${basename(dir)}-${Date.now()}`))
@@ -591,7 +588,6 @@ ipcMain.handle('skills:trash', async () => {
   }
   return findOldSkills(homeDir())
 })
-ipcMain.handle('skills:keep', () => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), keepOldSkills: true }))
 
 // アプリのダイアログを出しているあいだは、重ねた画面（ループの画面とカードの層）を隠す
 ipcMain.on('ui:covered', (_e, on: boolean) => {

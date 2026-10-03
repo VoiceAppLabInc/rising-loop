@@ -3,8 +3,6 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 export interface AppSettings {
-  /** ほかの場所の rising-loop を［残す］と答えた（次からは聞かない） */
-  keepOldSkills?: boolean
   /** 使い方を一度見た（最初の1回だけ自動で開く） */
   howtoSeen?: boolean
   /** 新しい版のお知らせを自動で出した、その版（同じ版については1回だけ） */

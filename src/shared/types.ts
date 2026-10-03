@@ -106,13 +106,6 @@ export interface AskRequest {
 /** アプリの画面（タブの列）から、ダイアログの層に出してもらうダイアログ */
 export type DialogRequest = { kind: 'howto' } | { kind: 'settings' } | { kind: 'update' } | { kind: 'add'; folder: string; name: string }
 
-/** ほかの場所に入っている rising-loop（main/oldSkills.ts） */
-export interface FoundSkill {
-  dir: string
-  /** 1.8.0 より前（VERSION が古い・無い、または古い名前の loop-manager）。アプリの中で黙れないので、聞かずにゴミ箱に入れる */
-  old: boolean
-}
-
 export type AiKind = 'claude' | 'codex'
 
 export type PermMode = 'ask' | 'auto'

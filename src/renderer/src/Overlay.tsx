@@ -4,7 +4,7 @@
 // 後ろのループの画面とチャットは動いたまま薄暗く見せる
 import { useEffect, useRef, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
-import type { AskRequest, DialogRequest, FoundSkill, ProjectsSnapshot } from '@shared/types'
+import type { AskRequest, DialogRequest, ProjectsSnapshot } from '@shared/types'
 import { AskDialog } from './Ask'
 import { Button } from './Button'
 import { Howto } from './Howto'
@@ -23,7 +23,7 @@ export function Overlay() {
   /** 使い方を一度見たか（最初の1回だけ自動で開く）。読み終わるまでは null */
   const [howtoSeen, setHowtoSeen] = useState<boolean | null>(null)
   /** ほかの場所に入っている rising-loop（起動したときに1回だけ聞く） */
-  const [oldSkills, setOldSkills] = useState<FoundSkill[]>([])
+  const [oldSkills, setOldSkills] = useState<string[]>([])
   // ループが無いフォルダを選んだとき、新しいプロジェクトにしてよいかを聞く
   const [askAdd, setAskAdd] = useState<{ folder: string; name: string } | null>(null)
   // ループの画面（2.3.0 からの殻）が頼んだ、コメント・指示の入力の窓
@@ -180,15 +180,11 @@ export function Overlay() {
       )}
       {oldSkills.length > 0 && (
         <OldSkillsDialog
-          found={oldSkills}
+          dirs={oldSkills}
           busy={busy}
           onTrash={() => {
             setBusy(true)
             void window.rla.trashOldSkills().then(setOldSkills).finally(() => setBusy(false))
-          }}
-          onKeep={() => {
-            setOldSkills([])
-            void window.rla.keepOldSkills()
           }}
         />
       )}

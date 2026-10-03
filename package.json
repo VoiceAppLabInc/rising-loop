@@ -1,7 +1,7 @@
 {
   "name": "rising-loop-app",
   "productName": "Rising Loop",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "rising-loop スキルを同梱し、ループの画面と claude / codex のチャットを1つにまとめるデスクトップアプリ",
   "main": "./out/main/index.js",

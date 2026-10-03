@@ -1,6 +1,6 @@
 // アプリの周りの画面（タブ・設定）用
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
-import type { AiKind, AiStatus, AskRequest, DialogRequest, FoundSkill, PermMode, ProjectsSnapshot } from '@shared/types'
+import type { AiKind, AiStatus, AskRequest, DialogRequest, PermMode, ProjectsSnapshot } from '@shared/types'
 
 const api = {
   /** ウィンドウのボタンがタブの列のどちら側に来るか（main/platform.ts の windowChrome と合わせる） */
@@ -38,13 +38,12 @@ const api = {
     ipcRenderer.on('tool:exit', h)
     return () => ipcRenderer.removeListener('tool:exit', h)
   },
-  settings: (): Promise<{ keepOldSkills?: boolean; howtoSeen?: boolean; updateSeen?: string }> => ipcRenderer.invoke('app:settings'),
+  settings: (): Promise<{ howtoSeen?: boolean; updateSeen?: string }> => ipcRenderer.invoke('app:settings'),
   howtoSeen: (): Promise<void> => ipcRenderer.invoke('app:howto-seen'),
   updateSeen: (version: string): Promise<void> => ipcRenderer.invoke('app:update-seen', version),
   installUpdate: (): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke('app:install-update'),
-  oldSkills: (): Promise<FoundSkill[]> => ipcRenderer.invoke('skills:old'),
-  trashOldSkills: (): Promise<FoundSkill[]> => ipcRenderer.invoke('skills:trash'),
-  keepOldSkills: (): Promise<void> => ipcRenderer.invoke('skills:keep'),
+  oldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:old'),
+  trashOldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:trash'),
   /** ループの画面の上のカード（透明な層）の大きさを伝える */
   overlaySize: (w: number, h: number): void => ipcRenderer.send('overlay:size', w, h),
   /** 層がダイアログを出しているか（main が層を窓いっぱいに広げ、入力を層に向ける） */
