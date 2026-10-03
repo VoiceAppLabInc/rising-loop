@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkUpdate, updateFrom } from '../../src/main/update'
+import { checkUpdate, checkUpdateNow, updateFrom } from '../../src/main/update'
 
 const release = (o: Record<string, unknown> = {}) => ({
   tag_name: 'v0.2.0',
@@ -69,5 +69,19 @@ describe('新しい版を見に行く', () => {
     }
     expect(await checkUpdate('https://api.example.com/latest', '0.1.0', 'darwin', 'arm64', down)).toBeNull()
     expect(await checkUpdate('https://api.example.com/latest', '0.1.0', 'darwin', 'arm64', async () => ({ ok: false, json: async () => ({}) }))).toBeNull()
+  })
+})
+
+describe('いますぐ確かめる（設定のボタン・メニュー）', () => {
+  const ok = (json: unknown) => async () => ({ ok: true, json: async () => json })
+  it('新しい版がある・最新・見に行けなかった、を見分ける', async () => {
+    expect(await checkUpdateNow('https://x', '0.1.0', 'darwin', 'arm64', ok(release()))).toMatchObject({ status: 'new', update: { version: '0.2.0' } })
+    expect(await checkUpdateNow('https://x', '0.2.0', 'darwin', 'arm64', ok(release()))).toEqual({ status: 'latest' })
+    expect(await checkUpdateNow('https://x', '0.1.0', 'darwin', 'arm64', async () => ({ ok: false, json: async () => ({}) }))).toEqual({ status: 'error' })
+    const down = async () => {
+      throw new Error('offline')
+    }
+    expect(await checkUpdateNow('https://x', '0.1.0', 'darwin', 'arm64', down)).toEqual({ status: 'error' })
+    expect(await checkUpdateNow('off', '0.1.0', 'darwin', 'arm64', ok(release()))).toEqual({ status: 'latest' })
   })
 })

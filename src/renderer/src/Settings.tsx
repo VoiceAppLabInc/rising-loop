@@ -9,7 +9,7 @@ import { Button } from './Button'
 type Draft = { folder: string; ai: AiKind; perm: PermMode }
 const draftOf = (pr: Project | null): Draft | null => (pr ? { folder: pr.folder, ai: pr.ai ?? 'claude', perm: pr.perm ?? 'ask' } : null)
 
-export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; onSnap: (s: ProjectsSnapshot) => void; onClose: () => void }) {
+export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; onSnap: (s: ProjectsSnapshot) => void; onClose: () => void; onUpdate: () => void }) {
   const [busy, setBusy] = useState(false)
   // フォルダ・使う AI・確認のモードは、選んでもその場では切り替えない。［OK］でまとめて適用する（［キャンセル］・Esc・背景では何も変えない）
   const [draft, setDraft] = useState<Draft | null>(() => draftOf(p.project))
@@ -25,6 +25,16 @@ export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; o
         setBusy(false)
         p.onClose()
       })
+  }
+  /** ［新しい版を確かめる］。新しい版があれば設定を閉じてお知らせを開く。最新・見に行けなかったときは行に出す */
+  const [check, setCheck] = useState<'idle' | 'checking' | 'latest' | 'error'>('idle')
+  const checkNow = () => {
+    setCheck('checking')
+    void window.rla.checkUpdate().then((r) => {
+      p.onSnap(r.snap)
+      if (r.status === 'new') p.onUpdate()
+      else setCheck(r.status)
+    })
   }
   const run = (f: () => Promise<ProjectsSnapshot>) => {
     setBusy(true)
@@ -61,9 +71,18 @@ export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; o
         <AiSettings />
         <section className="settings-sec">
           <h3>バージョン</h3>
-          <div className="row">
+          <div className="row app-version-row">
             <span className="key">アプリ</span>
-            <span className="val">v{p.snap.appVersion}</span>
+            <span className="val">
+              v{p.snap.appVersion}
+              {check === 'latest' && <span className="sub">最新です</span>}
+              {check === 'error' && <span className="sub">確かめられませんでした。ネットにつながっているか確かめてください</span>}
+            </span>
+            <span className="act">
+              <Button disabled={check === 'checking'} onClick={checkNow}>
+                {check === 'checking' ? '確かめています…' : '新しい版を確かめる'}
+              </Button>
+            </span>
           </div>
           <div className="row">
             <span className="key">スキル</span>

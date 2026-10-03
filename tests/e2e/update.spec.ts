@@ -79,3 +79,20 @@ test('いまの版より新しくなければ、何も出さない', async () =>
   await expect(win.getByRole('button', { name: '新しい版' })).toHaveCount(0)
   await expect((await cardPage(app)).getByRole('dialog')).toHaveCount(0)
 })
+
+test('設定の［新しい版を確かめる］：最新なら「最新です」、新しい版が出ていれば設定を閉じてお知らせを開く', async () => {
+  await start('0.0.1')
+  await win.getByRole('button', { name: '設定' }).click()
+  const layer = await cardPage(app)
+  const settings = layer.getByRole('dialog', { name: '設定' })
+  await expect(settings).toBeVisible()
+  await settings.getByRole('button', { name: '新しい版を確かめる' }).click()
+  await expect(settings.locator('.app-version-row')).toContainText('最新です')
+
+  // そのあと新しい版が出た
+  releaseOf('99.0.0')
+  await settings.getByRole('button', { name: '新しい版を確かめる' }).click()
+  await expect(layer.getByRole('dialog', { name: '新しい版 v99.0.0 があります' })).toBeVisible()
+  await expect(settings).toHaveCount(0)
+  await expect(win.getByRole('button', { name: '新しい版' })).toBeVisible()
+})

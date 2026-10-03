@@ -2,7 +2,7 @@ import { execFile, spawn } from 'node:child_process'
 import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { BrowserWindow, WebContentsView, app, dialog, ipcMain, net, shell } from 'electron'
+import { BrowserWindow, Menu, WebContentsView, app, dialog, ipcMain, net, shell } from 'electron'
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
@@ -17,7 +17,7 @@ import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledge
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdate } from './update'
+import { MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, type UpdateCheck } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
 const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
@@ -180,14 +180,58 @@ function snapshot(): ProjectsSnapshot {
 
 /** 新しい版のアプリ（見つけたら一覧に添えて、タブの列とお知らせに出す） */
 let update: AppUpdate | null = null
-async function lookForUpdate(): Promise<void> {
+async function lookForUpdate(): Promise<UpdateCheck> {
   const url = process.env.RISING_LOOP_APP_UPDATE_URL || UPDATE_URL
   // テストは file:// の見本を読む（本物の GitHub には見に行かない）
   const fetcher = url.startsWith('file:') ? async (u: string) => ({ ok: true, json: async () => JSON.parse(readFileSync(new URL(u), 'utf8')) }) : (u: string) => net.fetch(u)
-  const found = await checkUpdate(url, app.getVersion(), process.platform, process.arch, fetcher)
-  if (found?.version === update?.version) return
-  update = found
-  if (state) broadcast(snapshot())
+  const r = await checkUpdateNow(url, app.getVersion(), process.platform, process.arch, fetcher)
+  // 見に行けなかったときは、前に見つけた版をそのまま出しておく
+  if (r.status === 'error') return r
+  const found = r.status === 'new' ? r.update : null
+  if (found?.version !== update?.version) {
+    update = found
+    if (state) broadcast(snapshot())
+  }
+  return r
+}
+
+/** いますぐ確かめる（Mac のメニュー）。新しい版があればお知らせを開き、無ければ・見に行けなければ小さな窓で知らせる */
+async function checkUpdateFromMenu(): Promise<void> {
+  const r = await lookForUpdate()
+  if (r.status === 'new') return void overlay?.webContents.send('ui:open-dialog', { kind: 'update' } satisfies DialogRequest)
+  if (!win) return
+  void dialog.showMessageBox(win, {
+    message: r.status === 'latest' ? '最新です' : '確かめられませんでした',
+    detail: r.status === 'latest' ? `Rising Loop v${app.getVersion()} は最新の版です。` : 'ネットにつながっているか確かめて、もう一度やってください。'
+  })
+}
+
+/** Mac のメニュー。いつものメニューに「アップデートを確認…」を足す（「Rising Loop について」の下） */
+function setMacMenu(): void {
+  if (process.platform !== 'darwin') return
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      {
+        role: 'appMenu',
+        submenu: [
+          { role: 'about' },
+          { label: 'アップデートを確認…', click: () => void checkUpdateFromMenu() },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' }
+        ]
+      },
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      { role: 'viewMenu' },
+      { role: 'windowMenu' }
+    ])
+  )
 }
 
 /** いまのプロジェクトを出し、カードの層をループの画面のさらに上に置き直す */
@@ -536,6 +580,11 @@ ipcMain.on('tool:stop', () => tools.stop())
 
 ipcMain.handle('app:settings', () => loadSettings(settingsFile()))
 ipcMain.handle('app:howto-seen', () => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), howtoSeen: true }))
+/** いますぐ確かめる（設定の［新しい版を確かめる］）。新しい版があれば、一覧を送り直してから返す */
+ipcMain.handle('app:check-update', async (): Promise<{ status: UpdateCheck['status']; snap: ProjectsSnapshot }> => {
+  const r = await lookForUpdate()
+  return { status: r.status, snap: snapshot() }
+})
 /** 新しい版のお知らせを出した（その版については、もう自動では出さない） */
 ipcMain.handle('app:update-seen', (_e, version: string) => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), updateSeen: version }))
 /**
@@ -681,6 +730,7 @@ app.whenReady().then(() => {
     // スキルの版が変わって新しい会話にしたとき、最初に出す要点
     changes: changelogSummary(readText(join(skillDir(), 'CHANGELOG.md')) ?? '', tpl.version)
   })
+  setMacMenu()
   createWindow()
   void lookForUpdate()
   setInterval(() => void lookForUpdate(), UPDATE_EVERY_MS)

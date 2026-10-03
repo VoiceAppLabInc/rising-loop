@@ -147,7 +147,18 @@ export function Overlay() {
           />
         )}
       </div>
-      {settingsOpen && snap && <Settings project={current} snap={snap} onSnap={setSnap} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && snap && (
+        <Settings
+          project={current}
+          snap={snap}
+          onSnap={setSnap}
+          onClose={() => setSettingsOpen(false)}
+          onUpdate={() => {
+            setSettingsOpen(false)
+            setUpdateOpen(true)
+          }}
+        />
+      )}
       {notice && current && form && snap && (
         <OldFormDialog
           name={current.name}

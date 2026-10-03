@@ -32,15 +32,25 @@ export function updateFrom(json: unknown, current: string, platform: string, arc
   }
 }
 
-/** 新しい版を見に行く。ネットが無い・応答がエラーのときは黙って null（知らせないだけ） */
-export async function checkUpdate(url: string, current: string, platform: string, arch: string, fetcher: Fetcher): Promise<AppUpdate | null> {
-  if (url === 'off') return null
+/** いますぐ確かめた結果。new：新しい版がある／latest：いまの版が最新（見に行かない設定のときも）／error：見に行けなかった */
+export type UpdateCheck = { status: 'new'; update: AppUpdate } | { status: 'latest' } | { status: 'error' }
+
+export async function checkUpdateNow(url: string, current: string, platform: string, arch: string, fetcher: Fetcher): Promise<UpdateCheck> {
+  if (url === 'off') return { status: 'latest' }
   try {
     const res = await fetcher(url)
-    return res.ok ? updateFrom(await res.json(), current, platform, arch) : null
+    if (!res.ok) return { status: 'error' }
+    const update = updateFrom(await res.json(), current, platform, arch)
+    return update ? { status: 'new', update } : { status: 'latest' }
   } catch {
-    return null
+    return { status: 'error' }
   }
+}
+
+/** 新しい版を見に行く。ネットが無い・応答がエラーのときは黙って null（知らせないだけ） */
+export async function checkUpdate(url: string, current: string, platform: string, arch: string, fetcher: Fetcher): Promise<AppUpdate | null> {
+  const r = await checkUpdateNow(url, current, platform, arch, fetcher)
+  return r.status === 'new' ? r.update : null
 }
 
 /** Mac のアプリの置き場所（〜/Rising Loop.app）。実行ファイルの3つ上。Mac でなければ・.app の中でなければ null */

@@ -41,6 +41,7 @@ const api = {
   settings: (): Promise<{ howtoSeen?: boolean; updateSeen?: string }> => ipcRenderer.invoke('app:settings'),
   howtoSeen: (): Promise<void> => ipcRenderer.invoke('app:howto-seen'),
   updateSeen: (version: string): Promise<void> => ipcRenderer.invoke('app:update-seen', version),
+  checkUpdate: (): Promise<{ status: 'new' | 'latest' | 'error'; snap: ProjectsSnapshot }> => ipcRenderer.invoke('app:check-update'),
   installUpdate: (): Promise<{ ok: boolean; message?: string }> => ipcRenderer.invoke('app:install-update'),
   oldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:old'),
   trashOldSkills: (): Promise<string[]> => ipcRenderer.invoke('skills:trash'),
