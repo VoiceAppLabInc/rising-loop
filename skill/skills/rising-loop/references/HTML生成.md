@@ -184,7 +184,7 @@ var LOOP_DATA = {
 
 ```
 loops/update/
-  common.py    スキルの assets/loopdata.py の写し。load / save / merge_days / add_point。アプリの［新しい形にする］で上書きされる。★プロジェクト側で書き換えない
+  common.py    スキルの assets/loopdata.py の写し。load / save / merge_days / add_point。アプリの［HTMLを最新版にする］で上書きされる。★プロジェクト側で書き換えない
   L01.py       L01 の計算。README のコマンドを subprocess で叩き、LOOP_DATA の値（days[] line[] points[] metric updated）を書き換える。★このプロジェクトのもの。「合わせて」は触らない
 ```
 

@@ -289,7 +289,7 @@ test('2.1.0 から新しい形にすると、殻を入れ替え、台帳の頁�
   cpSync(resolve('tests/fixtures/versions/2.1.0'), folder, { recursive: true })
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("cc")'))?.value).toBe(false)
   await expect.poll(() => chatInAppPane('s-list'), { timeout: 15_000 }).toBe(true)
   await expect.poll(async () => (await paneText(app, 's-list')) ?? '', { timeout: 15_000 }).toContain('新しい形への作り直し')

@@ -1,10 +1,10 @@
-// 古い形のプロジェクトの知らせ（最初のダイアログ・ループの画面の上のカード・元に戻すときの確認）。
-// 新しい形にする・元に戻すのは main の決まった処理（src/main/index.ts の loops:migrate・loops:undo）。
+// 前のバージョンの HTML のプロジェクトの知らせ（最初のダイアログ・ループの画面の上のカード・元に戻すときの確認）。
+// ［HTMLを最新版にする］・元に戻すのは main の決まった処理（src/main/index.ts の loops:migrate・loops:undo）。
 import type { ReactNode } from 'react'
 import type { FormInfo, Migration } from '@shared/types'
 import { Button } from './Button'
 
-const WARN = '古い形のままだと、AI の作業（更新・指示など）がうまく動かず、画面や数字が崩れることがあります。'
+const WARN = '前のバージョンのままだと、AI の作業（更新・指示など）がうまく動かず、画面や数字が崩れることがあります。'
 
 export function OldFormDialog(p: {
   name: string
@@ -18,14 +18,14 @@ export function OldFormDialog(p: {
   return (
     <div className="backdrop">
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="old-form-title">
-        <h2 id="old-form-title">画面が前のバージョンの形です</h2>
+        <h2 id="old-form-title">HTMLが前のバージョンです</h2>
         <p>
-          「{p.name}」の画面は {p.label} です。いまのバージョンは {p.latest} です。
+          「{p.name}」のHTMLは {p.label} です。いまのバージョンは {p.latest} です。
         </p>
         {p.unsupported ? (
-          <p>この形（1.5 より前）は、アプリでは新しい形にできません。{WARN}</p>
+          <p>このバージョン（1.5 より前）は、アプリでは最新版にできません。{WARN}</p>
         ) : (
-          <p>{WARN}新しい形にしても、数字・施策・記録は変わりません。</p>
+          <p>{WARN}最新版にしても、数字・施策・記録は変わりません。</p>
         )}
         <div className="actions">
           {p.unsupported ? (
@@ -38,7 +38,7 @@ export function OldFormDialog(p: {
                 あとで
               </Button>
               <Button variant="primary" onClick={p.onMigrate} disabled={p.busy}>
-                新しい形にする
+                HTMLを最新版にする
               </Button>
             </>
           )}
@@ -52,8 +52,8 @@ export function UndoDialog(p: { at: string; busy: boolean; onCancel: () => void;
   return (
     <div className="backdrop">
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="undo-title">
-        <h2 id="undo-title">新しい形にする前に戻しますか</h2>
-        <p>{shortTime(p.at)} に新しい形にする前の画面に戻します。そのあとに増えた数字や記録も、その時点に戻ります。</p>
+        <h2 id="undo-title">最新版にする前に戻しますか</h2>
+        <p>{shortTime(p.at)} に最新版にする前のHTMLに戻します。そのあとに増えた数字や記録も、その時点に戻ります。</p>
         <p>いまの画面は控えに残します。</p>
         <div className="actions">
           <Button onClick={p.onCancel} disabled={p.busy}>
@@ -69,7 +69,7 @@ export function UndoDialog(p: { at: string; busy: boolean; onCancel: () => void;
 }
 
 /**
- * ループの画面の上に浮かぶ小さなカード（1行）。前のバージョン・AI が作業中・直っていない・新しい形にした直後で出し分ける。
+ * ループの画面の上に浮かぶ小さなカード（1行）。前のバージョン・AI が作業中・直っていない・最新版にした直後で出し分ける。
  * ループの画面の上に重ねた透明な層（main の overlay）に描く。出すものが無ければ null
  */
 export function OldFormCard(p: {
@@ -95,14 +95,14 @@ export function OldFormCard(p: {
       {actions}
     </div>
   )
-  if (f.stage === 'unsupported') return card('warn', '!', `前のバージョンの画面です（${f.label}）。アプリでは新しい形にできません`)
+  if (f.stage === 'unsupported') return card('warn', '!', `前のバージョンのHTMLです（${f.label}）。アプリでは最新版にできません`)
   if (f.stage === 'old')
     return card(
       'warn',
       '!',
-      `前のバージョンの画面です（${f.label}）`,
+      `前のバージョンのHTMLです（${f.label}）`,
       <Button variant="dark" size="sm" onClick={p.onMigrate} disabled={p.busy}>
-        新しい形にする
+        HTMLを最新版にする
       </Button>
     )
   if (f.stage === 'rework' && f.aiWorking) return card('work', <span className="spin" />, '新しいバージョンに直しています（AI が作業中）')
@@ -124,7 +124,7 @@ export function OldFormCard(p: {
     return card(
       'done',
       '✓',
-      `新しい形にしました（${p.migration.from} → ${p.latest}）`,
+      `HTMLを最新版にしました（${p.migration.from} → ${p.latest}）`,
       <>
         {undo}
         <Button variant="quiet" size="sm" className="btn-x" aria-label="閉じる" title="閉じる" onClick={p.onClose} disabled={p.busy}>

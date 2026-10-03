@@ -53,11 +53,11 @@ test.afterEach(async () => {
 test('古い形のプロジェクトを開くと最初にダイアログで知らせ、あとでを押すと帯が残る', async () => {
   await open('1.7.5')
   const dialog = (await dialogOf(app))
-  await expect(dialog).toContainText('画面が前のバージョンの形です')
+  await expect(dialog).toContainText('HTMLが前のバージョンです')
   await expect(dialog).toContainText('1.5〜1.7 の形')
   await expect(dialog).toContainText(`いまのバージョンは ${CURRENT}`)
   // 古い形のままだと AI の作業が崩れうることを伝え、「使い続けられる」とは言わない
-  await expect(dialog).toContainText('古い形のままだと、AI の作業（更新・指示など）がうまく動かず、画面や数字が崩れることがあります。')
+  await expect(dialog).toContainText('前のバージョンのままだと、AI の作業（更新・指示など）がうまく動かず、画面や数字が崩れることがあります。')
   await expect(dialog).not.toContainText('使い続けられ')
   // ダイアログは窓いっぱいの透明な層に描き、後ろのループの画面は隠さない（層の薄暗い背景ごしに見せる）
   await expect.poll(layerView).toEqual({ visible: true, x: 0, y: 0, full: true })
@@ -65,7 +65,7 @@ test('古い形のプロジェクトを開くと最初にダイアログで知�
 
   await dialog.getByRole('button', { name: 'あとで' }).click()
   await expect(dialog).toBeHidden()
-  await expect((await cardPage(app)).getByRole('status')).toContainText('前のバージョンの画面です（1.5〜1.7 の形）')
+  await expect((await cardPage(app)).getByRole('status')).toContainText('前のバージョンのHTMLです（1.5〜1.7 の形）')
   // カードはループの画面の上に浮かぶので、画面は下げない
   await expect.poll(async () => await loopsView()).toEqual({ visible: true, y: TAB_H })
 })
@@ -90,7 +90,7 @@ test('いまの形のプロジェクトには、知らせも帯も出さない',
 
 test('版の表示がある古い形は、その版で知らせる', async () => {
   await open('1.4.0')
-  await expect((await dialogOf(app))).toContainText('「proj-1.4.0」の画面は 1.4.0 です')
+  await expect((await dialogOf(app))).toContainText('「proj-1.4.0」のHTMLは 1.4.0 です')
 })
 
 /** フォルダの中身を「相対パス → 中身」にする */
@@ -123,7 +123,7 @@ const backups = () => {
 test('［新しい形にする］で、控えを取り、殻と共通の部品を入れ替える', async () => {
   const folder = await open('1.7.5')
   const before = contents(join(folder, 'loops'))
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect((await dialogOf(app))).toBeHidden()
 
   const index = readFileSync(join(folder, 'loops', 'index.html'), 'utf8')
@@ -147,13 +147,13 @@ test('［新しい形にする］で、控えを取り、殻と共通の部品�
   expect(line).toContain('migrations.json')
   // AI が反映し終えたつもりで印を書く → 帯が「新しい形にしました」に変わる
   stampAll(folder, CURRENT)
-  await expect((await cardPage(app)).getByRole('status')).toContainText(`新しい形にしました（1.5〜1.7 の形 → ${CURRENT}）`, { timeout: 10_000 })
+  await expect((await cardPage(app)).getByRole('status')).toContainText(`HTMLを最新版にしました（1.5〜1.7 の形 → ${CURRENT}）`, { timeout: 10_000 })
   await expect((await cardPage(app)).getByRole('status').getByRole('button', { name: '元に戻す' })).toBeVisible()
 })
 
 test('前の版からの台帳の項目を、漏らさず古い順に送る（1.6.1 の頁）', async () => {
   await open('1.6.1')
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
   const [line] = await received()
   expect(line).toContain('- L01.html（1.6.1 から）：1.7.0-chart-parts、1.7.1-goal-bullet、1.7.1-chart-refs、1.7.2-tid-pill、1.7.2-tid-ref、1.7.2-no-done-tag、1.7.2-status-words、1.7.4-trial-anchor、2.0.0-page-ver、2.3.1-back-link、2.3.4-log-link、2.3.5-back-label')
@@ -171,12 +171,12 @@ test('2.0 以降の画面は、殻の版がスキルの版より古ければ知�
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   const d = (await dialogOf(app))
-  await expect(d).toContainText(`「proj-old20」の画面は 1.9.9 です。いまのバージョンは ${CURRENT} です。`)
-  await d.getByRole('button', { name: '新しい形にする' }).click()
+  await expect(d).toContainText(`「proj-old20」のHTMLは 1.9.9 です。いまのバージョンは ${CURRENT} です。`)
+  await d.getByRole('button', { name: 'HTMLを最新版にする' }).click()
   // 頁は 2.0.0 の作りなので、その後の台帳の頁の項目を AI が反映したつもりで印を書く
   await expect((await cardPage(app)).getByRole('status')).toContainText('新しいバージョンに直しています（AI が作業中）')
   stampAll(folder, CURRENT)
-  await expect((await cardPage(app)).getByRole('status')).toContainText(`新しい形にしました（1.9.9 → ${CURRENT}）`, { timeout: 15_000 })
+  await expect((await cardPage(app)).getByRole('status')).toContainText(`HTMLを最新版にしました（1.9.9 → ${CURRENT}）`, { timeout: 15_000 })
   expect(readFileSync(p, 'utf8')).toMatch(new RegExp(`<span class="ver"[^>]*>v${CURRENT.replace(/\./g, '\\.')}</span>`))
 })
 
@@ -196,7 +196,7 @@ test('殻から消える独自の部品は、控えの殻の場所と一緒に A
   const folder = await open('1.7.5')
   const p = join(folder, 'loops', 'index.html')
   writeFileSync(p, readFileSync(p, 'utf8').replace('</body>', '<div id="my-own-panel">独自</div></body>'))
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
   const [line] = await received()
   expect(line).toContain('殻から消えたもの：id="my-own-panel"')
@@ -206,17 +206,17 @@ test('殻から消える独自の部品は、控えの殻の場所と一緒に A
   await expect((await cardPage(app)).getByRole('status')).toContainText('直っていないところがあります', { timeout: 15_000 })
   // AI が移し直したつもりで、新しい殻に足す → 帯が「新しい形にしました」に変わる
   writeFileSync(p, readFileSync(p, 'utf8').replace('</body>', '<div id="my-own-panel">独自</div></body>'))
-  await expect((await cardPage(app)).getByRole('status')).toContainText('新しい形にしました', { timeout: 10_000 })
+  await expect((await cardPage(app)).getByRole('status')).toContainText('HTMLを最新版にしました', { timeout: 10_000 })
   // 一度移し終えたら、あとでユーザーの判断で外しても「直っていない」に戻さない
   writeFileSync(p, readFileSync(p, 'utf8').replace('<div id="my-own-panel">独自</div>', ''))
   await win.waitForTimeout(3000)
-  await expect((await cardPage(app)).getByRole('status')).toContainText('新しい形にしました')
+  await expect((await cardPage(app)).getByRole('status')).toContainText('HTMLを最新版にしました')
 })
 
 test('［元に戻す］で、確認してから、新しい形にする前のとおりに戻す', async () => {
   const folder = await open('1.6.1')
   const before = contents(join(folder, 'loops'))
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   // AI の作業中は［元に戻す］を出さない（書いている途中で戻すと画面が壊れる）
   await expect((await cardPage(app)).getByRole('status')).toContainText('新しいバージョンに直しています（AI が作業中）')
   await expect((await cardPage(app)).getByRole('status').getByRole('button', { name: '元に戻す' })).toHaveCount(0)
@@ -233,7 +233,7 @@ test('［元に戻す］で、確認してから、新しい形にする前の�
   expect(contents(join(folder, 'loops'))).toEqual(before)
   // 戻す前の loops/ も控えに取ってある
   expect(backups()).toHaveLength(2)
-  await expect((await cardPage(app)).getByRole('status')).toContainText('前のバージョンの画面です（1.6.1）')
+  await expect((await cardPage(app)).getByRole('status')).toContainText('前のバージョンのHTMLです（1.6.1）')
 })
 
 test('前の版の画面の「⬆ アップデート」は、AI に送らずに知らせを開く', async () => {
@@ -242,7 +242,7 @@ test('前の版の画面の「⬆ アップデート」は、AI に送らずに�
   await expect((await dialogOf(app))).toBeHidden()
   await expect.poll(async () => (await inLoops(app, folder, '!!document.getElementById("rl-update")'))?.value).toBe(true)
   await inLoops(app, folder, 'document.getElementById("rl-update").click(); 1')
-  await expect((await dialogOf(app))).toContainText('画面が前のバージョンの形です')
+  await expect((await dialogOf(app))).toContainText('HTMLが前のバージョンです')
   await win.waitForTimeout(1500)
   expect(await received()).toHaveLength(0)
 })
@@ -250,10 +250,10 @@ test('前の版の画面の「⬆ アップデート」は、AI に送らずに�
 test('1.5 より前の形は、新しい形にできないと知らせる', async () => {
   await open('1.4.0')
   const d = (await dialogOf(app))
-  await expect(d).toContainText('この形（1.5 より前）は、アプリでは新しい形にできません。')
-  await expect(d.getByRole('button', { name: '新しい形にする' })).toHaveCount(0)
+  await expect(d).toContainText('このバージョン（1.5 より前）は、アプリでは最新版にできません。')
+  await expect(d.getByRole('button', { name: 'HTMLを最新版にする' })).toHaveCount(0)
   await d.getByRole('button', { name: '閉じる' }).click()
-  await expect((await cardPage(app)).getByRole('status')).toContainText('アプリでは新しい形にできません')
+  await expect((await cardPage(app)).getByRole('status')).toContainText('アプリでは最新版にできません')
   await expect((await cardPage(app)).getByRole('status').getByRole('button')).toHaveCount(0)
 })
 
@@ -273,7 +273,7 @@ test('［新しい形にする］で、そのプロジェクトのチャット�
   await (await dialogOf(app)).getByRole('button', { name: 'あとで' }).click()
   await expect.poll(lastSessionId).not.toBeNull()
   const before = await lastSessionId()
-  await (await cardPage(app)).getByRole('status').getByRole('button', { name: '新しい形にする' }).click()
+  await (await cardPage(app)).getByRole('status').getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(lastSessionId, { timeout: 15_000 }).not.toBe(before)
   const text = (await paneText(app, 's-list')) ?? ''
   expect(text).toContain(`新しい会話を始めます（スキル ${CURRENT}）`)
@@ -309,7 +309,7 @@ test('起動直後に入力を捨てる AI にも、作り直しの作業が届�
   app = await launch(root, { RLA_FAKE_DEAF_MS: '3000' })
   win = await mainWindow(app)
   await open('1.7.5')
-  await (await dialogOf(app)).getByRole('button', { name: '新しい形にする' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
   expect((await received())[0]).toContain('新しい形への作り直し')
 })
