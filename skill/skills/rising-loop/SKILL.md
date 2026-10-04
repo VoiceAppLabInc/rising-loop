@@ -126,7 +126,7 @@ user-invokable: true
    > 規則: 結論1文＋折りたたみ、数列は表へ、太字は段落に1つ。仕組みの説明を画面に書かない。雛形の架空の文章と数字を1つも残さない
    > 禁止: 他の頁・index.html を開かない。集計コマンドを書かない。40 ターンを超えない
    > 報告: `summary`・最新点・施策案の見出し・突き合わせの結果（ゼロであること）
-   殻の子には: `SERVICE_NAME` `PROJECT_DIR` `PANES`／主要な数字の候補（親が「主要な数字」の決め方で1つ決め、ユーザーの確認済みのもの）／各ループの `id title 最新点 target summary`（子から返る前なので親が決めた値）／README に書く数字の取り方
+   殻の子には: `SERVICE_NAME` `PROJECT_DIR` `PANES`／`LOOP_IDEAS`（このプロジェクトで次に追いかけそうな数字の候補 3〜6 個。親が決める。［ループを追加］の札になる）／主要な数字の候補（親が「主要な数字」の決め方で1つ決め、ユーザーの確認済みのもの）／各ループの `id title 最新点 target summary`（子から返る前なので親が決めた値）／README に書く数字の取り方
 4. 子が返ったら親が `summary` と最新点を確認し、殻の一覧の行が各頁の値と同じことを確かめる（子の報告を突き合わせるだけ。頁は開かない）
 5. **文の長さを確かめる。** 作った頁ぜんぶに `python3 <スキル>/assets/check-text.py loops/LXX.html` を回し、**3つとも0件にしてから終わる**
 6. 締めの一言で終える（「作り終えたら、この一言で締める」）
@@ -382,6 +382,7 @@ TRIAL の `plan` が全部 ✅ でも、AI からは進めない。ユーザー�
      > ① README の取り方で取った数字を使う。同日の計測点は上書き ② **先に `LOOP_DATA` を直す**（`hist.points[]` に点を積む・`days[]`・`line[]`・`funnel`・`summary`・`metric.measured`/`window`・`updated`）③ 次に頁を最初から最後まで読み直し、前の窓の数字を見出しに関係なく全部直す（ゴール下の一文・考察・施策案・観測・数字を埋めた文章すべて）④ 前回の評価以降の LOG（`logs/LXX.md`）を読む ⑤ 各施策の現在評価（A〜E・100字以内・評価日）を見直し、`records[].grade`/`graded` と評価文の markup を揃える。窓が実施前後をまたぐ値を「実施後」と扱わない。判断できなければ理由と次に必要な観測を書き、証拠が無ければ数字と評価日を保つ ⑥ 結論1文＋折りたたみ、数列は表へ、太字は段落に1つ ⑦ `LOOP_DATA.summary` に一覧用の一文（数字入り・60字以内）を書く ⑧ 最後に**頁の中で突き合わせる**（散文の数字 ⇄ `LOOP_DATA`）。対象は `metric`・`hist`（`days`/`line`/`points`）・`funnel` の値だけで、**派生値（割合・倍率・差分）と RECORD の観測表は markup が正なので対象外**。「散文にだけ古い数字」がゼロであることを報告する ⑨ **今回の計算を `loops/update/LXX.py` に書いて残す。** `from common import load, save, merge_days, add_point`（`loops/update/common.py` が無ければ `<スキル>/assets/loopdata.py` をそこへコピーする）。数字取りは README のコマンドを `subprocess` で叩き、`LOOP_DATA` の値の計算をそのまま Python にする。`python3 loops/update/LXX.py --dry-run` の差分の表が今回の値と一致する（変更なし）ことを確かめてから残す。使い方は `common.py` の先頭にある
 3. **子の突き合わせ結果を確認する。** 「直したつもり」で終えない（原理5）。ゼロでなければその子に差し戻す。**`update/LXX.py` が残っていること**（`--dry-run` で変更なし）も確認する
 4. **最後に一覧を直す。** 子を1つ（`sonnet` でよい）。**殻 `loops/index.html` の `<!-- LOOPS:BEGIN -->` 〜 `<!-- LOOPS:END -->` の中だけを直す**（行の数字・ゲージ・`.loop-sub`＝`summary`・タイトル下の主要な数字 `.rev`。主要な数字は README の取り方で取り直す）。渡すのは各頁の `LOOP_DATA` の要約（`summary`・最新点・`hist.target`・**`metric.start`**・施策の件数）と、そのブロックの中身だけ。**行は `references/HTML生成.md` の「一覧の行」の形で書く**（ブレット1行。帯の色と「はじめより」は `rising.js` が作るので書かない）
+   あわせて殻の CONST の `LOOP_IDEAS`（［ループを追加］の札。このプロジェクトで次に追いかけそうな数字の候補 3〜6 個を、ユーザーの言葉で「〜を〜したい」の形で）を見直す。無ければ足す（`var PANES` の次の行に `var LOOP_IDEAS = ['…', '…'];`）。いまあるループと同じものは入れない
 5. **文の長さを確かめる。** 触った頁ぜんぶに
    `python3 <スキル>/assets/check-text.py loops/LXX.html` を回し、
    **長い段落・長い箇条書き・数列の3つとも0件にしてから終わる**。

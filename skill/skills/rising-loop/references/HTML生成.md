@@ -84,10 +84,11 @@ README にも `index.html` にも写しを持たせない（写しがあると�
 - **2つのマーカー**（「合わせて」で残す場所・一覧の更新で直す場所）
 
 ```html
-<!-- CONST:BEGIN -->  PROJECT_DIR / SERVICE_NAME / PANES     <!-- CONST:END -->
+<!-- CONST:BEGIN -->  PROJECT_DIR / SERVICE_NAME / PANES / LOOP_IDEAS     <!-- CONST:END -->
 <!-- LOOPS:BEGIN -->  一覧（合算の数字ブロック .rev と行）   <!-- LOOPS:END -->
 ```
 
+- `LOOP_IDEAS`（任意。2.4.8）：［ループを追加］の札に出す、このプロジェクトで次に追いかけそうな数字の候補 3〜6 個（例 `['再来率を上げたい', '客単価を上げたい']`）。無ければ汎用の例が出る。ループを作ったとき・全ループ更新のときに見直す
 - **値は CONST ブロックだけに置く。** `<title>`・見出しのサービス名は `rising.js` が、`PROJECT_DIR`・`PANES` はアプリがここから読む。**ベタ書きしない**（原理7）
 - 画面の切り替えは `show()`。**頁を替えるときは `loop-frame` を新しく作り直す**（`src` を付けた iframe を作ってから `replaceWith` で差し込む）。⚠️ 同じ iframe の中身を差し替えない（`location.replace` も `iframe.src = …` も）——ブラウザの履歴が殻の hash と iframe の中身を一緒に覚え、戻る・進むで iframe だけ昔の頁に戻されて hash とずれる（★ 2.3.2 で直した。一覧 → A → 一覧 → B → 一覧 → A から戻ると、一覧が続いたり1つずれたりした）。⚠️ 差し込んだあとに `src` を付けない（Safari は about:blank → 頁 を履歴に積む。★ 2026-09-17 の検証で実際に起きた）
 - **履歴は殻の hash だけが持つ**（`index.html#s-list` / `#s-L01`）。`hashchange` のリスナを増やさない。同じ id なら再読込しない

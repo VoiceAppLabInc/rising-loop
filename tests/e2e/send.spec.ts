@@ -145,6 +145,23 @@ test('AI に送るボタンは「AI に相談」「指示する」と出し、�
   expect(readFileSync(join(folder, 'loops', 'L01.html'), 'utf8')).toContain('>コメント</button>')
 })
 
+test('［ループを追加］の札は、殻の CONST の LOOP_IDEAS（このプロジェクトの候補）から出す。無ければ汎用の例', async () => {
+  await startCurrent()
+  await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector("button.add-loop")'))?.value).toBe(true)
+  // まだ書かれていない：汎用の例
+  await inLoops(app, folder, 'document.querySelector("button.add-loop").click(); 1')
+  let d = await dialogOf(app)
+  await expect(d.getByRole('heading')).toHaveText('ループを追加')
+  await expect(d.getByRole('button', { name: '体重を落としたい' })).toBeVisible()
+  await d.getByRole('button', { name: 'キャンセル' }).click()
+  await expect(d).toHaveCount(0)
+  // AI が CONST に書いた：そのプロジェクトの候補だけ
+  await inLoops(app, folder, "window.LOOP_IDEAS = ['配当を年10万円にしたい', '含み損の銘柄を減らしたい']; document.querySelector('button.add-loop').click(); 1")
+  d = await dialogOf(app)
+  await expect(d.locator('.ask-chips button')).toHaveText(['配当を年10万円にしたい', '含み損の銘柄を減らしたい'])
+  await expect(d.getByRole('textbox')).toHaveAttribute('placeholder', '例: 配当を年10万円にしたい')
+})
+
 test('入力の窓は、空のままでは送れず、Esc・［キャンセル］で閉じると何も送らない', async () => {
   await startCurrent()
   await inLoops(app, folder, 'document.querySelector("#s-list button.cmt").click()')
