@@ -144,6 +144,8 @@ test('セクションは［カスタマイズ］、項目は［AIに指示］と
   await expect.poll(() => inFrame(app, '/L01.html', look('.section.t-goal button.cmt'))).toEqual(['カスタマイズ', 'rgb(255, 255, 255)', 'solid', true])
   expect(await inFrame(app, '/L01.html', look('.section.t-bottleneck button.cmt'))).toEqual(['カスタマイズ', 'rgb(255, 255, 255)', 'solid', true])
   expect(await inFrame(app, '/L01.html', look('button.do'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
+  // 施策案の［AIに指示］は、マウスを乗せなくても常に見えている
+  expect(await inFrame(app, '/L01.html', 'getComputedStyle(document.querySelector("button.do")).opacity')).toBe('1')
   expect(await inFrame(app, '/L01.html', look('button.ins'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
   expect(await inFrame(app, '/L01.html', look('button.record-comment'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
   // 施策の実行・施策の評価のセクションのボタンは出さない
