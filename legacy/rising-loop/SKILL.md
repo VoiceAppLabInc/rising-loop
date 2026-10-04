@@ -4,7 +4,7 @@ description: "ライジング・ループ（rising-loop）は、デスクトッ�
 user-invokable: true
 ---
 
-# rising-loop はアプリ版に移りました（1.8.2）
+# rising-loop はアプリ版に移りました（1.8.3）
 
 ライジング・ループは、1.8.0 から **デスクトップアプリ「Rising Loop」** で使う形になりました。
 ターミナルの Claude Code / Codex で使うスキル版（1.7.5 まで）は、これ以上は新しくなりません。
@@ -29,7 +29,7 @@ user-invokable: true
      curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-app.sh | sh
      ```
      ★ ブラウザで .dmg を落とすと「壊れているため開けません」になる（署名していないため）。**ブラウザでのダウンロードを勧めない**
-   - Windows なら、https://github.com/toru0325/rising-loop/releases/latest の .exe を落として開いてもらう
+   - Windows なら、https://github.com/toru0325/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe を落として開いてもらう（入れ方は https://github.com/toru0325/rising-loop）
      （「Windows によって PC が保護されました」と出たら「詳細情報」→「実行」）
    - 入ったら、続けてこれを**そのまま**見せる:
      > アプリが開いたら「フォルダを開く…」でこのフォルダを選び、「HTMLを最新版にする」と出たら押してください。

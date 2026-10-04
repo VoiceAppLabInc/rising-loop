@@ -38,6 +38,9 @@ dmg:
   # アプリの署名と合わなくなって「壊れているため開けません」になる。APFS はファイル名をそのまま保つ
   filesystem: APFS
 win:
+  # Windows のインストーラーは名前に版を入れない（releases/latest/download/Rising-Loop-win-x64.exe の直リンクが、いつも最新を指すように。README から直に落とす）。
+  # アプリの更新の判定は名前の終わり（-win-x64.exe）で見るので、版が無くてよい
+  artifactName: Rising-Loop-${os}-${arch}.${ext}
   target:
     - target: nsis
       arch: [x64]

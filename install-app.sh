@@ -13,12 +13,13 @@
 set -eu
 
 REPO="toru0325/rising-loop"
-PAGE="https://github.com/${REPO}/releases/latest"
+PAGE="https://github.com/${REPO}"
+WIN_URL="https://github.com/${REPO}/releases/latest/download/Rising-Loop-win-x64.exe"
 APP="Rising Loop.app"
 
 case "$(uname -s 2>/dev/null)" in
   Darwin) ;;
-  *) printf 'これは Mac 用です。Windows は %s から .exe を落として入れてください。\n' "$PAGE" >&2; exit 1 ;;
+  *) printf 'これは Mac 用です。Windows は %s を落として入れてください（入れ方は %s）。\n' "$WIN_URL" "$PAGE" >&2; exit 1 ;;
 esac
 case "$(uname -m)" in
   arm64) ARCH=arm64 ;;
@@ -34,7 +35,7 @@ fi
 
 printf '⬇  最新版を探しています…\n'
 URL="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep -o "https://[^\"]*-mac-${ARCH}\.dmg" | head -1)"
-[ -n "$URL" ] || { printf '最新版のファイルが見つかりませんでした。%s から落としてください。\n' "$PAGE" >&2; exit 1; }
+[ -n "$URL" ] || { printf '最新版のファイルが見つかりませんでした。少し時間をおいて、もう一度この1行を実行してください（入れ方は %s）。\n' "$PAGE" >&2; exit 1; }
 
 TMP="$(mktemp -d)"
 MNT="$TMP/mnt"

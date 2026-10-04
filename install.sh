@@ -17,7 +17,8 @@ REPO="toru0325/rising-loop"
 BRANCH="main"
 DEST="${HOME}/.claude/skills/rising-loop"
 TGZ_URL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz"
-APP_URL="https://github.com/${REPO}/releases/latest"
+APP_URL="https://github.com/${REPO}"
+WIN_URL="https://github.com/${REPO}/releases/latest/download/Rising-Loop-win-x64.exe"
 
 case "$(uname -s 2>/dev/null)" in
   Darwin|Linux) ;;
@@ -36,7 +37,7 @@ guide() {
 1. アプリを入れる（Mac はターミナルでこの1行）:
      curl -fsSL https://raw.githubusercontent.com/${REPO}/main/install-app.sh | sh
    ★ ブラウザで .dmg を落とすと「壊れているため開けません」になります（署名していないため）
-   Windows は ${APP_URL} の .exe を落として開く
+   Windows は ${WIN_URL} を落として開く（入れ方は ${APP_URL}）
 2. アプリの「フォルダを開く…」でループのあるフォルダを選ぶ
 3. 「HTMLを最新版にする」と出たら押す。数字・施策・記録は消えず、控えも残ります
 

@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-a
 
 ### Windows
 
-**https://github.com/toru0325/rising-loop/releases/latest** から `Rising-Loop-<版>-win-x64.exe` を落として開きます。
+**[Windows 用のインストーラーを落とす（Rising-Loop-win-x64.exe）](https://github.com/toru0325/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe)** を押して落とし、開きます。
 「Windows によって PC が保護されました」と出たら、**「詳細情報」→「実行」**を押してください。
 
 ### 新しい版

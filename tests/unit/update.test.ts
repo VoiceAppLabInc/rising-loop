@@ -28,6 +28,10 @@ describe('Releases の最新から、新しい版を読む', () => {
     expect(updateFrom(release(), '0.1.0', 'darwin', 'x64')?.download).toBe('https://example.com/x64.dmg')
     expect(updateFrom(release(), '0.1.0', 'win32', 'x64')?.download).toBe('https://example.com/setup.exe')
   })
+  it('Windows のインストーラーは名前に版が無くても（Rising-Loop-win-x64.exe）拾う', () => {
+    const r = release({ assets: [{ name: 'Rising-Loop-win-x64.exe', browser_download_url: 'https://example.com/latest-setup.exe' }] })
+    expect(updateFrom(r, '0.1.0', 'win32', 'x64')?.download).toBe('https://example.com/latest-setup.exe')
+  })
   it('同じ版・古い版なら null', () => {
     expect(updateFrom(release(), '0.2.0', 'darwin', 'arm64')).toBeNull()
     expect(updateFrom(release(), '0.10.0', 'darwin', 'arm64')).toBeNull()
