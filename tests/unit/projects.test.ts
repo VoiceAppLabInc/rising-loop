@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, emptyState, loadState, markKickoff, markNotice, parseState, removeProject, saveState, selectProject, setMigration, updateProject } from '../../src/main/projects'
+import { addProject, clearKickoff, emptyState, loadState, markKickoff, markNotice, parseState, removeProject, saveState, selectProject, setMigration, updateProject } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -159,5 +159,15 @@ describe('updateProject / removeProject', () => {
     expect(next.projects.map((p) => p.id)).toEqual(['p1'])
     expect(next.currentId).toBe('p1')
     expect(removeProject(next, 'p1')).toEqual({ projects: [], currentId: null })
+  })
+})
+
+describe('clearKickoff', () => {
+  it('最初の依頼を送った記録を消す（ほかのプロジェクトはそのまま）', () => {
+    let s = addProject(addProject(emptyState(), '/a/one', NOW).state, '/a/two', NOW).state
+    s = markKickoff(markKickoff(s, 'p1', '2026-10-01T11:00:00.000Z'), 'p2', '2026-10-01T11:00:00.000Z')
+    const next = clearKickoff(s, 'p1')
+    expect(next.projects.find((p) => p.id === 'p1')?.kickoffAt).toBeUndefined()
+    expect(next.projects.find((p) => p.id === 'p2')?.kickoffAt).toBe('2026-10-01T11:00:00.000Z')
   })
 })

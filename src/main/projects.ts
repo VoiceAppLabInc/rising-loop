@@ -56,6 +56,19 @@ export function removeProject(s: ProjectsState, id: string): ProjectsState {
   return { projects, currentId }
 }
 
+/** 最初の依頼を送った記録を消す（ループがまだ無いあいだに AI を切り替えたとき、新しい AI に送り直すため） */
+export function clearKickoff(s: ProjectsState, id: string): ProjectsState {
+  if (!s.projects.some((p) => p.id === id)) return s
+  return {
+    ...s,
+    projects: s.projects.map((p) => {
+      if (p.id !== id) return p
+      const { kickoffAt: _k, ...rest } = p
+      return rest
+    })
+  }
+}
+
 export function markKickoff(s: ProjectsState, id: string, now: string): ProjectsState {
   if (!s.projects.some((p) => p.id === id)) return s
   return { ...s, projects: s.projects.map((p) => (p.id === id ? { ...p, kickoffAt: now } : p)) }

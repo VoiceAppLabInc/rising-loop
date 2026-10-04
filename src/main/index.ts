@@ -16,7 +16,7 @@ import { forgetCli, resolveCli, runProbe } from './aiCli'
 import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
-import { addProject, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
+import { addProject, clearKickoff, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
 import { LSREGISTER, MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, needsIconRefresh, readWithProgress, type UpdateCheck } from './update'
 
@@ -296,12 +296,20 @@ function commit(next: ProjectsState): void {
 }
 
 /** ループが無いプロジェクトを初めて開いたら、全面のチャットに最初の依頼を送る（プロジェクトごとに1回だけ） */
-function kickoff(): void {
-  const p = current()
-  if (!p || p.kickoffAt || hasLoops(p.folder)) return
-  state = markKickoff(state, p.id, new Date().toISOString())
-  saveState(projectsFile(), state)
-  chats.send(p, 's-list', aiOf(p), KICKOFF)
+/** 最初の依頼を送っている途中のプロジェクト（届くまで二重に送らない） */
+const kickoffPending = new Set<string>()
+function kickoff(p = current()): void {
+  if (!p || p.kickoffAt || hasLoops(p.folder) || kickoffPending.has(p.id)) return
+  kickoffPending.add(p.id)
+  // 「送った」と記録するのは、AI に届いたとき。AI が動かず届かなかったら記録しない（次の機会に送り直す）
+  chats.send(p, 's-list', aiOf(p), KICKOFF, {
+    sent: () => {
+      kickoffPending.delete(p.id)
+      state = markKickoff(state, p.id, new Date().toISOString())
+      saveState(projectsFile(), state)
+    },
+    dropped: () => kickoffPending.delete(p.id)
+  })
 }
 
 /**
@@ -519,6 +527,12 @@ ipcMain.handle('projects:update', (_e, id: string, patch: { folder?: string; ai?
   commit(updateProject(state, id, moved ? patch : { ai: patch.ai, perm: patch.perm }))
   const after = state.projects.find((x) => x.id === id)!
   if (!moved && (aiOf(after) !== aiOf(before) || (after.perm ?? 'ask') !== (before.perm ?? 'ask'))) chats.restartProject(after, aiOf(after))
+  // ループがまだ無いあいだに AI を切り替えたら、切り替えた先のチャットにも最初の依頼を送る（送っている途中なら、その文が新しい AI に届く）
+  if (!moved && aiOf(after) !== aiOf(before) && !hasLoops(after.folder)) {
+    state = clearKickoff(state, id)
+    saveState(projectsFile(), state)
+    kickoff(state.projects.find((x) => x.id === id))
+  }
   return snapshot()
 })
 
@@ -723,7 +737,12 @@ ipcMain.on('pane:attach', (e, m: PaneMsg) => {
 })
 ipcMain.on('pane:input', (e, m: PaneMsg) => {
   const p = paneProject(e.sender.id)
-  if (p) chats.input(p.id, m.screen, m.data, () => chats.restart(p, m.screen, aiOf(p)))
+  // Enter で開き直したとき、ループがまだ無く最初の依頼が届いていなければ、ここで送る（AI を入れたあとなど）
+  if (p)
+    chats.input(p.id, m.screen, m.data, () => {
+      chats.restart(p, m.screen, aiOf(p))
+      if (m.screen === 's-list') kickoff(p)
+    })
 })
 ipcMain.on('pane:resize', (e, m: PaneMsg) => {
   const p = paneProject(e.sender.id)

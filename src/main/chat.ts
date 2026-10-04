@@ -35,6 +35,14 @@ const BUSY_MS = 2000
 /** 打った文字のこだま（入力の直後の出力）は、AI の作業に数えない */
 const ECHO_MS = 300
 
+/** 送る文。sent は AI に届いたとき（起動時の引数に入れた・貼り付けて Enter を押した）、dropped は届けられずに捨てたとき */
+interface Queued {
+  text: string
+  at: number
+  sent?: () => void
+  dropped?: () => void
+}
+
 interface Term {
   proc: pty.IPty | null
   buf: string
@@ -51,7 +59,7 @@ interface Term {
   lastInput: number
   spawnedAt: number
   /** まだ送っていない指示文 */
-  queue: { text: string; at: number }[]
+  queue: Queued[]
   flushing: boolean
 }
 
@@ -118,9 +126,9 @@ export class Chats {
    * 指示文を、その画面のチャットに貼り付けて Enter まで押す。
    * ターミナルがまだ無ければ（右の窓を閉じているなど）その場で起動し、AI の画面が出終わってから送る。
    */
-  send(project: Project, screen: string, ai: AiKind, text: string): void {
+  send(project: Project, screen: string, ai: AiKind, text: string, on?: { sent?: () => void; dropped?: () => void }): void {
     const t = this.term(project.id, screen, 100, 30)
-    t.queue.push({ text, at: Date.now() })
+    t.queue.push({ text, at: Date.now(), ...on })
     if (!t.proc && !t.starting) void this.start(t, project, screen, ai)
     void this.flush(t)
   }
@@ -253,7 +261,7 @@ export class Chats {
         const ready = t.proc && t.started && now - t.lastOut >= QUIET_MS && now - t.spawnedAt >= STARTUP_MS
         if (!ready) {
           if (Date.now() - next.at > SEND_TIMEOUT_MS) {
-            t.queue.shift()
+            t.queue.shift()?.dropped?.()
             this.out(t, '\r\n\x1b[2m指示文を送れませんでした。もう一度ボタンを押してください。\x1b[0m\r\n')
             continue
           }
@@ -263,6 +271,7 @@ export class Chats {
         t.queue.shift()
         const proc = t.proc!
         proc.write(pasteForTerminal(next.text))
+        next.sent?.()
         await wait(ENTER_DELAY_MS)
         if (t.proc === proc) proc.write('\r')
         // 次の指示文は、この指示文への AI の出力が落ち着いてから
@@ -321,13 +330,15 @@ export class Chats {
 
       // 会話を始めるときに送る文は、貼り付けずに起動時の引数で渡す（起動直後の貼り付けは捨てられる）。
       // 起動の準備のあいだに積まれた文も含めて、ここで1つ拾う
-      const prompt = t.queue.shift()?.text
+      const first = t.queue.shift()
+      const prompt = first?.text
       const args =
         ai === 'claude'
           ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
           : codexArgs({ threadId: id, instructions, prompt, autoApprove: project.perm === 'auto' })
       const proc = pty.spawn(cmd.file, [...cmd.args, ...args], { name: 'xterm-256color', cols: t.cols, rows: t.rows, cwd: project.folder, env: env as Record<string, string> })
       t.proc = proc
+      first?.sent?.()
       t.started = false
       t.spawnedAt = Date.now()
       proc.onData((d) => {
