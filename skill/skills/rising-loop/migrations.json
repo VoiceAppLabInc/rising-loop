@@ -376,6 +376,22 @@
           "detail": "形は references/HTML生成.md「LOOP_DATA の定義」。short は10字くらい、施策の short は12字くらい。bottlenecks は古い順で最後がいまのボトルネック（{ from: \"YYYY-MM-DD\", text: \"考察の結論の一文\", value: そのときの目標の数字 }）。過去の段は LOG（logs/LXX.md）と RECORD・ボトルネックの節から起こし、数字が分からない段は value を書かない（後から計算して埋めない）。分からなければ、いまのボトルネック1行だけでよい。trials[].started は TRIAL に入れた日（LOG から。分からなければ書かない）。頁の markup と施策の id（#record-LXX-TYY / #trial-LXX-TYY）は変えない。全頁を直したら、一覧を直したあとに python3 loops/update/history.py を流す"
         }
       ]
+    },
+    {
+      "version": "2.5.1",
+      "templates": {
+        "loop": "ac37a2ccdc6e8130",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.5.1-history-from-log",
+          "target": "pages",
+          "what": "LOOP_DATA.bottlenecks（施策の流れのボトルネック）を、LOG と各施策の狙いから起こし直す。考察の文が変わっていないことだけで「1行のまま」にしない。bottlenecks[].value は消す",
+          "detail": "ボトルネックの節は毎回いまの見立てで書き直されるので、過去の見立ては残っていない。残っているのは施策の狙い（records[].aim・summary、trials[]）と LOG（logs/LXX.md の「わかったこと」「決めた」）。手順：① 施策（records[] と trials[]）を日付の順に並べ、それぞれの aim・summary と、その頃の LOG を読む ② 施策ごとに「そのとき何を問題と見ていたか」を一文にする（狙いを問題の形に言い換える。例：狙い「ゲームごとに250円かかるという誤解を減らす」→「ゲームごとに250円かかると思われている」） ③ 続く施策が同じ問題を見ていれば1行にまとめ、別の問題に移ったら次の行にする。from は、その見立てを LOG に最初に書いた日（無ければその行の最初の施策の日。最初の行はループを作った日でもよい） ④ 最後の行は、いまのボトルネックの節の考察の結論にする ⑤ 施策が無い、または狙いがずっと同じ問題なら1行のままでよい。根拠（狙い・LOG）の無い区切りは作らない ⑥ bottlenecks[].value は消す（数字は loops/update/history.py が hist.points から拾う） ⑦ LOG に「施策の流れのボトルネックを、施策の狙いと LOG から起こした」と1行残す。全頁を直したら一覧を直し、python3 loops/update/history.py を流す"
+        }
+      ]
     }
   ]
 }

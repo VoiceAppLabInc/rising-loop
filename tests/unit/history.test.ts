@@ -34,9 +34,9 @@ const readOut = (root: string) => {
 const L01 = `{
   id: "L01", title: "券の手取りを 24円 に", short: "券の手取り",
   metric: { start: 3.46 },
-  hist: { unit: "円", target: 24, points: [ { at: "2026-09-20", value: 1.18 }, { at: "2026-09-28", value: 1.1 } ] },
+  hist: { unit: "円", target: 24, points: [ { at: "2026-09-12", value: 3.56 }, { at: "2026-09-06", value: 3.46 }, { at: "2026-09-20", value: 1.18 }, { at: "2026-09-28", value: 1.1 } ] },
   bottlenecks: [
-    { from: "2026-09-06", text: "決済シートで止まる", value: 3.46 },
+    { from: "2026-09-06", text: "決済シートで止まる", value: 99 },
     { from: "2026-09-01", text: "250円かかると思われている" }
   ],
   trials: [ { id: "T07", title: "みんなで投票する", short: "みんなで投票", started: "2026-09-23" }, { id: "T08", title: "日付の無い施策" } ],
@@ -51,24 +51,30 @@ const L02 = `{
   bottlenecks: [ { from: "2026-09-10", text: "解約の理由が分からない" } ],
   trials: [], records: []
 }`
-// bottlenecks が無い頁は出さない
-const L03 = `{ id: "L03", title: "広告売上", metric: { start: 1 }, hist: { unit: "円", target: 2, points: [] }, trials: [], records: [] }`
+// bottlenecks が無い頁も出す（期間は最初の施策の日から）
+const L03 = `{ id: "L03", title: "広告売上", metric: { start: 1 }, hist: { unit: "円", target: 2, points: [ { at: "2026-09-01", value: 0.2 }, { at: "2026-09-05", value: 0.31 }, { at: "2026-09-28", value: 0.25 } ] },
+  trials: [], records: [ { id: "T01", title: "広告を枠ごとに", done: "2026-09-03", grade: "A" } ] }`
 
 describe('history.py（一覧の施策の流れの中身）', () => {
-  it('全頁の LOOP_DATA から集め、一覧の行の順に書く。bottlenecks の無い頁は出さない', () => {
+  it('全頁の LOOP_DATA から集め、一覧の行の順に書く。bottlenecks の無い頁も出す', () => {
     const root = project({ 'L01.html': L01, 'L02.html': L02, 'L03.html': L03 }, ['L02', 'L03', 'L01'])
-    expect(run(root)).toContain('2 ループを書いた')
+    expect(run(root)).toContain('3 ループを書いた')
     const { js, data } = readOut(root)
     expect(js).toMatch(/^\/\/ .*\nwindow\.HISTORY_DATA = \{/)
-    expect(data.loops.map((l: { id: string }) => l.id)).toEqual(['L02', 'L01'])
-    const [l2, l1] = data.loops
-    expect(l2).toMatchObject({ name: '解約を減らす', unit: '件', lowerBetter: true, now: null, nowAt: null })
-    expect(l1).toMatchObject({ name: '券の手取り', unit: '円', lowerBetter: false, now: 1.1, nowAt: '2026-09-28' })
-    // ボトルネックは古い順に並べ直す。value が無い段は value を持たない
+    expect(data.loops.map((l: { id: string }) => l.id)).toEqual(['L02', 'L03', 'L01'])
+    const [l2, l3, l1] = data.loops
+    expect(l2).toMatchObject({ name: '解約を減らす', unit: '件', lowerBetter: true, now: null, nowAt: null, period: null })
+    expect(l1).toMatchObject({ name: '券の手取り', unit: '円', lowerBetter: false, now: 1.1, nowAt: '2026-09-28', period: null })
+    // ボトルネックは古い順に並べ直す。数字は頁の value ではなく、計測の記録から期間の始まり（a）と終わり（b）の点を拾う
+    //   a は from 以前で最後の点（無ければ期間の中の最初の点）、b は期間の中（〜次の from。最後は〜今日）の最後の点
     expect(l1.bottlenecks).toEqual([
-      { from: '2026-09-01', text: '250円かかると思われている' },
-      { from: '2026-09-06', text: '決済シートで止まる', value: 3.46 }
+      { from: '2026-09-01', text: '250円かかると思われている', a: { at: '2026-09-06', value: 3.46 }, b: { at: '2026-09-06', value: 3.46 } },
+      { from: '2026-09-06', text: '決済シートで止まる', a: { at: '2026-09-06', value: 3.46 }, b: { at: '2026-09-28', value: 1.1 } }
     ])
+    // 点の無いループは a・b とも null
+    expect(l2.bottlenecks).toEqual([{ from: '2026-09-10', text: '解約の理由が分からない', a: null, b: null }])
+    // ボトルネックの記録が無いループは、最初の施策の日からの期間を period に
+    expect(l3).toMatchObject({ bottlenecks: [], period: { a: { at: '2026-09-01', value: 0.2 }, b: { at: '2026-09-28', value: 0.25 } } })
     // 施策は評価に移ったもの（record）と実行中（trial）を日付の順に。日付の無いものは最後。short が無ければ title
     expect(l1.trials).toEqual([
       { id: 'T01', date: '2026-09-02', short: 'ボタンを1か所に', grade: 'B', at: 'record' },
@@ -79,7 +85,7 @@ describe('history.py（一覧の施策の流れの中身）', () => {
   })
 
   it('一覧の行に無い頁は、名前の順で後ろに付ける', () => {
-    const root = project({ 'L01.html': L01, 'L02.html': L02 }, [])
+    const root = project({ 'L02.html': L02, 'L01.html': L01 }, [])
     run(root)
     expect(readOut(root).data.loops.map((l: { id: string }) => l.id)).toEqual(['L01', 'L02'])
   })

@@ -46,9 +46,9 @@ const DATA = {
       now: 2000,
       nowAt: '2026-09-28',
       bottlenecks: [
-        { from: '2026-08-30', text: '250円かかると思われている' },
-        { from: '2026-09-06', text: '決済シートで止まる', value: 1750 },
-        { from: '2026-09-20', text: '払う直前で止まる', value: 1000 }
+        { from: '2026-08-30', text: '250円かかると思われている', a: null, b: null },
+        { from: '2026-09-06', text: '決済シートで止まる', a: { at: '2026-09-06', value: 1750 }, b: { at: '2026-09-20', value: 1000 } },
+        { from: '2026-09-20', text: '払う直前で止まる', a: { at: '2026-09-20', value: 1000 }, b: { at: '2026-09-28', value: 2000 } }
       ],
       trials: [
         { id: 'T01', date: '2026-09-02', short: 'ボタンを1か所に', grade: 'B', at: 'record' },
@@ -59,7 +59,7 @@ const DATA = {
   ]
 }
 
-test('ループ一覧の下に、ボトルネックの移り変わり・数字の向き・その間の施策（日付つきの札）を出す', async () => {
+test('ループ一覧の下に、上から「ボトルネックの箱 → その期間の施策の札 → 矢印 → 次の箱 … → 現在」の順で出す', async () => {
   const folder = await openWith(DATA)
   const look = await inLoops(
     app,
@@ -71,14 +71,12 @@ test('ループ一覧の下に、ボトルネックの移り変わり・数字�
         after: sec.previousElementSibling.classList.contains("t-loops"),
         tab: sec.querySelector(".sec-tab").textContent,
         legend: [].map.call(sec.querySelectorAll(".hs-legend .hs-tp"), function(t){ return t.getAttribute("data-g") + " " + t.textContent }),
-        boxes: [].map.call(sec.querySelectorAll(".hs-bn"), function(b){
-          var n = b.querySelector(".hs-num");
-          return [b.classList.contains("now"), b.firstChild.firstChild.textContent, n.classList.contains("off") ? "計測前" : n.querySelector("b").className + " " + n.querySelector("b").textContent]
-        }),
-        gaps: [].map.call(sec.querySelectorAll(".hs-ts"), function(g){
-          return [].map.call(g.querySelectorAll(".hs-tp"), function(t){ return t.getAttribute("data-g") + " " + t.textContent })
-        }),
-        now: sec.querySelector(".hs-bn.now small").textContent
+        flow: [].map.call(sec.querySelector(".hs-loop").children, function(e){
+          if (e.classList.contains("hs-h")) return "見出し";
+          if (e.classList.contains("hs-ts")) return "↓ " + [].map.call(e.querySelectorAll(".hs-tp"), function(t){ return t.getAttribute("data-g") + " " + t.textContent }).join(" / ");
+          var n = e.querySelector(".hs-num"), b = n.querySelector("b");
+          return e.firstChild.textContent + " | " + (n.classList.contains("off") ? "計測前" : (b.className ? b.className + " " : "") + b.textContent + " " + n.querySelector("small").textContent);
+        })
       }
     })()`
   )
@@ -86,20 +84,30 @@ test('ループ一覧の下に、ボトルネックの移り変わり・数字�
     after: true,
     tab: 'HISTORY施策の流れ',
     legend: ['A・B 狙いに届いた', 'C 半分', 'D・E 届かなかった', '- まだ（いまやっている）'],
-    // 1つ目は数字が無いので計測前。1750 → 1000 は悪くなった（dn）、1000 → いま 2000 は良くなった（up）
-    boxes: [
-      [false, '250円かかると思われている', '計測前'],
-      [false, '決済シートで止まる', 'dn 1,000'],
-      [true, '払う直前で止まる', 'up 2,000']
-    ],
-    // 施策は日付でボトルネックの期間に振り分ける。最後の期間の施策は、いまの箱の中に名前で出す
-    gaps: [['B 9/2ボタンを1か所に'], ['- 9/10翌日もう一度']],
-    now: 'いまのボトルネック ・ 9/23 値札を出す（いま）'
+    // 箱の右は終わりの数字と向き（1750 → 1000 は悪くなった dn、1000 → 2000 は良くなった up）。点が無ければ計測前。施策の無い期間は矢印だけ
+    flow: [
+      '見出し',
+      '250円かかると思われている | 計測前',
+      '↓ B 9/2ボタンを1か所に',
+      '決済シートで止まる | dn 1,000 円 ・ 9/6〜9/20',
+      '↓ - 9/10翌日もう一度',
+      '払う直前で止まる | up 2,000 円 ・ 9/20〜9/28',
+      '↓ - 9/23値札を出す',
+      '現在 | 2,000 円 ・ 9/28'
+    ]
   })
 })
 
+test('ボトルネックの記録が無いループも落とさず、記録なしの箱1つの下に施策を並べる', async () => {
+  const plain = { id: 'L02', name: '広告売上', unit: '円', lowerBetter: false, now: 0.25, nowAt: '2026-09-28', bottlenecks: [], period: { a: { at: '2026-09-02', value: 0.31 }, b: { at: '2026-09-28', value: 0.25 } },
+    trials: [{ id: 'T01', date: '2026-09-02', short: '広告を枠ごとに', grade: 'A', at: 'record' }] }
+  const folder = await openWith({ ...DATA, loops: [plain] })
+  const flow = await inLoops(app, folder, `[].map.call(document.querySelector(".hist-sec .hs-loop").children, function(e){ return e.className + " " + e.textContent })`)
+  expect(flow?.value).toEqual(['hs-h L02広告売上', 'hs-bn none ボトルネックの記録がありません0.25円 ・ 9/2〜9/28', 'hs-ts 9/2広告を枠ごとに', 'hs-bn hs-cur 現在0.25円 ・ 9/28'])
+})
+
 test('施策がまだ1つも無いループは、箱も数字も出さず「まだ施策がありません」だけを出す', async () => {
-  const fresh = { id: 'L02', name: '翌日も来る人', unit: '%', lowerBetter: false, now: 11, nowAt: '2026-09-01', bottlenecks: [{ from: '2026-09-01', text: '理由が分からない', value: 11 }], trials: [] }
+  const fresh = { id: 'L02', name: '翌日も来る人', unit: '%', lowerBetter: false, now: 11, nowAt: '2026-09-01', bottlenecks: [{ from: '2026-09-01', text: '理由が分からない', a: { at: '2026-09-01', value: 11 }, b: { at: '2026-09-01', value: 11 } }], trials: [] }
   const folder = await openWith({ ...DATA, loops: [...DATA.loops, fresh] })
   const look = await inLoops(
     app,
@@ -107,7 +115,7 @@ test('施策がまだ1つも無いループは、箱も数字も出さず「ま�
     `[].map.call(document.querySelectorAll(".hist-sec .hs-loop"), function(l){ return [l.querySelector(".hs-h").textContent, l.querySelectorAll(".hs-bn").length, (l.querySelector(".hs-blank") || {}).textContent || null] })`
   )
   expect(look?.value).toEqual([
-    ['L01券の売上', 3, null],
+    ['L01券の売上', 4, null],
     ['L02翌日も来る人', 0, 'まだ施策がありません']
   ])
 })
@@ -120,10 +128,10 @@ test('施策の札を押すと、そのループの頁を開いて、その施�
   // 評価に移った施策は施策の評価の欄（#record-L01-T01）。頁の先頭ではなく、その施策が上に来ている
   const top = (id: string) => inFrame(app, '/L01.html', `(function(){ var e = document.getElementById("${id}"); return e ? Math.round(e.getBoundingClientRect().top) : null })()`)
   await expect.poll(() => top('record-L01-T01')).toBeLessThan(80)
-  // 一覧に戻って、いまの箱の中の名前（実行中の T07）を押すと、施策の実行の欄（#trial-L01-T07）へ。同じ頁でも開き直して飛ぶ
+  // 一覧に戻って、実行中の T07 の札を押すと、施策の実行の欄（#trial-L01-T07）へ。同じ頁でも開き直して飛ぶ
   await inLoops(app, folder, 'location.hash = "s-list"; 1')
   await expect.poll(async () => (await inLoops(app, folder, '!document.body.classList.contains("in-loop")'))?.value).toBe(true)
-  await inLoops(app, folder, 'document.querySelector(\'.hs-in[data-anchor="trial-L01-T07"]\').click(); 1')
+  await inLoops(app, folder, 'document.querySelector(\'.hs-tp[data-anchor="trial-L01-T07"]\').click(); 1')
   await expect.poll(() => top('trial-L01-T07')).toBeLessThan(80)
 })
 

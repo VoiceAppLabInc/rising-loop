@@ -9,12 +9,16 @@
 ★一覧（殻の LOOPS）を直したら、続けてこれを流す。一覧はループを直したら同じターンで必ず直すので、ここで漏れない。
 
 読むもの（各頁の LOOP_DATA）:
-  short（無ければ title）・hist.unit・hist.target・metric.start・hist.points の最新
-  bottlenecks: [{ from, text, value? }]   古い順、最後がいま。空の頁は出さない
+  short（無ければ title）・hist.unit・hist.target・metric.start・hist.points（計測の記録。数字はここからだけ拾う）
+  bottlenecks: [{ from, text }]   古い順、最後がいま（value は読まない。2.5.0 の頁にあっても無視する）
   records[]: id・short（無ければ title）・done・grade
   trials[]:  id・short（無ければ title）・started（無ければ日付なし＝いまの期間）
 書くもの:
-  window.HISTORY_DATA = { generated, loops: [{ id, name, unit, lowerBetter, now, nowAt, bottlenecks, trials }] }
+  window.HISTORY_DATA = { generated, loops: [{ id, name, unit, lowerBetter, now, nowAt, bottlenecks: [{ from, text, a, b }], period, trials }] }
+  a・b は、その期間の始まりと終わりの計測の点 { at, value }（無ければ null）:
+    a = from 以前で最後の点（無ければ期間の中の最初の点）、b = 期間の中（from〜次の from。最後は〜今日）の最後の点
+  period は bottlenecks が無いループの a・b（最初の施策の日から）。
+  全頁を出す（bottlenecks や施策が無くても。描く側が「記録なし」「まだ施策がありません」にする）。
   ループの並びは殻 index.html の一覧の行（data-go="s-LXX"）の順。行に無い頁は名前の順で後ろ。
   中身が前と同じなら書かない（generated だけの差で書き換えない）。
 依存なし（python3 標準ライブラリと、同じフォルダの common.py）。
@@ -40,24 +44,31 @@ def _num(v):
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
+def span(pts, start, end):
+    """期間 start〜end（end が None なら終わりなし）の始まりと終わりの点。pts は日付の順の (at, value)"""
+    inside = [p for p in pts if (not start or p[0] >= start) and (end is None or p[0] <= end)]
+    before = [p for p in pts if start and p[0] <= start]
+    a = before[-1] if before else (inside[0] if inside else None)
+    b = inside[-1] if inside else None
+    pt = lambda p: {'at': p[0], 'value': p[1]} if p else None
+    return pt(a), pt(b)
+
+
 def loop_of(path):
-    """1頁ぶん。出さない頁（bottlenecks が空・読めない）は None"""
+    """1頁ぶん（読めなければ例外）"""
     d = load(path)
     bns = []
     for b in d.get('bottlenecks') or []:
-        if not isinstance(b, dict) or not _str(b.get('from')) or not _str(b.get('text')):
-            continue
-        x = {'from': b['from'].strip(), 'text': b['text'].strip()}
-        if _num(b.get('value')) is not None:
-            x['value'] = b['value']
-        bns.append(x)
-    if not bns:
-        return None
+        if isinstance(b, dict) and _str(b.get('from')) and _str(b.get('text')):
+            bns.append({'from': b['from'].strip(), 'text': b['text'].strip()})
     bns.sort(key=lambda b: b['from'])
     hist = d.get('hist') or {}
     metric = d.get('metric') or {}
-    pts = [p for p in hist.get('points') or [] if isinstance(p, dict) and _num(p.get('value')) is not None]
-    last = max(pts, key=lambda p: p.get('at') or '') if pts else None
+    pts = sorted((p['at'].strip(), p['value']) for p in hist.get('points') or []
+                 if isinstance(p, dict) and _num(p.get('value')) is not None and _str(p.get('at')))
+    last = {'at': pts[-1][0], 'value': pts[-1][1]} if pts else None
+    for i, b in enumerate(bns):
+        b['a'], b['b'] = span(pts, b['from'], bns[i + 1]['from'] if i + 1 < len(bns) else None)
     target, start = _num(hist.get('target')), _num(metric.get('start'))
     trials = []
     for r in d.get('records') or []:
@@ -71,14 +82,17 @@ def loop_of(path):
     #=== 日付の順。日付の無いものは最後（いまの期間）
     trials.sort(key=lambda t: (t['date'] is None, t['date'] or '', t['id']))
     lid = _str(d.get('id')) or os.path.splitext(os.path.basename(path))[0]
+    first = next((t['date'] for t in trials if t['date']), None)
+    pa, pb = span(pts, first, None)
     return {
         'id': lid,
         'name': _str(d.get('short')) or _str(d.get('title')) or lid,
         'unit': _str(hist.get('unit')) or '',
         'lowerBetter': target is not None and start is not None and target < start,
         'now': last['value'] if last else None,
-        'nowAt': _str(last.get('at')) if last else None,
+        'nowAt': last['at'] if last else None,
         'bottlenecks': bns,
+        'period': None if bns else {'a': pa, 'b': pb},
         'trials': trials,
     }
 
@@ -105,8 +119,7 @@ def collect(loops_dir):
         except Exception as e:  # 読めない頁は飛ばして名前を出す（ほかの頁は出す）
             errors.append('%s: %s' % (os.path.basename(p), e))
             continue
-        if x:
-            out.append(x)
+        out.append(x)
     order = order_of(loops_dir)
     rank = {lid: i for i, lid in enumerate(order)}
     out.sort(key=lambda x: (rank.get(x['id'], len(order)), x['id']))
