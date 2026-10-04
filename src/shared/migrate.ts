@@ -12,6 +12,8 @@ export interface Templates {
   js: string
   /** loops/update/common.py に写す */
   loopdata: string
+  /** loops/update/history.py に写す（一覧の「施策の流れ」の中身を書く） */
+  history: string
   version: string
 }
 
@@ -23,6 +25,7 @@ export function readTemplates(read: (rel: string) => string): Templates {
     css: read('assets/rising.css'),
     js: read('assets/rising.js'),
     loopdata: read('assets/loopdata.py'),
+    history: read('assets/history.py'),
     version: read('VERSION').trim()
   }
 }
@@ -104,7 +107,8 @@ export function planMigration(files: LoopsFiles, tpl: Templates): MigrationPlan 
     common: [
       { path: 'rising.css', content: tpl.css },
       { path: 'rising.js', content: tpl.js },
-      { path: 'update/common.py', content: tpl.loopdata }
+      { path: 'update/common.py', content: tpl.loopdata },
+      { path: 'update/history.py', content: tpl.history }
     ],
     lost: [...lost].sort()
   }

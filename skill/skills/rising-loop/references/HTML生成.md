@@ -131,6 +131,7 @@ README にも `index.html` にも写しを持たせない（写しがあると�
 var LOOP_DATA = {
   id: "L01", parent: null,
   title: "ホスト1人あたりの券の手取りを 24円 に",
+  short: "券の手取り",                                           // 短い名前。一覧の施策の流れの見出し（10字くらい）
   summary: "券は売れているが買い手が10人から増えていない",      // 一覧の .loop-sub に写す。60字以内
   updated: "2026-09-17",
   metric: {
@@ -143,12 +144,16 @@ var LOOP_DATA = {
   //    target・unit・price は hist.target / hist.unit / hist.price が正（同じ値を2か所に置かない）
   hist: { …unit / price / target / targetLabel / dayUnit / dayTarget / dayTargetUnit / dualAxis / days[] / line[] / points[] / after[]… },
   funnel: { …stages[] / note… },
+  bottlenecks: [                                                 // ボトルネックの移り変わり。古い順、最後がいま
+    { from: "2026-09-01", text: "ゲームごとに250円かかると思われている" },     // value 無し＝計測前
+    { from: "2026-09-06", text: "鍵は押すが、決済シートで止まる", value: 3.46 } // value＝変わった時点の数字（hist.unit）
+  ],
   trials: [                                                      // いま動かしているもの
-    { id: "T06", title: "…", status: "実現方法を決めるところ",
+    { id: "T06", title: "…", short: "みんなで投票", started: "2026-09-23", status: "実現方法を決めるところ",
       plan: ["⬜ 1. 実現方法を決める", "⬜ 2. …"] }
   ],
   records: [                                                     // RECORD の値の部分
-    { id: "T04", title: "…", done: "2026-09-13",                 // 実施日
+    { id: "T04", title: "…", short: "券を3種類に", done: "2026-09-13",   // 札の短い名前・実施日
       summary: "券を3種類にした",                                // 変更の要旨
       aim: "高い券を選ぶ人を出す",                                // 狙い
       before: "窓 9/2〜9/8: 9件・1,530円",                        // 実施前の数字と比較条件
@@ -164,7 +169,8 @@ var LOOP_DATA = {
 - `days[]` には日ごとの表にしかない列（例: `hosts`）を足してよい。**派生値（単価での復元など）は持たない**
 - `records[]` は `SKILL.md`「RECORD」の「保持するもの」（実施日・変更の要旨・狙いと予想・実施前の数字と比較条件）と「更新するもの」のうち値で持てるもの（評価・評価日・確定判定）。**評価文・根拠・限界・観測表の散文は `.record-item` の markup に書く**
 - **`rising.js` が読むのは `hist` と `funnel` だけ**（`data-goal-now/when/fill/diff/money` を埋める）。`start` `target` `unit` の表示は markup 直書き。★ **`trials[]` `records[]` は AI が読む正で、JS は使わない**
-- 無い項目は `null`。省略しない
+- `short`・`bottlenecks`・`trials[].short/started`・`records[].short` は、一覧の「施策の流れ」（HISTORY）の材料。`loops/update/history.py` が全頁から集めて `loops/history.js` を書き、殻の `rising.js` が描く（一覧から頁は読めないので、写しを手で書かない）。`bottlenecks` の `value` は分からなければ書かない（＝計測前。後から計算して埋めない）。施策の札を押すと `#record-LXX-TYY` / `#trial-LXX-TYY` に飛ぶので、その id を変えない
+- 無い項目は `null`。省略しない（`bottlenecks[].value` だけは、分からなければ書かない）
 - コメント（`//===`）は既存の1組だけ。**定義の変更履歴を増やさない**（原理6）。経緯は `logs/` へ
 
 ## 写しの規則

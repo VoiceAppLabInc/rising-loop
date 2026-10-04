@@ -62,6 +62,7 @@ function runPython(loops: string) {
     css: readFileSync(join(loops, 'rising.css'), 'utf8'),
     js: readFileSync(join(loops, 'rising.js'), 'utf8'),
     common: readFileSync(join(loops, 'update', 'common.py'), 'utf8'),
+    history: readFileSync(join(loops, 'update', 'history.py'), 'utf8'),
     lost,
     oldPages: [...oldPages].sort(),
     listOld: out.includes('一覧の行が古い形')
@@ -86,7 +87,8 @@ describe('planMigration は shell-update.py と同じ結果になる', () => {
       expect(plan.common).toEqual([
         { path: 'rising.css', content: py.css },
         { path: 'rising.js', content: py.js },
-        { path: 'update/common.py', content: py.common }
+        { path: 'update/common.py', content: py.common },
+        { path: 'update/history.py', content: py.history }
       ])
       expect(plan.lost).toEqual(py.lost)
     })

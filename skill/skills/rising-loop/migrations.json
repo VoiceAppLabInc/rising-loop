@@ -360,6 +360,22 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.5.0",
+      "templates": {
+        "loop": "cc908aed769740de",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": [
+        {
+          "id": "2.5.0-history",
+          "target": "pages",
+          "what": "LOOP_DATA に、一覧の「施策の流れ」（HISTORY）の材料を足す：short（ループの短い名前）・bottlenecks（ボトルネックの移り変わり）・trials[].short と started・records[].short（施策の短い名前）",
+          "detail": "形は references/HTML生成.md「LOOP_DATA の定義」。short は10字くらい、施策の short は12字くらい。bottlenecks は古い順で最後がいまのボトルネック（{ from: \"YYYY-MM-DD\", text: \"考察の結論の一文\", value: そのときの目標の数字 }）。過去の段は LOG（logs/LXX.md）と RECORD・ボトルネックの節から起こし、数字が分からない段は value を書かない（後から計算して埋めない）。分からなければ、いまのボトルネック1行だけでよい。trials[].started は TRIAL に入れた日（LOG から。分からなければ書かない）。頁の markup と施策の id（#record-LXX-TYY / #trial-LXX-TYY）は変えない。全頁を直したら、一覧を直したあとに python3 loops/update/history.py を流す"
+        }
+      ]
     }
   ]
 }
