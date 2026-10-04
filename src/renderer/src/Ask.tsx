@@ -54,12 +54,13 @@ export function AskDialog(p: { req: AskRequest; onAnswer: (value: string | null)
           }}
         />
         {p.req.chips.length > 0 && (
-          // 定型の札。押すと入力欄に入るだけで、送らない
+          // 定型の札。押すと入力欄に入るだけで、送らない。いちばん勧める札（3つ目が true）は目立たせる
           <div className="ask-chips">
-            {p.req.chips.map(([label, text], i) => (
+            {p.req.chips.map(([label, text, main], i) => (
               <Button
                 key={i}
                 size="sm"
+                variant={main ? 'primary' : undefined}
                 onClick={() => {
                   setValue(text)
                   input.current?.focus()

@@ -26,7 +26,7 @@ export function Howto(p: { skillVersion: string; appVersion: string; onClose: ()
           <div>
             <ol className="steps">
               <li>
-                <b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「TRIAL に移す」</b>を選んで送る。実装が全部 ✅ になったら、同じ「指示する」から
+                <b>施策を始めるには</b>、やりたい施策の「📋 指示する」を押して<b>「施策を実行する」</b>を選んで送る。実装が全部 ✅ になったら、同じ「指示する」から
                 <b>「完了にして（評価に移す）」</b>
               </li>
               <li>

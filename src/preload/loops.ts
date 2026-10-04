@@ -24,7 +24,7 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
         title: text(cfg?.title),
         sub: text(cfg?.sub),
         placeholder: text(cfg?.placeholder),
-        chips: Array.isArray(cfg?.chips) ? cfg.chips.filter((c) => Array.isArray(c)).map((c) => [text(c[0]), text(c[1])] as [string, string]) : [],
+        chips: Array.isArray(cfg?.chips) ? cfg.chips.filter((c) => Array.isArray(c)).map((c) => [text(c[0]), text(c[1]), c[2] === true] as [string, string, boolean]) : [],
         value: text(cfg?.value)
       }
       return ipcRenderer.invoke('loops:ask', req)

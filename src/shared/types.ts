@@ -91,14 +91,14 @@ export interface AppUpdate {
 /** 右のチャットで動かす AI */
 /**
  * 殻（2.3.0 から）が window.rlaApp.ask で頼む入力の窓の中身。何を聞くかは殻が決め、アプリは窓を出すだけ。
- * chips は［札の文字, 押したら入力欄に入れる文］の並び
+ * chips は［札の文字, 押したら入力欄に入れる文, 目立たせるか（いちばん勧める札。省略は false）］の並び（2.4.6 から3つ目）
  */
 export interface AskRequest {
   kick: string
   title: string
   sub: string
   placeholder: string
-  chips: [string, string][]
+  chips: [string, string, boolean?][]
   /** 最初から入力欄に入れておく文（更新のボタンなど。空なら何も入れない） */
   value: string
 }

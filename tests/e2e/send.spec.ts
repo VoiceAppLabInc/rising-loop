@@ -106,13 +106,28 @@ test('施策案の［指示する］では説明と札を出し、札は入力�
   const d = (await dialogOf(app))
   await expect(d.getByRole('heading')).toHaveText('施策案 1について')
   await expect(d).toContainText('課金モーダルで、1枚で有料5本すべてが24時間遊べることを見せる')
-  await d.getByRole('button', { name: 'TRIAL に移す' }).click()
-  await expect(d.getByRole('textbox')).toHaveValue('これを TRIAL に移して手順を出して（実装はしない）')
+  // いちばん勧める札［施策を実行する］は目立たせる
+  await expect(d.getByRole('button', { name: '施策を実行する' })).toHaveClass(/btn-primary/)
+  await expect(d.getByRole('button', { name: 'これは消して' })).not.toHaveClass(/btn-primary/)
+  await d.getByRole('button', { name: '施策を実行する' }).click()
+  await expect(d.getByRole('textbox')).toHaveValue('この施策を実行して（TRIAL に移して手順を出す。実装はまだしない）')
   await win.waitForTimeout(500)
   expect(await received('s-L01')()).toHaveLength(0)
   await d.getByRole('button', { name: '送る' }).click()
   await expect.poll(received('s-L01'), { timeout: 15_000 }).toHaveLength(1)
   expect((await received('s-L01')())[0]).toContain('loop: L01⏎section: BOTTLENECK⏎target: 課金モーダルで')
+})
+
+test('TRIAL にいる施策の［指示する］は「TRIAL に移して」と書かず、［完了にして（評価に移す）］を目立たせる', async () => {
+  await startCurrent()
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.ins")')).toBe(true)
+  await inFrame(app, '/L01.html', 'document.querySelector("button.ins").click()')
+  const d = (await dialogOf(app))
+  await expect(d.getByRole('heading')).toHaveText('施策について')
+  await expect(d.getByRole('textbox')).toHaveAttribute('placeholder', /完了にして（評価に移す）/)
+  await expect(d.getByRole('textbox')).not.toHaveAttribute('placeholder', /TRIAL に移して/)
+  await expect(d.getByRole('button', { name: '完了にして（評価に移す）' })).toHaveClass(/btn-primary/)
 })
 
 test('入力の窓は、空のままでは送れず、Esc・［キャンセル］で閉じると何も送らない', async () => {
