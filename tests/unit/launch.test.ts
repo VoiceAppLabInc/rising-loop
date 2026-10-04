@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLAUDE_PROMPT, claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from '../../src/main/launch'
+import { CLAUDE_PROMPT, chatScope, claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from '../../src/main/launch'
 
 describe('claudeArgs', () => {
   const base = { pluginDir: '/app/skill', promptFile: '/data/claude-prompt.md', model: null }
@@ -91,5 +91,29 @@ describe('コマンド実行の確認のモード', () => {
   it('すべて自動で許可：codex は確認も囲いも外して起動する', () => {
     const a = codexArgs({ threadId: 't', instructions: 'x', autoApprove: true })
     expect(a.indexOf('--dangerously-bypass-approvals-and-sandbox')).toBeLessThan(a.indexOf('resume'))
+  })
+})
+
+describe('chatScope（そのチャットの担当）', () => {
+  it('ループのチャットは、そのループの頁が担当で、loop: の無い話はそのループの話として扱う', () => {
+    const s = chatScope('s-L03')
+    expect(s).toContain('ループ L03')
+    expect(s).toContain('loops/L03.html')
+    expect(s).toContain('loop: が無い')
+    expect(s).toContain('ほかのループの頁（loops/LXX.html）と一覧（loops/index.html）は直さない')
+    // 手順書の指示が担当の決まりと食い違うときは、手順書を優先する
+    expect(s).toContain('/rising-loop の手順')
+  })
+  it('一覧のチャットは、一覧・ループの追加・全ループ更新・プロジェクト全体の担当', () => {
+    const s = chatScope('s-list')
+    expect(s).toContain('ループ一覧')
+    expect(s).toContain('loops/index.html')
+    expect(s).toContain('ループの追加')
+    expect(s).toContain('全ループ更新')
+  })
+  it('起動時の指示は、共通の指示のあとに担当を足したもの（claude・codex とも）', () => {
+    expect(claudePrompt('s-L03')).toBe(CLAUDE_PROMPT + '\n\n' + chatScope('s-L03'))
+    expect(codexInstructions('/x', 's-L03')).toContain(chatScope('s-L03'))
+    expect(codexInstructions('/x')).not.toContain('このチャットの担当')
   })
 })

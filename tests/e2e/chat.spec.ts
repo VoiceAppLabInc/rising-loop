@@ -49,6 +49,8 @@ test('右の窓で AI がプロジェクトのフォルダで起動し、同梱�
   expect(s.argv[s.argv.indexOf('--plugin-dir') + 1]).toBe(resolve('skill'))
   const promptFile = s.argv[s.argv.indexOf('--append-system-prompt-file') + 1]
   expect(readFileSync(promptFile, 'utf8')).toContain('rising-loop:rising-loop')
+  // そのチャットの担当（一覧のチャット）も渡す
+  expect(readFileSync(promptFile, 'utf8')).toContain('# このチャットの担当: ループ一覧（loops/index.html）')
   // Claude Code の中から起動しても、その目印は渡さない
   expect(s.claudecode).toBeNull()
 })

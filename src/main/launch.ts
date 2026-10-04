@@ -8,8 +8,37 @@ export const CLAUDE_PROMPT = `rising-loop のスキルは、プラグインの r
 /** ループが無いプロジェクトで、最初にチャットへ送る依頼。claude と codex のどちらにも通じるよう、スラッシュコマンドにしない */
 export const KICKOFF = 'rising-loop を始めます。まず /rising-loop を呼び出して最新の手順を読み、それに従ってください。'
 
-/** codex にはスキルの場所を足す手段が無いので、起動時の指示で場所を伝える */
-export function codexInstructions(skillDir: string): string {
+/**
+ * そのチャットの担当（起動時の指示の最後に足す）。チャットは画面ごとに1つずつあり、ユーザーはその画面を見ながら話す。
+ * ボタンから来る指示文には loop: があるが、ユーザーが直接打った文には無いので、どの画面のチャットかを AI に教えておく
+ */
+export function chatScope(screen: string): string {
+  const id = screen.replace(/^s-/, '')
+  if (screen === 's-list')
+    return `# このチャットの担当: ループ一覧（loops/index.html）
+- このチャットは、Rising Loop の一覧の画面の右に出ている。ユーザーは一覧を見ながら話している。
+- 受け持つのは、一覧の画面（ヘッダ・主要な数字・ループの行）、ループの追加、全ループ更新、プロジェクト全体の話。
+- 指示の先頭に loop: が無いとき（ユーザーが直接打った文など）は、一覧かプロジェクト全体についての話として扱う。
+- 1つのループの頁（loops/LXX.html）の中身だけを直す話は、そのループの頁の右のチャットのほうが向いている。ただし /rising-loop の手順（全ループ更新・ループの追加など）がここから各ループの頁を直すように言うときは、その手順に従う。`
+  return `# このチャットの担当: ループ ${id}（loops/${id}.html）
+- このチャットは、Rising Loop の画面「${id}」の右に出ている。ユーザーは ${id} の頁を見ながら話している。
+- 指示の先頭に loop: が無いとき（ユーザーが直接打った文など）は、${id} についての話として扱う。「この数字」「このグラフ」「この施策」は ${id} の頁の中のもの。
+- 直してよいのは ${id} のものだけ: loops/${id}.html、loops/update/${id}.py、loops/logs/${id}.md。
+- ほかのループの頁（loops/LXX.html）と一覧（loops/index.html）は直さない。ほかのループや一覧の話が来たら、その画面の右のチャットで頼むよう、ひとことで伝える。
+- ただし /rising-loop の手順が、このループの作業の一部として一覧（loops/index.html）の ${id} の行などを直すように言うときは、その手順に従う。`
+}
+
+/** claude の起動時の指示（--append-system-prompt-file に書く）。共通の指示のあとに、そのチャットの担当 */
+export function claudePrompt(screen: string): string {
+  return CLAUDE_PROMPT + '\n\n' + chatScope(screen)
+}
+
+/** codex にはスキルの場所を足す手段が無いので、起動時の指示で場所を伝える。screen があれば、そのチャットの担当も足す */
+export function codexInstructions(skillDir: string, screen?: string): string {
+  return codexBase(skillDir) + (screen ? '\n\n' + chatScope(screen) : '')
+}
+
+function codexBase(skillDir: string): string {
   return `rising-loop のスキルは ${skillDir} にある。「/rising-loop を呼び出して」と言われたら、まずこのフォルダの SKILL.md を読んで従う。同じフォルダの references/ と assets/ もこのスキルの一部。SKILL.md などに出てくる <スキル> は、このフォルダのこと。ほかの場所にある rising-loop は使わない。
 この会話は Rising Loop の右のチャットとして動いている。
 画面（loops/）はアプリが、書き終わるのを待って自動で読み込み直す。ユーザーに「画面を再読み込みしてください」と頼まない（画面に再読み込みのボタンは無い）。`

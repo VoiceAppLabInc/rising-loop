@@ -9,7 +9,7 @@ import * as pty from 'node-pty'
 import type { WebFrameMain } from 'electron'
 import { pasteForTerminal } from '@shared/intercept'
 import type { AiKind, Project } from '@shared/types'
-import { CLAUDE_PROMPT, claudeArgs, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from './launch'
+import { claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from './launch'
 import { childEnv, killTree } from './platform'
 import { resolveCli } from './aiCli'
 import { findSession, loadBook, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
@@ -103,13 +103,10 @@ export class Chats {
   private terms = new Map<string, Term>()
   /** 刷新のために止めたプロセス（「終了しました」を出さない） */
   private killed = new WeakSet<pty.IPty>()
-  private promptFile: string
   private bookFile: string
 
   constructor(private paths: ChatPaths) {
     mkdirSync(paths.dataDir, { recursive: true })
-    this.promptFile = join(paths.dataDir, 'claude-prompt.md')
-    writeFileSync(this.promptFile, CLAUDE_PROMPT)
     this.bookFile = join(paths.dataDir, 'sessions.json')
   }
 
@@ -316,7 +313,10 @@ export class Chats {
       }
       // 新しい会話を始めるときは、そう出す（版が変わった・刷新した・初めて）
       if (!id) this.out(t, `\x1b[2m新しい会話を始めます（スキル ${this.paths.skillVersion}）\x1b[0m\r\n`)
-      const instructions = codexInstructions(this.paths.skillDir)
+      // 起動時の指示に、そのチャットの担当（どの画面のチャットか）を入れる
+      const instructions = codexInstructions(this.paths.skillDir, screen)
+      const promptFile = join(this.paths.dataDir, `claude-prompt-${screen}.md`)
+      if (ai === 'claude') writeFileSync(promptFile, claudePrompt(screen))
       if (ai === 'claude') id ??= randomUUID()
       else if (!id) {
         this.out(t, 'codex の会話を作っています（30秒ほど）…\r\n')
@@ -334,7 +334,7 @@ export class Chats {
       const prompt = first?.text
       const args =
         ai === 'claude'
-          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile: this.promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
+          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
           : codexArgs({ threadId: id, instructions, prompt, autoApprove: project.perm === 'auto' })
       const proc = pty.spawn(cmd.file, [...cmd.args, ...args], { name: 'xterm-256color', cols: t.cols, rows: t.rows, cwd: project.folder, env: env as Record<string, string> })
       t.proc = proc
