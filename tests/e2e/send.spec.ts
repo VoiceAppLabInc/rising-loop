@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
@@ -128,6 +128,21 @@ test('TRIAL にいる施策の［指示する］は「TRIAL に移して」と�
   await expect(d.getByRole('textbox')).toHaveAttribute('placeholder', /完了にして（評価に移す）/)
   await expect(d.getByRole('textbox')).not.toHaveAttribute('placeholder', /TRIAL に移して/)
   await expect(d.getByRole('button', { name: '完了にして（評価に移す）' })).toHaveClass(/btn-primary/)
+})
+
+test('AI に送るボタンは「AI に相談」「指示する」と出し、白地・細い実線・頭に吹き出し（頁の HTML は書き換えない）', async () => {
+  await startCurrent()
+  // ボタンの [文字, 地の色, 線の種類, 頭のアイコンがあるか]
+  const look = (sel: string) =>
+    `(function(){ var b = document.querySelector(${JSON.stringify(sel)}), cs = getComputedStyle(b), be = getComputedStyle(b, '::before'); return [b.textContent.trim(), cs.backgroundColor, cs.borderTopStyle, /svg/.test(be.webkitMaskImage || be.maskImage || '')] })()`
+  await expect.poll(async () => (await inLoops(app, folder, look('#s-list button.cmt')))?.value).toEqual(['AI に相談', 'rgb(255, 255, 255)', 'solid', true])
+  expect((await inLoops(app, folder, look('#s-list button.upd')))?.value).toEqual(['全ループ更新', 'rgb(255, 255, 255)', 'solid', true])
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.cmt")')).toBe(true)
+  await expect.poll(() => inFrame(app, '/L01.html', look('.section.t-goal button.cmt'))).toEqual(['AI に相談', 'rgb(255, 255, 255)', 'solid', true])
+  expect(await inFrame(app, '/L01.html', look('button.record-comment'))).toEqual(['指示する', 'rgb(255, 255, 255)', 'solid', true])
+  // 頁の HTML の文字はそのまま（画面で置き換えているだけ）
+  expect(readFileSync(join(folder, 'loops', 'L01.html'), 'utf8')).toContain('>コメント</button>')
 })
 
 test('入力の窓は、空のままでは送れず、Esc・［キャンセル］で閉じると何も送らない', async () => {
