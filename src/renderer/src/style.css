@@ -161,7 +161,6 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 
 /* コメント・指示の入力の窓（2.3.0 からの殻が頼む） */
 .dialog.ask { width: 540px; max-width: calc(100vw - 32px); }
-.ask-kick { margin-bottom: 6px; color: var(--sub); font: 700 10px ui-monospace, monospace; letter-spacing: 0.12em; }
 .dialog .ask-sub { color: var(--sub); white-space: pre-wrap; }
 .ask-input { display: block; width: 100%; min-height: 110px; margin-top: 10px; padding: 10px 12px; border: 1px solid #d3d5da; border-radius: 8px; font: inherit; font-size: 14px; line-height: 1.7; resize: vertical; }
 .ask-input:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px var(--ring); }

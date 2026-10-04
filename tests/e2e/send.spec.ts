@@ -83,18 +83,20 @@ async function startCurrent(): Promise<void> {
 }
 const clipWrites = async () => (await inLoops(app, folder, 'window.__clip'))?.value
 
-test('コメントを押すとアプリの入力の窓が出て、［送る］で指示文がチャットに届く（クリップボードは使わない）', async () => {
+test('一覧の上の［カスタマイズ］を押すとアプリの入力の窓が出て、［送る］で HEADER あての指示文がチャットに届く（クリップボードは使わない）', async () => {
   await startCurrent()
   await inLoops(app, folder, 'document.querySelector("#s-list button.cmt").click()')
   const d = (await dialogOf(app))
-  await expect(d).toContainText('COMMENT')
-  await expect(d.getByRole('heading')).toHaveText('ループ一覧について')
+  // 窓の上の小見出しは出さない
+  await expect(d).not.toContainText('COMMENT')
+  await expect(d.getByRole('heading')).toHaveText('ヘッダエリアをカスタマイズ')
+  await expect(d).toContainText('ヘッダエリアの要素やレイアウトをカスタマイズします。')
   await expect(d.locator('.ask-chips')).toHaveCount(0)
   await d.getByRole('textbox').fill('もっと見やすくして')
   await d.getByRole('button', { name: '送る' }).click()
   await expect(d).toHaveCount(0)
   await expect.poll(received('s-list'), { timeout: 15_000 }).toHaveLength(1)
-  expect((await received('s-list')())[0]).toBe('受信: ---⏎loop: ⏎section: LOOPS⏎rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと⏎feedback: |⏎  もっと見やすくして⏎---')
+  expect((await received('s-list')())[0]).toBe('受信: ---⏎loop: ⏎section: HEADER⏎rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと⏎feedback: |⏎  もっと見やすくして⏎---')
   expect(await clipWrites()).toBe(0)
 })
 
@@ -130,19 +132,28 @@ test('TRIAL にいる施策の［指示する］は「TRIAL に移して」と�
   await expect(d.getByRole('button', { name: '完了にして（評価に移す）' })).toHaveClass(/btn-primary/)
 })
 
-test('AI に送るボタンは「AI に相談」「指示する」と出し、白地・細い実線・頭に吹き出し（頁の HTML は書き換えない）', async () => {
+test('セクションは［カスタマイズ］、項目は［AIに指示］と出し、白地・細い実線・頭に吹き出し。施策の実行・評価のセクションのボタンは出さず、評価の［AIに指示］は題の右、TRIAL の状態は題の下（頁の HTML は書き換えない）', async () => {
   await startCurrent()
   // ボタンの [文字, 地の色, 線の種類, 頭のアイコンがあるか]
   const look = (sel: string) =>
     `(function(){ var b = document.querySelector(${JSON.stringify(sel)}), cs = getComputedStyle(b), be = getComputedStyle(b, '::before'); return [b.textContent.trim(), cs.backgroundColor, cs.borderTopStyle, /svg/.test(be.webkitMaskImage || be.maskImage || '')] })()`
-  await expect.poll(async () => (await inLoops(app, folder, look('#s-list button.cmt')))?.value).toEqual(['AI に相談', 'rgb(255, 255, 255)', 'solid', true])
+  await expect.poll(async () => (await inLoops(app, folder, look('#s-list button.cmt')))?.value).toEqual(['カスタマイズ', 'rgb(255, 255, 255)', 'solid', true])
   expect((await inLoops(app, folder, look('#s-list button.upd')))?.value).toEqual(['全ループ更新', 'rgb(255, 255, 255)', 'solid', true])
   await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
   await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.cmt")')).toBe(true)
-  await expect.poll(() => inFrame(app, '/L01.html', look('.section.t-goal button.cmt'))).toEqual(['AI に相談', 'rgb(255, 255, 255)', 'solid', true])
-  expect(await inFrame(app, '/L01.html', look('button.record-comment'))).toEqual(['指示する', 'rgb(255, 255, 255)', 'solid', true])
+  await expect.poll(() => inFrame(app, '/L01.html', look('.section.t-goal button.cmt'))).toEqual(['カスタマイズ', 'rgb(255, 255, 255)', 'solid', true])
+  expect(await inFrame(app, '/L01.html', look('.section.t-bottleneck button.cmt'))).toEqual(['カスタマイズ', 'rgb(255, 255, 255)', 'solid', true])
+  expect(await inFrame(app, '/L01.html', look('button.do'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
+  expect(await inFrame(app, '/L01.html', look('button.ins'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
+  expect(await inFrame(app, '/L01.html', look('button.record-comment'))).toEqual(['AIに指示', 'rgb(255, 255, 255)', 'solid', true])
+  // 施策の実行・施策の評価のセクションのボタンは出さない
+  expect(await inFrame(app, '/L01.html', 'document.querySelectorAll(".section.t-trial > .sec-right button.cmt, .section.t-record > .sec-right button.cmt").length')).toBe(0)
+  // 評価の［AIに指示］は題の右（.record-top の中）、TRIAL の状態の一文は題の下の段（.trial-top の外）
+  expect(await inFrame(app, '/L01.html', '!!document.querySelector(".record-top > button.record-comment")')).toBe(true)
+  expect(await inFrame(app, '/L01.html', 'document.querySelectorAll(".trial-top .trial-status").length + ":" + document.querySelectorAll(".trial > .trial-status").length')).toBe('0:2')
   // 頁の HTML の文字はそのまま（画面で置き換えているだけ）
   expect(readFileSync(join(folder, 'loops', 'L01.html'), 'utf8')).toContain('>コメント</button>')
+  expect(readFileSync(join(folder, 'loops', 'L01.html'), 'utf8')).toContain('>この施策にコメント</button>')
 })
 
 test('［ループを追加］の札は、殻の CONST の LOOP_IDEAS（このプロジェクトの候補）から出す。無ければ汎用の例', async () => {

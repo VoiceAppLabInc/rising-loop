@@ -39,7 +39,6 @@ export function AskDialog(p: { req: AskRequest; onAnswer: (value: string | null)
       }}
     >
       <div className="dialog ask" role="dialog" aria-modal="true" aria-labelledby="ask-title">
-        {p.req.kick && <div className="ask-kick">{p.req.kick}</div>}
         <h2 id="ask-title">{p.req.title}</h2>
         {p.req.sub && <p className="ask-sub">{p.req.sub}</p>}
         <textarea
