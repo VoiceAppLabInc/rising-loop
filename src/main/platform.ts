@@ -153,6 +153,14 @@ export function withBundledPython(env: NodeJS.ProcessEnv, dir: string, platform:
  * Mac は ⌘[ ⌘] と ⌘← ⌘→、Windows などは Alt+← Alt+→。ほかの修飾キーが混ざっていれば何もしない。
  * 戻る・進む専用のキー（BrowserBack・BrowserForward。一部のキーボードにある）は、どの OS でも修飾キーなしで効く
  */
+/** 画面を自分で読み込み直すキー。F5（修飾なし）と、Mac は ⌘R・ほかは Ctrl+R */
+export function isReloadKey(input: { type: string; key: string; meta: boolean; control: boolean; alt: boolean; shift: boolean }, platform: Platform): boolean {
+  if (input.type !== 'keyDown') return false
+  if (input.key === 'F5') return !input.meta && !input.control && !input.alt && !input.shift
+  if (input.key.toLowerCase() !== 'r' || input.alt || input.shift) return false
+  return platform === 'darwin' ? input.meta && !input.control : input.control && !input.meta
+}
+
 export function navKeyDir(
   input: { type: string; key: string; meta: boolean; control: boolean; alt: boolean; shift: boolean },
   platform: Platform

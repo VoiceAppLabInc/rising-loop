@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { classifyChange, mergeChanges } from '../../src/shared/reload'
+import { classifyChange, diffStamps, mergeChanges } from '../../src/shared/reload'
 
 describe('classifyChange', () => {
   it('ループの頁はその頁だけ', () => {
@@ -32,5 +32,17 @@ describe('mergeChanges', () => {
   })
   it('何も無ければ null', () => {
     expect(mergeChanges([])).toBeNull()
+  })
+})
+
+describe('diffStamps（OS の知らせが届かない場所のための見比べ）', () => {
+  it('増えた・消えた・更新日時か大きさが変わったファイルの名前を返す', () => {
+    const prev = new Map([['L01.html', '1:10'], ['index.html', '1:20'], ['old.js', '1:5']])
+    const cur = new Map([['L01.html', '2:10'], ['index.html', '1:20'], ['new.js', '3:1']])
+    expect(diffStamps(prev, cur).sort()).toEqual(['L01.html', 'new.js', 'old.js'])
+  })
+  it('何も変わっていなければ空', () => {
+    const s = new Map([['L01.html', '1:10']])
+    expect(diffStamps(s, new Map(s))).toEqual([])
   })
 })

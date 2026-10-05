@@ -16,3 +16,14 @@ export function mergeChanges(changes: Change[]): 'shell' | { pages: string[] } |
   if (changes.includes('shell')) return 'shell'
   return { pages: [...new Set(changes.map((c) => (c as { page: string }).page))] }
 }
+
+/** loops/ 直下のファイルの「更新日時:大きさ」。OS の知らせが届かない場所（WSL の \\wsl.localhost など）でも、これを見比べれば変化が分かる */
+export type Stamps = Map<string, string>
+
+/** 前と今の見比べで、増えた・消えた・変わったファイルの名前 */
+export function diffStamps(prev: Stamps, cur: Stamps): string[] {
+  const out: string[] = []
+  for (const [n, s] of cur) if (prev.get(n) !== s) out.push(n)
+  for (const n of prev.keys()) if (!cur.has(n)) out.push(n)
+  return out
+}

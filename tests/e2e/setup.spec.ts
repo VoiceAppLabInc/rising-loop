@@ -56,7 +56,7 @@ test('ループが無いあいだの見出しは、フォルダに資料を入�
   await expect.poll(async () => { const [h, c] = await edges(); return h === c }).toBe(true)
   const wide = (await edges())[0]
   await setWidth(800)
-  await expect.poll(async () => { const [h, c] = await edges(); return h === c && h > wide }).toBe(true)
+  await expect.poll(async () => { const [h, c] = await edges(); return h === c && (h ?? 0) > (wide ?? 0) }).toBe(true)
 })
 
 test('ループが無いフォルダは、新しいプロジェクトにしてよいかを聞き、［やめる］なら追加しない', async () => {

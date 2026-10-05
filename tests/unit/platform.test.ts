@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cliCandidatesIn, findCliIn, installCommand, killCommand, loginArgs, navKeyDir, needsBundledPython, parseLoggedIn, resolveWinShim, windowChrome, withBundledPython } from '../../src/main/platform'
+import { cliCandidatesIn, findCliIn, installCommand, killCommand, isReloadKey, loginArgs, navKeyDir, needsBundledPython, parseLoggedIn, resolveWinShim, windowChrome, withBundledPython } from '../../src/main/platform'
 
 const fsOf = (files: Record<string, string>) => ({
   exists: (p: string) => p in files,
@@ -197,5 +197,27 @@ describe('同梱の Python を使うか', () => {
   it('PATH の先頭に足す（Mac は bin、Windows はフォルダそのもの。Windows は Path の名前のままにする）', () => {
     expect(withBundledPython({ PATH: '/usr/bin' }, '/App/Resources/python', 'darwin')).toEqual({ PATH: '/App/Resources/python/bin:/usr/bin' })
     expect(withBundledPython({ Path: 'C:\\Windows' }, 'C:\\App\\python', 'win32')).toEqual({ Path: 'C:\\App\\python;C:\\App\\python\\Scripts;C:\\Windows' })
+  })
+})
+
+describe('isReloadKey（画面を自分で読み込み直すキー）', () => {
+  const k = (key: string, mods: Partial<{ meta: boolean; control: boolean; alt: boolean; shift: boolean }> = {}) => ({ type: 'keyDown', key, meta: false, control: false, alt: false, shift: false, ...mods })
+  it('F5 はどの OS でも。修飾が付いたら違う', () => {
+    expect(isReloadKey(k('F5'), 'win32')).toBe(true)
+    expect(isReloadKey(k('F5'), 'darwin')).toBe(true)
+    expect(isReloadKey(k('F5', { control: true }), 'win32')).toBe(false)
+  })
+  it('Mac は ⌘R、ほかは Ctrl+R', () => {
+    expect(isReloadKey(k('r', { meta: true }), 'darwin')).toBe(true)
+    expect(isReloadKey(k('r', { control: true }), 'darwin')).toBe(false)
+    expect(isReloadKey(k('r', { control: true }), 'win32')).toBe(true)
+    expect(isReloadKey(k('R', { control: true }), 'win32')).toBe(true)
+    expect(isReloadKey(k('r', { meta: true }), 'win32')).toBe(false)
+  })
+  it('Shift・Alt が付いたもの、離したとき、ただの r は違う', () => {
+    expect(isReloadKey(k('r', { control: true, shift: true }), 'win32')).toBe(false)
+    expect(isReloadKey(k('r', { meta: true, alt: true }), 'darwin')).toBe(false)
+    expect(isReloadKey({ ...k('r', { control: true }), type: 'keyUp' }, 'win32')).toBe(false)
+    expect(isReloadKey(k('r'), 'win32')).toBe(false)
   })
 })

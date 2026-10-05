@@ -1,12 +1,12 @@
 // プロジェクトごとのループの画面（loops/index.html）。1プロジェクトに1つの WebContentsView を持ち、
 // 切り替えは表示を入れ替えるだけにする（読み込み直さない）。
-import { existsSync, readFileSync, watch, type FSWatcher } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync, watch } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BrowserWindow, WebContentsView, net, session, webFrameMain, type Session } from 'electron'
 import { PANE_PORT, parsePaneUrl, screenOfUrl } from '@shared/intercept'
 import { compareVersions } from '@shared/migrate'
-import { navKeyDir } from './platform'
-import { classifyChange, mergeChanges, type Change } from '@shared/reload'
+import { isReloadKey, navKeyDir } from './platform'
+import { classifyChange, diffStamps, mergeChanges, type Change, type Stamps } from '@shared/reload'
 import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
@@ -23,6 +23,11 @@ const APP_CHAT_FROM = '2.2.0'
 
 /** 変更が止まってから読み込み直すまでの時間（AI が書いている途中の画面を出さない） */
 const QUIET_MS = 1500
+/**
+ * loops/ 直下の更新日時を見比べる間。OS の知らせ（fs.watch）が届かない場所でも画面を新しくするため。
+ * Windows から WSL の中（\\wsl.localhost\…）を開くと、知らせが一切来なかった（2026-10-05、0.2.3 の苦情）
+ */
+const POLL_MS = 2000
 
 /** ループの画面だけが使うセッション。右の窓の横取りをアプリの周りの画面に効かせないため */
 const PARTITION = 'persist:loops'
@@ -49,7 +54,7 @@ export class ProjectViews {
   private views = new Map<string, WebContentsView>()
   /** ループが無いプロジェクトの、全面のチャット（右の窓と同じページ） */
   private setups = new Map<string, WebContentsView>()
-  private watchers = new Map<string, FSWatcher>()
+  private watchers = new Map<string, { close(): void }>()
   /** 右の窓を開いているか（プロジェクトごと。既定は開く）。2.1.x の殻には rising.js の LOOP_SET_PANE で当てる */
   private panes = new Map<string, boolean>()
   /** 2.2.0 からの殻のプロジェクトの、アプリが出す右のチャットの窓 */
@@ -170,6 +175,12 @@ export class ProjectViews {
     v.webContents.on('did-navigate', () => this.navigated())
     // Chrome・Safari と同じキーで戻る・進む（右のチャットの窓では効かない。そちらは入力の行の移動に使う）
     v.webContents.on('before-input-event', (e, input) => {
+      // F5・Ctrl+R（Mac は ⌘R）で、自分で読み込み直す（自動で新しくならないときの逃げ道）
+      if (isReloadKey(input, process.platform)) {
+        e.preventDefault()
+        v.webContents.reload()
+        return
+      }
       const dir = navKeyDir(input, process.platform)
       if (!dir) return
       e.preventDefault()
@@ -338,28 +349,72 @@ export class ProjectViews {
     this.watchers.clear()
   }
 
-  /** AI が loops/ の画面を書き換えたら、書き終わるのを待って読み込み直す */
+  /**
+   * AI が loops/ の画面を書き換えたら、書き終わるのを待って読み込み直す。
+   * 気づき方は2つ：OS の知らせ（fs.watch。速い）と、POLL_MS ごとの更新日時の見比べ（OS の知らせが届かない場所の分）。
+   * 読み込み直すときに見比べの元を取り直すので、両方が同じ変化に気づいても1回しか読み込み直さない
+   */
   private watch(id: string, folder: string, v: WebContentsView): void {
+    const dir = join(folder, 'loops')
     let changes: Change[] = []
     let timer: NodeJS.Timeout | null = null
-    try {
-      const w = watch(join(folder, 'loops'), (_event, name) => {
-        const c = classifyChange(name == null ? null : String(name))
-        if (!c) return
-        changes.push(c)
-        if (timer) clearTimeout(timer)
-        timer = setTimeout(() => {
-          const m = mergeChanges(changes)
-          changes = []
-          if (m && !v.webContents.isDestroyed()) void this.reload(v, m)
-          if (m) this.changed()
-        }, QUIET_MS)
-      })
-      w.on('error', () => w.close())
-      this.watchers.set(id, w)
-    } catch {
-      // 見張れないフォルダ（消された・権限が無い）は、読み込み直さないだけにする
+    const scan = (): Stamps => {
+      const out: Stamps = new Map()
+      try {
+        for (const e of readdirSync(dir, { withFileTypes: true })) {
+          if (!e.isFile()) continue
+          try {
+            const s = statSync(join(dir, e.name))
+            out.set(e.name, `${s.mtimeMs}:${s.size}`)
+          } catch {
+            // 書き換えの途中で消えたファイルは、次の見比べで拾う
+          }
+        }
+      } catch {
+        // フォルダが読めない（消された・つながっていない）あいだは、何も変わっていないことにする
+      }
+      return out
     }
+    let seen = scan()
+    const note = (name: string | null) => {
+      const c = classifyChange(name)
+      if (!c) return
+      changes.push(c)
+      if (timer) clearTimeout(timer)
+      timer = setTimeout(() => {
+        timer = null
+        seen = scan()
+        const m = mergeChanges(changes)
+        changes = []
+        if (m && !v.webContents.isDestroyed()) void this.reload(v, m)
+        if (m) this.changed()
+      }, QUIET_MS)
+    }
+    let w: ReturnType<typeof watch> | null = null
+    try {
+      // テストで「OS の知らせが来ない場所」を作るときは見張らない（見比べだけで気づくかを確かめる）
+      if (process.env.RISING_LOOP_NO_FSWATCH === '1') throw new Error('no fs.watch')
+      w = watch(dir, (_event, name) => note(name == null ? null : String(name)))
+      // 見張りが壊れても、見比べのほうで続ける
+      w.on('error', () => w?.close())
+    } catch {
+      // 見張れない場所でも、見比べのほうで気づく
+    }
+    const poll = setInterval(() => {
+      if (timer) return // 書き終わりを待っているあいだは見比べない（読み込み直すときに取り直す）
+      const cur = scan()
+      const names = diffStamps(seen, cur)
+      if (!names.length) return
+      seen = cur
+      for (const n of names) note(n)
+    }, POLL_MS)
+    this.watchers.set(id, {
+      close: () => {
+        w?.close()
+        clearInterval(poll)
+        if (timer) clearTimeout(timer)
+      }
+    })
   }
 
   /** 殻が変わったら画面全体、頁だけならその頁の iframe を読み込み直す。右の窓は開き直されても続きを出す */
