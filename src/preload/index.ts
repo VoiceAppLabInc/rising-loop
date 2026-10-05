@@ -2,6 +2,9 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { AiKind, AiStatus, AskRequest, DialogRequest, PermMode, ProjectsSnapshot } from '@shared/types'
 
+/** キーの決まりに使う OS。main に聞く（sandbox の preload には process.env が無い。テストでは main が Windows のふりをする） */
+const PLATFORM = String(ipcRenderer.sendSync('app:platform') || process.platform)
+
 const api = {
   /** ウィンドウのボタンがタブの列のどちら側に来るか（main/platform.ts の windowChrome と合わせる） */
   controls: process.platform === 'darwin' ? 'left' : process.platform === 'win32' ? 'right' : 'none',
@@ -12,6 +15,15 @@ const api = {
   selectProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:select', id),
   noticed: (id: string, formKey: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:noticed', id, formKey),
   setCovered: (on: boolean): void => ipcRenderer.send('ui:covered', on),
+  /**
+   * ログインのターミナルのコピーと貼り付け。キーの決まり（shared/termKeys.ts）は画面の側（termClipboard.ts）で使う。
+   * ★ここで shared/termKeys を import しない。preload が2つとも同じものを読むと別のファイルに切り出され、sandbox の preload は読めずに丸ごと止まる
+   */
+  clip: {
+    platform: PLATFORM,
+    copy: (t: string): void => ipcRenderer.send('clip:write', String(t)),
+    paste: (): Promise<string> => ipcRenderer.invoke('clip:read')
+  },
   /** ループが無いときの見出しの高さ。全面のチャットをその下に置く */
   setupHead: (h: number): void => ipcRenderer.send('ui:setup-head', h),
   migrate: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:migrate', id),

@@ -2,7 +2,7 @@ import { execFile, spawn } from 'node:child_process'
 import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { BrowserWindow, Menu, WebContentsView, app, dialog, ipcMain, net, shell } from 'electron'
+import { BrowserWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, net, shell } from 'electron'
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
@@ -676,6 +676,13 @@ ipcMain.on('ui:covered', (_e, on: boolean) => {
   views?.setCovered(covered)
   layoutOverlay()
 })
+// 画面がキーの決まりに使う OS（テストでは RISING_LOOP_TEST_PLATFORM で Windows のふりをさせる）
+ipcMain.on('app:platform', (e) => {
+  e.returnValue = process.env.RISING_LOOP_TEST_PLATFORM || process.platform
+})
+// ターミナル（右の窓・全面のチャット・ログイン）のコピーと貼り付け。画面は sandbox なのでクリップボードは main が持つ
+ipcMain.on('clip:write', (_e, t: string) => clipboard.writeText(String(t)))
+ipcMain.handle('clip:read', () => clipboard.readText())
 // ループが無いときの見出しの高さ（画面が測って伝える）。全面のチャットをその下に置く
 ipcMain.on('ui:setup-head', (_e, h: number) => views?.setSetupHead(h))
 // カードの大きさ（カードの層が伝える）

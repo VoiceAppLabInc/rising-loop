@@ -7,6 +7,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import type { AiKind, AiStatus } from '@shared/types'
 import { Button } from './Button'
+import { attachClipboard } from './termClipboard'
 
 const NAME: Record<AiKind, string> = { claude: 'Claude Code', codex: 'Codex' }
 const STATE_LABEL: Record<AiStatus['state'], string> = {
@@ -113,8 +114,11 @@ function ToolTerminal(p: { ai: AiKind; kind: 'install' | 'login'; done: number |
     const offData = window.rla.onToolData((d) => term.write(d))
     const offExit = window.rla.onToolExit((code) => p.onExit(code))
     term.onData((d) => window.rla.toolInput(d))
+    // ログインのコードを貼れるように（Windows は Ctrl+V・右クリック。Mac は ⌘V）
+    const offClip = attachClipboard(term, box.current!, window.rla.clip)
     void window.rla.runTool(p.ai, p.kind, term.cols, term.rows)
     return () => {
+      offClip()
       offData()
       offExit()
       window.rla.toolStop()

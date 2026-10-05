@@ -1,7 +1,11 @@
 // ループの画面（スキルの HTML）と、その中の右の窓に差し込む。画面のファイルは書き換えない。
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { PANE_PORT, isInstruction } from '@shared/intercept'
+import { rightClickClipboard, termKeyAction, type KeyLike } from '@shared/termKeys'
 import type { AskRequest } from '@shared/types'
+
+/** キーの決まりに使う OS。main に聞く（sandbox の preload には process.env が無い。テストでは main が Windows のふりをする） */
+const PLATFORM = String(ipcRenderer.sendSync('app:platform') || process.platform)
 
 if (location.protocol === 'http:' && location.port === PANE_PORT) {
   // 右の窓（アプリが localhost:7681 として出すページ）。ターミナルの入出力を main とやり取りする
@@ -11,6 +15,14 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
     resize: (screen: string, cols: number, rows: number) => ipcRenderer.send('pane:resize', { screen, cols, rows }),
     onData: (cb: (d: string) => void) => {
       ipcRenderer.on('pane:data', (_e: IpcRendererEvent, d: string) => cb(d))
+    },
+    // コピーと貼り付け（Windows・Linux のキーと右クリック。どうするかは shared/termKeys.ts が決める）
+    // ★shared/termKeys を import する preload はここだけにする（2つで読むと別のファイルに切り出され、sandbox で読めずに止まる）
+    clip: {
+      action: (e: KeyLike, hasSelection: boolean) => termKeyAction(e, hasSelection, PLATFORM),
+      rightClick: rightClickClipboard(PLATFORM),
+      copy: (t: string) => ipcRenderer.send('clip:write', String(t)),
+      paste: (): Promise<string> => ipcRenderer.invoke('clip:read')
     }
   })
 } else {
