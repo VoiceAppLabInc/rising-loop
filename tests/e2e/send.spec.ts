@@ -215,3 +215,26 @@ test('［全ループ更新］［更新］は1回押しただけでは送らず�
   await expect.poll(received('s-L01'), { timeout: 15_000 }).toHaveLength(1)
   expect((await received('s-L01')())[0]).toContain('loop: L01⏎section: GOAL⏎rule: まず /rising-loop を呼び出して最新の手順を読み、それに従うこと⏎task: |⏎  このループを更新して。売上だけでいい⏎---')
 })
+
+test('施策の評価の［AIに指示］は、頁の書き方が揺れても「評価中の施策について」の窓を出す（施策名は data-sec の「」→ data-text → 施策の題）', async () => {
+  await startCurrent()
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector(".record-top > button.record-comment")')).toBe(true)
+  const open = async (attrs: string) => {
+    await inFrame(app, '/L01.html', `(function(){ var b = document.querySelector("button.record-comment"); ${attrs}; b.click(); return 1 })()`)
+    const d = await dialogOf(app)
+    await expect(d.getByRole('heading')).toHaveText('評価中の施策について')
+    return d
+  }
+  // 施策名が data-text にある書き方（data-sec は「施策の評価」だけ）
+  let d = await open('b.setAttribute("data-sec", "施策の評価"); b.setAttribute("data-text", "台本を1本書く")')
+  await expect(d).toContainText('台本を1本書く')
+  await expect(d.locator('.ask-chips button')).toHaveText(['評価を見直して', '判定を確定して', 'この認識は違う', 'これは消して'])
+  await d.getByRole('button', { name: 'キャンセル' }).click()
+  await expect(d).toHaveCount(0)
+  // どちらにも無ければ、その施策の題（番号の札は除く）
+  d = await open('b.setAttribute("data-sec", "施策の評価"); b.removeAttribute("data-text")')
+  await expect(d).toContainText('ゲーム枠の上にロック解除ボタンを置く')
+  await d.getByRole('button', { name: 'キャンセル' }).click()
+  await expect(d).toHaveCount(0)
+})
