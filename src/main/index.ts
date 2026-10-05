@@ -275,7 +275,7 @@ function layoutOverlay(): void {
   if (!show) return
   const [width] = win.getContentSize()
   // カードは右の窓を除いた幅の真ん中に置く
-  const area = width - (views?.paneOpen(p!.id) ? PANE_W : 0)
+  const area = width - (views?.paneOpen(p!.id) ? views.paneWidth() : 0)
   const w = Math.min(overlaySize.w, width)
   overlay.setBounds({ x: Math.max(0, Math.round((area - w) / 2)), y: TAB_H, width: w, height: overlaySize.h })
 }
@@ -376,6 +376,9 @@ function createWindow(): void {
     received.panes.push(p)
     console.log('[pane]', p.projectId, p.screen)
   })
+  // 右のチャットの窓の幅は、前に決めた幅から始める
+  const savedPaneW = loadSettings(settingsFile()).paneWidth
+  if (typeof savedPaneW === 'number') views.setPaneWidth(savedPaneW)
   // AI が loops/ を書き換えたら、形を見分け直す（作り直しが終われば帯が消える）
   views.onLoopsChanged(() => {
     settleLost()
@@ -675,6 +678,15 @@ ipcMain.on('ui:covered', (_e, on: boolean) => {
   covered = !!on
   views?.setCovered(covered)
   layoutOverlay()
+})
+// 右のチャットの窓の幅（窓の左端のドラッグ）。つかんだときの幅に、動いた分を足す。終えたら覚える。ダブルクリックは元の幅
+let paneDragBase = PANE_W
+ipcMain.on('pane:width', (_e, m: { phase: string; grow: number }) => {
+  if (!views) return
+  if (m.phase === 'start') paneDragBase = views.paneWidth()
+  const w = views.setPaneWidth(m.phase === 'reset' ? PANE_W : paneDragBase + m.grow)
+  layoutOverlay()
+  if (m.phase === 'end' || m.phase === 'reset') saveSettings(settingsFile(), { ...loadSettings(settingsFile()), paneWidth: m.phase === 'reset' ? undefined : w })
 })
 // 画面がキーの決まりに使う OS（テストでは RISING_LOOP_TEST_PLATFORM で Windows のふりをさせる）
 ipcMain.on('app:platform', (e) => {

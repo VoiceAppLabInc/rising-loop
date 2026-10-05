@@ -7,6 +7,7 @@ import { PANE_PORT, parsePaneUrl, screenOfUrl } from '@shared/intercept'
 import { compareVersions } from '@shared/migrate'
 import { isReloadKey, navKeyDir } from './platform'
 import { classifyChange, diffStamps, mergeChanges, type Change, type Stamps } from '@shared/reload'
+import { PANE_MIN, PANE_W, clampPaneWidth } from '@shared/paneWidth'
 import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
@@ -14,8 +15,7 @@ export const TAB_H = 48
 /** ループが無いときに、全面のチャットの上に出す見出しの高さの初めの値。画面（renderer）が実際の高さを測って setSetupHead で伝える */
 export const SETUP_HEAD_H = 160
 
-/** 右のチャットの窓の幅。殻が窓を持っていた頃（2.2.0 より前）の殻の --pane と同じ */
-export const PANE_W = 360
+export { PANE_W } from '@shared/paneWidth'
 /** ループの画面・右のチャットからリンクを開いたときの、新しいウィンドウの大きさ */
 export const LINK_WINDOW = { width: 1024, height: 680 }
 /** この版からの殻は右の窓を持たない。アプリが自分の窓としてループの画面の右に並べる */
@@ -70,6 +70,8 @@ export class ProjectViews {
   private busy = new Map<string, string[]>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
   private covered = false
+  /** 右のチャットの窓の幅（ドラッグで変える。ウィンドウに収めるのは layout で） */
+  private paneW = PANE_W
   /** 全面のチャットの上の見出しの高さ（画面が測って伝える。中身が折り返すと高くなる） */
   private setupHeadH = SETUP_HEAD_H
   private ses: Session
@@ -108,6 +110,21 @@ export class ProjectViews {
       this.setups.set(p.id, this.createSetup(p))
     }
     this.layout()
+  }
+
+  /** 右のチャットの窓の、いまの幅（ウィンドウに収めたもの） */
+  paneWidth(): number {
+    return clampPaneWidth(this.paneW, this.win.getContentSize()[0])
+  }
+
+  /**
+   * 右のチャットの窓の幅を変える（左端のドラッグ・ダブルクリック・起動時に覚えた幅）。いまのウィンドウに収めた幅を返す。
+   * 覚えるのは最小だけ守った幅（ウィンドウが小さいうちに起動しても、広げたら覚えた幅に戻る）
+   */
+  setPaneWidth(w: number): number {
+    this.paneW = Number.isFinite(w) ? Math.max(PANE_MIN, Math.round(w)) : PANE_W
+    this.layout()
+    return this.paneWidth()
   }
 
   /** 見出しの高さが変わったら、全面のチャットをその下に置き直す */
@@ -450,12 +467,13 @@ export class ProjectViews {
     for (const [id, v] of this.chats) v.setVisible(!this.covered && id === this.shownId && this.paneOpen(id))
     const y = TAB_H
     const h = Math.max(0, height - y)
+    const pw = clampPaneWidth(this.paneW, width)
     for (const [id, v] of this.views) {
       // アプリが右の窓を出すときは、ループの画面をその幅だけ狭める
-      const w = this.chats.has(id) && this.paneOpen(id) ? Math.max(0, width - PANE_W) : width
+      const w = this.chats.has(id) && this.paneOpen(id) ? Math.max(0, width - pw) : width
       v.setBounds({ x: 0, y, width: w, height: h })
     }
-    for (const c of this.chats.values()) c.setBounds({ x: Math.max(0, width - PANE_W), y, width: Math.min(PANE_W, width), height: h })
+    for (const c of this.chats.values()) c.setBounds({ x: Math.max(0, width - pw), y, width: Math.min(pw, width), height: h })
     const top = TAB_H + this.setupHeadH
     for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
   }
@@ -478,8 +496,37 @@ const CHAT_HTML = `<!doctype html><html><head><meta charset="utf-8">
 <style>html,body{margin:0;height:100%;background:#16171a;overflow:hidden}
 body{border-left:1px solid #2a2c31;box-sizing:border-box}
 iframe{position:absolute;inset:0 0 0 1px;width:calc(100% - 1px);height:100%;border:0;background:#16171a;visibility:hidden}
-iframe.on{visibility:visible}</style>
-</head><body><script>
+iframe.on{visibility:visible}
+#grip{position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:2;background:transparent}
+#grip:hover,#grip.drag{background:rgba(255,255,255,.12)}</style>
+</head><body><div id="grip" title="ドラッグで幅を変える（ダブルクリックで元の幅）"></div><script>
+(function () {
+  // 左端をドラッグして窓の幅を変える。送るのは「つかんだ所から何 px 動いたか」だけで、幅は main が
+  // つかんだときの本当の幅に足して決め、窓ごと置き直す（窓が動くので、位置は画面の座標 screenX で測る）
+  var grip = document.getElementById('grip'), api = window.rlaPane, x0 = null
+  if (!api || !api.paneWidth) { grip.remove(); return }
+  grip.addEventListener('pointerdown', function (e) {
+    if (e.button !== 0) return
+    x0 = e.screenX
+    try { grip.setPointerCapture(e.pointerId) } catch (err) {}
+    grip.classList.add('drag')
+    api.paneWidth('start', 0)
+    e.preventDefault()
+  })
+  grip.addEventListener('pointermove', function (e) {
+    if (x0 != null) api.paneWidth('move', x0 - e.screenX)
+  })
+  function end(e) {
+    if (x0 == null) return
+    api.paneWidth('end', x0 - e.screenX)
+    x0 = null
+    grip.classList.remove('drag')
+  }
+  grip.addEventListener('pointerup', end)
+  grip.addEventListener('pointercancel', end)
+  grip.addEventListener('dblclick', function () { api.paneWidth('reset', 0) })
+})()
+</script><script>
 (function () {
   var folder = new URLSearchParams(location.search).get('arg') || ''
   var frames = {}

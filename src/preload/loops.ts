@@ -16,6 +16,8 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
     onData: (cb: (d: string) => void) => {
       ipcRenderer.on('pane:data', (_e: IpcRendererEvent, d: string) => cb(d))
     },
+    /** 右の窓の幅（左端のドラッグ）。start・move・end と、つかんだ所から広げた px。reset は元の幅に戻す（ダブルクリック） */
+    paneWidth: (phase: string, grow: number) => ipcRenderer.send('pane:width', { phase: String(phase), grow: Number(grow) || 0 }),
     // コピーと貼り付け（Windows・Linux のキーと右クリック。どうするかは shared/termKeys.ts が決める）
     // ★shared/termKeys を import する preload はここだけにする（2つで読むと別のファイルに切り出され、sandbox で読めずに止まる）
     clip: {

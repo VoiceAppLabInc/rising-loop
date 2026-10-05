@@ -9,6 +9,8 @@ export interface AppSettings {
   updateSeen?: string
   /** 前回開いたときのアプリの版。変わっていたら、Mac にアイコンを覚え直させる */
   lastVersion?: string
+  /** 右のチャットの窓の幅（左端のドラッグで決めた幅。全プロジェクト共通） */
+  paneWidth?: number
 }
 
 export function loadSettings(file: string): AppSettings {
