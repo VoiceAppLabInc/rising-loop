@@ -676,6 +676,8 @@ ipcMain.on('ui:covered', (_e, on: boolean) => {
   views?.setCovered(covered)
   layoutOverlay()
 })
+// ループが無いときの見出しの高さ（画面が測って伝える）。全面のチャットをその下に置く
+ipcMain.on('ui:setup-head', (_e, h: number) => views?.setSetupHead(h))
 // カードの大きさ（カードの層が伝える）
 ipcMain.on('overlay:size', (_e, w: number, h: number) => {
   overlaySize = { w, h }

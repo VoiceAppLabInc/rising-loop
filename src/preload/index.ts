@@ -12,6 +12,8 @@ const api = {
   selectProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:select', id),
   noticed: (id: string, formKey: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:noticed', id, formKey),
   setCovered: (on: boolean): void => ipcRenderer.send('ui:covered', on),
+  /** ループが無いときの見出しの高さ。全面のチャットをその下に置く */
+  setupHead: (h: number): void => ipcRenderer.send('ui:setup-head', h),
   migrate: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:migrate', id),
   rework: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:rework', id),
   undo: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:undo', id),

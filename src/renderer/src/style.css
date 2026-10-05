@@ -3,7 +3,6 @@
    赤は「取り消せない・失敗」、カードの橙・緑は知らせの意味だけに使う */
 :root {
   --tab-h: 48px;
-  --setup-h: 112px; /* main/views.ts の SETUP_HEAD_H と合わせる */
   --fg: #1a1a19;
   --sub: #6a6a68;
   --line: #e2e2e0;
@@ -67,16 +66,25 @@ body { background: #fff; }
 .empty h1 { margin: 0; font-size: 16px; font-weight: 600; }
 .empty p { margin: 0 0 8px; color: var(--sub); }
 .empty .btn { justify-self: center; }
+/* ループが無いときの見出し。左にプロジェクト、右にフォルダに入れるものの案内。高さは中身に合わせ、App.tsx が測って main に伝える */
 .setup-head {
-  height: var(--setup-h);
-  padding: 22px 28px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 20px;
+  align-items: start;
+  padding: 16px 28px 14px;
   background: #16171a;
   color: #e6e6e6;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.6;
 }
 .setup-head p { margin: 0; }
 .setup-head .sub { color: #8b8d94; font-size: 12px; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.setup-head .go { margin-top: 6px; font-size: 14px; }
+.setup-guide { background: #202126; border: 1px solid #2e3036; border-radius: 8px; padding: 10px 14px; color: #c8c8cc; font-size: 12.5px; }
+.setup-guide .h { color: #e6e6e6; font-weight: 700; font-size: 13px; }
+.setup-guide .what { margin-top: 2px; }
+.setup-guide .tip { margin-top: 4px; color: #9a9ca3; font-size: 12px; }
 
 /* ループの画面の上に浮かぶカード（main が重ねる透明な層に描く）。D1：上の真ん中に、小さめに1行 */
 body.overlay, body.overlay #root { background: transparent; height: auto; overflow: hidden; }

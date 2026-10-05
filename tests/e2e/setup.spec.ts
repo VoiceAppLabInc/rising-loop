@@ -34,8 +34,29 @@ test.afterEach(async () => {
 test('ループが無いフォルダを開くと、全面のチャットで目標を決める依頼が自動で届く', async () => {
   await open()
   await expect(win.getByText('「new-service」をプロジェクトにしました。')).toBeVisible()
-  await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeVisible()
+  await expect(win.getByText('資料を入れたら、下のチャットで目標を決めましょう。')).toBeVisible()
   await expect.poll(async () => count(await paneText(app, 's-list'), KICKOFF), { timeout: 15_000 }).toBe(1)
+})
+
+test('ループが無いあいだの見出しは、フォルダに資料を入れる案内を出し、全面のチャットを見出しの真下に置く（窓が狭く折り返して高くなっても隠れない）', async () => {
+  await open()
+  await expect(win.getByText('チャットを進める前に、このフォルダに資料を山ほど入れておきましょう')).toBeVisible()
+  await expect(win.locator('.setup-guide')).toContainText('ソースコード、LP の HTML')
+  // [見出しの下端, 全面のチャットの上端]。チャットは localhost の全面のページ（?arg=…&arg=s-list）
+  const edges = async () => {
+    const head = await win.locator('.setup-head').evaluate((e) => Math.round(e.getBoundingClientRect().bottom))
+    const chatTop = await app.evaluate(({ BrowserWindow }) => {
+      const v = BrowserWindow.getAllWindows()[0].contentView.children.find((c) => 'webContents' in c && (c as { webContents: Electron.WebContents }).webContents.getURL().includes('arg=s-list'))
+      return v ? v.getBounds().y : null
+    })
+    return [head, chatTop]
+  }
+  const setWidth = (w: number) => app.evaluate(({ BrowserWindow }, w) => BrowserWindow.getAllWindows()[0].setContentSize(w, 700), w)
+  await setWidth(1200)
+  await expect.poll(async () => { const [h, c] = await edges(); return h === c }).toBe(true)
+  const wide = (await edges())[0]
+  await setWidth(800)
+  await expect.poll(async () => { const [h, c] = await edges(); return h === c && h > wide }).toBe(true)
 })
 
 test('ループが無いフォルダは、新しいプロジェクトにしてよいかを聞き、［やめる］なら追加しない', async () => {
@@ -54,7 +75,7 @@ test('loops/ ができると通常の形に切り替わり、同じ会話が一�
 
   // スキルが loops/ を作ったつもりで、見本を置く
   cpSync(join(SAMPLE, 'loops'), join(folder, 'loops'), { recursive: true })
-  await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeHidden({ timeout: 10_000 })
+  await expect(win.getByText('資料を入れたら、下のチャットで目標を決めましょう。')).toBeHidden({ timeout: 10_000 })
   await expect.poll(async () => (await inLoops(app, folder, '!!document.querySelector("button.upd[data-upd=all]")'))?.value).toBe(true)
   // 一覧の右のチャットに、目標を決めたときの会話がそのまま出る（AI は1つのまま）
   await expect.poll(async () => count(await paneText(app, 's-list'), KICKOFF)).toBe(1)
@@ -68,7 +89,7 @@ test('最初の依頼はプロジェクトごとに1回だけ。開き直して�
 
   app = await launch(root)
   win = await mainWindow(app)
-  await expect(win.getByText('まず、このプロジェクトの目標を決めましょう。')).toBeVisible()
+  await expect(win.getByText('資料を入れたら、下のチャットで目標を決めましょう。')).toBeVisible()
   await expect.poll(async () => count(await paneText(app, 's-list'), 'FAKE-AI {')).toBe(1)
   await win.waitForTimeout(2500)
   expect(count(await paneText(app, 's-list'), KICKOFF)).toBe(0)

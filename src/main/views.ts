@@ -11,8 +11,8 @@ import type { Project } from '@shared/types'
 
 /** 上のタブの列の高さ。画面（renderer）の CSS と合わせる */
 export const TAB_H = 48
-/** ループが無いときに、全面のチャットの上に出す一言の高さ。画面（renderer）の CSS の --setup-h と合わせる */
-export const SETUP_HEAD_H = 112
+/** ループが無いときに、全面のチャットの上に出す見出しの高さの初めの値。画面（renderer）が実際の高さを測って setSetupHead で伝える */
+export const SETUP_HEAD_H = 160
 
 /** 右のチャットの窓の幅。殻が窓を持っていた頃（2.2.0 より前）の殻の --pane と同じ */
 export const PANE_W = 360
@@ -65,6 +65,8 @@ export class ProjectViews {
   private busy = new Map<string, string[]>()
   /** アプリのダイアログを出しているあいだは、重ねた画面を隠す（ダイアログが下に隠れるため） */
   private covered = false
+  /** 全面のチャットの上の見出しの高さ（画面が測って伝える。中身が折り返すと高くなる） */
+  private setupHeadH = SETUP_HEAD_H
   private ses: Session
 
   constructor(
@@ -100,6 +102,14 @@ export class ProjectViews {
     } else if (p && !this.setups.has(p.id)) {
       this.setups.set(p.id, this.createSetup(p))
     }
+    this.layout()
+  }
+
+  /** 見出しの高さが変わったら、全面のチャットをその下に置き直す */
+  setSetupHead(h: number): void {
+    const v = Math.max(0, Math.round(h))
+    if (!Number.isFinite(v) || v === this.setupHeadH) return
+    this.setupHeadH = v
     this.layout()
   }
 
@@ -391,7 +401,7 @@ export class ProjectViews {
       v.setBounds({ x: 0, y, width: w, height: h })
     }
     for (const c of this.chats.values()) c.setBounds({ x: Math.max(0, width - PANE_W), y, width: Math.min(PANE_W, width), height: h })
-    const top = TAB_H + SETUP_HEAD_H
+    const top = TAB_H + this.setupHeadH
     for (const v of this.setups.values()) v.setBounds({ x: 0, y: top, width, height: Math.max(0, height - top) })
   }
 }

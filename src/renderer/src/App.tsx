@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { compareVersions } from '@shared/migrate'
 import type { ProjectsSnapshot } from '@shared/types'
 import { AiRows } from './AiSetup'
@@ -101,13 +101,40 @@ export function App() {
           <Welcome onOpen={add} />
         ) : !snap.hasLoops[current.id] ? (
           // ループが無いあいだは、この下に全面のチャット（main が重ねる）を出す
-          <div className="setup-head">
-            <p>「{current.name}」をプロジェクトにしました。</p>
-            <p className="sub">フォルダ：{current.folder}</p>
-            <p>まず、このプロジェクトの目標を決めましょう。</p>
-          </div>
+          <SetupHead name={current.name} folder={current.folder} />
         ) : null}
       </main>
+    </div>
+  )
+}
+
+/**
+ * ループが無いときの見出し。チャットを進める前に、フォルダに資料を入れておくよう案内する。
+ * 高さは中身に合わせる（窓が狭いと折り返して高くなる）。測って main に伝え、全面のチャットをその下に置かせる
+ */
+function SetupHead(p: { name: string; folder: string }) {
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    const tell = () => window.rla.setupHead(el.getBoundingClientRect().height)
+    const ro = new ResizeObserver(tell)
+    ro.observe(el)
+    tell()
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <div className="setup-head" ref={box}>
+      <div>
+        <p>「{p.name}」をプロジェクトにしました。</p>
+        <p className="sub">フォルダ：{p.folder}</p>
+        <p className="go">資料を入れたら、下のチャットで目標を決めましょう。</p>
+      </div>
+      <div className="setup-guide">
+        <p className="h">チャットを進める前に、このフォルダに資料を山ほど入れておきましょう</p>
+        <p className="what">AI が最初に読んで、目標とボトルネックを考えます。企画書・仕様書、ソースコード、LP の HTML、App Store の URL のメモ、GA4・Stripe・管理画面の CSV など、何でも。</p>
+        <p className="tip">コツ：数字が自動で取れる口（GA4・Stripe・自社 DB などの API や MCP）をつなぐほど、更新が速く、評価が正確になります。</p>
+      </div>
     </div>
   )
 }
