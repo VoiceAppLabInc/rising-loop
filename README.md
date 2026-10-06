@@ -12,12 +12,12 @@
 ターミナル（「アプリケーション」→「ユーティリティ」→「ターミナル」）でこの1行。初回も入れ直しも同じです。
 
 ```
-curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-app.sh | sh
+curl -fsSL https://raw.githubusercontent.com/VoiceAppLabInc/rising-loop/main/install-app.sh | sh
 ```
 
 ### Windows
 
-**[Windows 用のインストーラーを落とす（Rising-Loop-win-x64.exe）](https://github.com/toru0325/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe)** を押して落とし、開きます。
+**[Windows 用のインストーラーを落とす（Rising-Loop-win-x64.exe）](https://github.com/VoiceAppLabInc/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe)** を押して落とし、開きます。
 「Windows によって PC が保護されました」と出たら、**「詳細情報」→「実行」**を押してください。
 
 ### 新しい版

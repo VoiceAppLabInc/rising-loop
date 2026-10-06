@@ -4,7 +4,7 @@ import { compareVersions } from '@shared/migrate'
 import type { AppUpdate } from '@shared/types'
 
 /** 見に行く先。RISING_LOOP_APP_UPDATE_URL で変えられる（off なら見に行かない。テストは file:// の見本を読む） */
-export const UPDATE_URL = 'https://api.github.com/repos/toru0325/rising-loop/releases/latest'
+export const UPDATE_URL = 'https://api.github.com/repos/VoiceAppLabInc/rising-loop/releases/latest'
 /** 起動したときのほか、この間隔でも見る（開きっぱなしの人にも届くように） */
 export const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000
 

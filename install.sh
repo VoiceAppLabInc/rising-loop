@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 #  rising-loop インストーラ（スキル版 → アプリ版への案内）
 #
-#    curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install.sh | sh
+#    curl -fsSL https://raw.githubusercontent.com/VoiceAppLabInc/rising-loop/main/install.sh | sh
 #
 #  ライジング・ループは 1.8.0 からデスクトップアプリ「Rising Loop」で使う形になった。
 #  このスクリプトは、~/.claude/skills/rising-loop を「アプリ版へ案内するだけのスキル」（legacy/rising-loop）に置き換え、
@@ -13,7 +13,7 @@
 # ═══════════════════════════════════════════════════════════════
 set -eu
 
-REPO="toru0325/rising-loop"
+REPO="VoiceAppLabInc/rising-loop"
 BRANCH="main"
 DEST="${HOME}/.claude/skills/rising-loop"
 TGZ_URL="https://github.com/${REPO}/archive/refs/heads/${BRANCH}.tar.gz"

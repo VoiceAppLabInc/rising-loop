@@ -5,7 +5,7 @@ const release = (o: Record<string, unknown> = {}) => ({
   tag_name: 'v0.2.0',
   name: 'v0.2.0',
   body: '- 新しいお知らせ\n- 直したこと',
-  html_url: 'https://github.com/toru0325/rising-loop/releases/tag/v0.2.0',
+  html_url: 'https://github.com/VoiceAppLabInc/rising-loop/releases/tag/v0.2.0',
   draft: false,
   prerelease: false,
   assets: [
@@ -23,7 +23,7 @@ describe('Releases の最新から、新しい版を読む', () => {
       version: '0.2.0',
       notes: '- 新しいお知らせ\n- 直したこと',
       download: 'https://example.com/arm64.dmg',
-      page: 'https://github.com/toru0325/rising-loop/releases/tag/v0.2.0'
+      page: 'https://github.com/VoiceAppLabInc/rising-loop/releases/tag/v0.2.0'
     })
     expect(updateFrom(release(), '0.1.0', 'darwin', 'x64')?.download).toBe('https://example.com/x64.dmg')
     expect(updateFrom(release(), '0.1.0', 'win32', 'x64')?.download).toBe('https://example.com/setup.exe')
@@ -41,7 +41,7 @@ describe('Releases の最新から、新しい版を読む', () => {
     expect(updateFrom(release({ prerelease: true }), '0.1.0', 'darwin', 'arm64')).toBeNull()
   })
   it('この OS 向けのファイルが無ければ、ダウンロードはリリースの頁にする', () => {
-    expect(updateFrom(release(), '0.1.0', 'linux', 'x64')?.download).toBe('https://github.com/toru0325/rising-loop/releases/tag/v0.2.0')
+    expect(updateFrom(release(), '0.1.0', 'linux', 'x64')?.download).toBe('https://github.com/VoiceAppLabInc/rising-loop/releases/tag/v0.2.0')
   })
   it('説明が無ければ空、版の頭に v が無くても読む', () => {
     expect(updateFrom(release({ tag_name: '0.3.0', body: null }), '0.1.0', 'darwin', 'arm64')).toMatchObject({ version: '0.3.0', notes: '' })

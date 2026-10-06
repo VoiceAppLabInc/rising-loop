@@ -26,10 +26,10 @@ user-invokable: true
 4. **「入れて」「はい」と言われたら**:
    - Mac（`uname -s` が `Darwin`）なら、次の1行を実行する。出力の最後の「✔ Rising Loop … を … に入れました」だけを伝える
      ```bash
-     curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-app.sh | sh
+     curl -fsSL https://raw.githubusercontent.com/VoiceAppLabInc/rising-loop/main/install-app.sh | sh
      ```
      ★ ブラウザで .dmg を落とすと「壊れているため開けません」になる（署名していないため）。**ブラウザでのダウンロードを勧めない**
-   - Windows なら、https://github.com/toru0325/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe を落として開いてもらう（入れ方は https://github.com/toru0325/rising-loop）
+   - Windows なら、https://github.com/VoiceAppLabInc/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe を落として開いてもらう（入れ方は https://github.com/VoiceAppLabInc/rising-loop）
      （「Windows によって PC が保護されました」と出たら「詳細情報」→「実行」）
    - 入ったら、続けてこれを**そのまま**見せる:
      > アプリが開いたら「フォルダを開く…」でこのフォルダを選び、「HTMLを最新版にする」と出たら押してください。

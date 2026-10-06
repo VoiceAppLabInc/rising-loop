@@ -50,6 +50,6 @@ nsis:
   allowToChangeInstallationDirectory: true
 publish:
   provider: github
-  owner: toru0325
+  owner: VoiceAppLabInc
   repo: rising-loop
   releaseType: draft

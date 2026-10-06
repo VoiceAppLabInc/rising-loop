@@ -2,7 +2,7 @@
 # ═══════════════════════════════════════════════════════════════
 #  Rising Loop（ライジング・ループのアプリ）を入れる・入れ替える（Mac）
 #
-#    curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-app.sh | sh
+#    curl -fsSL https://raw.githubusercontent.com/VoiceAppLabInc/rising-loop/main/install-app.sh | sh
 #
 #  GitHub の Releases の最新の .dmg を落とし、「アプリケーション」の Rising Loop と入れ替えて開く。
 #  ★ブラウザで落とすと「ダウンロードしたもの」の印が付き、署名していないアプリは「壊れているため開けません」になる。
@@ -12,7 +12,7 @@
 # ═══════════════════════════════════════════════════════════════
 set -eu
 
-REPO="toru0325/rising-loop"
+REPO="VoiceAppLabInc/rising-loop"
 PAGE="https://github.com/${REPO}"
 WIN_URL="https://github.com/${REPO}/releases/latest/download/Rising-Loop-win-x64.exe"
 APP="Rising Loop.app"
