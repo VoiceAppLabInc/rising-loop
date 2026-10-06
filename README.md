@@ -15,11 +15,6 @@
 curl -fsSL https://raw.githubusercontent.com/toru0325/rising-loop/main/install-app.sh | sh
 ```
 
-- その Mac に合った版（Apple シリコン／Intel）を落とし、「アプリケーション」に入れて開きます
-- ★ **ブラウザで .dmg を落とさないでください。** 署名していないため「壊れているため開けません」と出て開けません
-  （ブラウザで落としてしまったときは、「アプリケーション」に入れたあとターミナルで `xattr -dr com.apple.quarantine "/Applications/Rising Loop.app"`）
-- Claude Code を使っている人は、チャットで「Rising Loop を入れて」と頼んでも入れられます（スキル版の案内のスキルがあるとき）
-
 ### Windows
 
 **[Windows 用のインストーラーを落とす（Rising-Loop-win-x64.exe）](https://github.com/toru0325/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe)** を押して落とし、開きます。
