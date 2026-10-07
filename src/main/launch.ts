@@ -65,6 +65,9 @@ export function claudeArgs(o: ClaudeLaunch): string[] {
   return [
     ...(o.exists ? ['--resume', o.sessionId] : ['--session-id', o.sessionId]),
     '--plugin-dir', o.pluginDir,
+    // Claude Code 自身の「Anthropic へのフィードバック」を使わせない。「アプリのフィードバック」と言われて、英語の送信画面を出してしまう
+    // （2026-10-08 に本物の claude で起きた）。アプリへのご意見は、スキルの「開発者に送る」（loops/.feedback）で受ける
+    '--disallowedTools', 'SendFeedback',
     // 指示はファイルで渡す（Windows で長い日本語を引数に載せると壊れやすい）
     '--append-system-prompt-file', o.promptFile,
     // chat-pane.sh と同じ。右のチャットは長く続くので、20万トークンを超えたら要約させる

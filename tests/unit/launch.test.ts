@@ -8,9 +8,17 @@ describe('claudeArgs', () => {
     expect(claudeArgs({ ...base, sessionId: 'abc', exists: true })).toEqual([
       '--resume', 'abc',
       '--plugin-dir', '/app/skill',
+      '--disallowedTools', 'SendFeedback',
       '--append-system-prompt-file', '/data/claude-prompt.md',
       '--autocompact', '200000'
     ])
+  })
+
+  it('Claude Code 自身の Anthropic へのフィードバックは使わせない（アプリへのご意見はスキルの「開発者に送る」で受ける）', () => {
+    const a = claudeArgs({ ...base, sessionId: 'abc', exists: false })
+    expect(a[a.indexOf('--disallowedTools') + 1]).toBe('SendFeedback')
+    // 値をいくつも取るオプションなので、次は別のオプションにする（後ろの値を飲み込ませない）
+    expect(a[a.indexOf('--disallowedTools') + 2].startsWith('--')).toBe(true)
   })
 
   it('会話のファイルが無ければ、その ID で新しく始める', () => {
