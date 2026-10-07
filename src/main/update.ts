@@ -1,10 +1,11 @@
-// 新しい版のアプリが出ていないかを見る。GitHub の Releases の最新（公開したもの）と、いまの版を比べる。
-// 自動では入れ替えない（署名していないので、入れ替えは使う人がダウンロードして行う）。アプリは知らせるだけ
+// 新しい版のアプリが出ていないかを見る。配る場所（Cloud Storage の rising-loop-dist）の latest.json と、いまの版を比べる（0.3.0 から。
+// それまでは GitHub の Releases の最新を見ていた。その形も読めるようにしておく）。
+// 見に行くときに、使っている人の数を数えるための匿名の情報をクエリで付ける（statsQuery。設定で止められる）
 import { compareVersions } from '@shared/migrate'
 import type { AppUpdate } from '@shared/types'
 
 /** 見に行く先。RISING_LOOP_APP_UPDATE_URL で変えられる（off なら見に行かない。テストは file:// の見本を読む） */
-export const UPDATE_URL = 'https://api.github.com/repos/VoiceAppLabInc/rising-loop/releases/latest'
+export const UPDATE_URL = 'https://storage.googleapis.com/rising-loop-dist/latest.json'
 /** 起動したときのほか、この間隔でも見る（開きっぱなしの人にも届くように） */
 export const UPDATE_EVERY_MS = 6 * 60 * 60 * 1000
 
@@ -14,9 +15,22 @@ type Fetcher = (url: string) => Promise<{ ok: boolean; json: () => Promise<unkno
 const assetSuffix = (platform: string, arch: string): string | null =>
   platform === 'darwin' ? `-mac-${arch}.dmg` : platform === 'win32' ? `-win-${arch}.exe` : null
 
-/** Releases の最新の応答から、いまより新しい版を読む。新しくなければ・読めなければ null */
+/**
+ * 配る場所の latest.json から、いまより新しい版を読む。新しくなければ・読めなければ null。形：
+ * { version: "0.3.0", notes: "- お知らせ", files: { "mac-arm64": url, "mac-x64": url, "win-x64": url }, page: LP の URL }
+ * GitHub の Releases の最新の応答（tag_name・assets）も読む（0.2.x までの形。テストの見本もこの形がある）
+ */
 export function updateFrom(json: unknown, current: string, platform: string, arch: string): AppUpdate | null {
   if (!json || typeof json !== 'object') return null
+  const m = json as { version?: unknown; notes?: unknown; files?: unknown; page?: unknown }
+  if (typeof m.version === 'string') {
+    const version = m.version.replace(/^v/, '')
+    if (!/^\d+(\.\d+)*$/.test(version) || compareVersions(version, current) <= 0 || typeof m.page !== 'string') return null
+    const key = platform === 'darwin' ? `mac-${arch}` : platform === 'win32' ? `win-${arch}` : ''
+    const files = m.files && typeof m.files === 'object' ? (m.files as Record<string, unknown>) : {}
+    const file = key ? files[key] : undefined
+    return { version, notes: typeof m.notes === 'string' ? m.notes.trim() : '', download: typeof file === 'string' ? file : m.page, page: m.page }
+  }
   const r = json as { tag_name?: unknown; body?: unknown; html_url?: unknown; draft?: unknown; prerelease?: unknown; assets?: unknown }
   if (typeof r.tag_name !== 'string' || typeof r.html_url !== 'string' || r.draft || r.prerelease) return null
   const version = r.tag_name.replace(/^v/, '')
@@ -31,6 +45,30 @@ export function updateFrom(json: unknown, current: string, platform: string, arc
     page: r.html_url
   }
 }
+
+/** 使っている人の数を数えるために、更新を見に行くときに付ける匿名の情報。名前・メールは入れない */
+export interface Stats {
+  /** アプリごとのランダムな番号（初回に作って app.json に覚える） */
+  id: string
+  app: string
+  skill: string
+  platform: string
+  arch: string
+  /** いま開いているプロジェクトの AI（無ければ空） */
+  ai: string
+  /** いま開いているプロジェクトが WSL の中（\\wsl.localhost\… や \\wsl$\…）か */
+  wsl: boolean
+}
+
+/** 見に行く URL に匿名の情報をクエリで付ける。stats が null（設定で止めた）なら、そのまま。http(s) のときだけ付ける（テストの file:// には付けない） */
+export function withStats(url: string, stats: Stats | null): string {
+  if (!stats || !/^https?:/.test(url)) return url
+  const q = new URLSearchParams({ id: stats.id, v: stats.app, s: stats.skill, os: `${stats.platform}-${stats.arch}`, ai: stats.ai, wsl: stats.wsl ? '1' : '0' })
+  return url + (url.includes('?') ? '&' : '?') + q.toString()
+}
+
+/** WSL の中のフォルダか（Windows から \\wsl.localhost\… や \\wsl$\… で開いている） */
+export const isWslPath = (folder: string): boolean => /^\\\\wsl(\.localhost|\$)\\/i.test(folder)
 
 /** いますぐ確かめた結果。new：新しい版がある／latest：いまの版が最新（見に行かない設定のときも）／error：見に行けなかった */
 export type UpdateCheck = { status: 'new'; update: AppUpdate } | { status: 'latest' } | { status: 'error' }

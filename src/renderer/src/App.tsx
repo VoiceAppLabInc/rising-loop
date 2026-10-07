@@ -91,6 +91,10 @@ export function App() {
               </Button>
             </>
           )}
+          {/* ご意見・不具合・相談のフォーム（いつものブラウザで開く。版や OS はアプリが入れる） */}
+          <Button variant="bar" size="sm" title="ご意見・不具合・相談を送る" onClick={() => window.rla.feedback()}>
+            フィードバック
+          </Button>
           <Button variant="bar" size="sm" className="btn-icon" aria-label="設定" title="設定" onClick={() => window.rla.openDialog({ kind: 'settings' })}>
             <Icon name="gear" />
           </Button>

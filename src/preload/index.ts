@@ -52,7 +52,11 @@ const api = {
     ipcRenderer.on('tool:exit', h)
     return () => ipcRenderer.removeListener('tool:exit', h)
   },
-  settings: (): Promise<{ howtoSeen?: boolean; updateSeen?: string }> => ipcRenderer.invoke('app:settings'),
+  settings: (): Promise<{ howtoSeen?: boolean; updateSeen?: string; statsOff?: boolean }> => ipcRenderer.invoke('app:settings'),
+  /** お問い合わせ・フィードバックのフォームを、いつものブラウザで開く（環境の欄はアプリが入れる） */
+  feedback: (): void => ipcRenderer.send('app:feedback'),
+  /** 使い方の統計（匿名）を送るか */
+  setStats: (on: boolean): Promise<void> => ipcRenderer.invoke('app:set-stats', on),
   howtoSeen: (): Promise<void> => ipcRenderer.invoke('app:howto-seen'),
   updateSeen: (version: string): Promise<void> => ipcRenderer.invoke('app:update-seen', version),
   checkUpdate: (): Promise<{ status: 'new' | 'latest' | 'error'; snap: ProjectsSnapshot }> => ipcRenderer.invoke('app:check-update'),

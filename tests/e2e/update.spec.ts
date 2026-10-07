@@ -96,3 +96,13 @@ test('設定の［新しい版を確かめる］：最新なら「最新です�
   await expect(settings).toHaveCount(0)
   await expect(win.getByRole('button', { name: '新しい版' })).toBeVisible()
 })
+
+test('配る場所の latest.json の形（0.3.0 から）でも、新しい版のお知らせを出す', async () => {
+  const file = join(root, 'manifest.json')
+  writeFileSync(file, JSON.stringify({ version: '98.0.0', notes: '- latest.json からのお知らせ', files: { 'mac-arm64': 'https://example.com/a.dmg', 'mac-x64': 'https://example.com/x.dmg', 'win-x64': 'https://example.com/s.exe' }, page: 'https://rising-loop.web.app/' }))
+  app = await launch(root, { RISING_LOOP_APP_UPDATE_URL: pathToFileURL(file).href })
+  win = await mainWindow(app)
+  const dlg = (await cardPage(app)).getByRole('dialog', { name: '新しい版 v98.0.0 があります' })
+  await expect(dlg).toBeVisible()
+  await expect(dlg).toContainText('- latest.json からのお知らせ')
+})

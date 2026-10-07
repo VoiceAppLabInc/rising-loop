@@ -10,3 +10,6 @@ vendor/
 # スキル版の頃の作業場（手元だけ）
 _design/
 assets/img/
+# 公開のときに legacy/ から作る（site/install.sh が取る）
+site/legacy-rising-loop.tgz
+.firebase/

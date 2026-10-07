@@ -621,3 +621,16 @@ test('チャットの AI が作業中のあいだ、一覧のその行（と一�
   expect(await pill('#s-list .section > .ai-busy-pill')()).toBe('')
   await expect.poll(pill(`${row} > .ai-busy-pill`), { timeout: 15_000 }).toBe('')
 })
+
+test('設定の「使い方の統計」は既定で送る。チェックを外すとすぐ覚え、開き直しても外れたまま', async () => {
+  await start()
+  await openCurrent()
+  const layer = await openSettings()
+  const box = layer.locator('.stats-row input[type=checkbox]')
+  await expect(box).toBeChecked()
+  await box.uncheck()
+  await expect.poll(() => JSON.parse(readFileSync(join(root, 'data', 'app.json'), 'utf8')).statsOff).toBe(true)
+  await layer.getByRole('button', { name: 'キャンセル' }).click()
+  const again = await openSettings()
+  await expect(again.locator('.stats-row input[type=checkbox]')).not.toBeChecked()
+})

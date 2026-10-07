@@ -7,26 +7,9 @@
 
 ## 入れ方
 
-### Mac
+**https://rising-loop.web.app/** を見てください（Mac は1行インストール、Windows はインストーラー）。
 
-ターミナル（「アプリケーション」→「ユーティリティ」→「ターミナル」）でこの1行。初回も入れ直しも同じです。
-
-```
-curl -fsSL https://raw.githubusercontent.com/VoiceAppLabInc/rising-loop/main/install-app.sh | sh
-```
-
-### Windows
-
-**[Windows 用のインストーラーを落とす（Rising-Loop-win-x64.exe）](https://github.com/VoiceAppLabInc/rising-loop/releases/latest/download/Rising-Loop-win-x64.exe)** を押して落とし、開きます。
-「Windows によって PC が保護されました」と出たら、**「詳細情報」→「実行」**を押してください。
-
-### 新しい版
-
-新しい版が出ると、アプリが起動したときにお知らせを出します（タブの列の「新しい版」からも開けます）。
-- **Mac**: ［アップデート］を押すと、アプリが新しい版を落として入れ替え、開き直します
-- **Windows**: ［ダウンロード］でインストーラーを落として、上と同じように入れます
-
-プロジェクトとループは、入れ替えてもそのまま使えます。
+新しい版が出ると、アプリが起動したときにお知らせを出します。プロジェクトとループは、入れ替えてもそのまま使えます。
 
 ## 使い始め
 
@@ -65,8 +48,9 @@ pnpm typecheck && pnpm test && pnpm test:e2e
 - アプリ: `src/`（Electron + React）。同梱のスキル: `skill/skills/rising-loop/`（版の上げ方は `skill/README.md`）
 - 手元で配る形を作る: `pnpm dist:mac`（`dist/` に .dmg）
 - **リリース**: `package.json` の `version` を上げてコミット → `git tag v<版> && git push origin v<版>`。
-  GitHub Actions（`.github/workflows/release.yml`）が Mac・Windows の配る形を作り、Releases に**下書き**で置く。
-  下書きの説明（アプリのお知らせに出る）を書いて「公開」すると、使っている人のアプリにお知らせが出る
+  GitHub Actions（`.github/workflows/release.yml`）が Mac・Windows の配る形を作り、配る場所（`gs://rising-loop-dist/releases/<版>/`）に置く（まだ使う人には出ない）。
+  確かめたら、Actions の「publish」をお知らせの文と一緒に手で動かすと、`latest/` と `latest.json` を差し替え、LP（`site/`、Firebase Hosting）も出し直す。使っている人のアプリにお知らせが出る
+- LP・入れ方のスクリプト：`site/`（`firebase deploy --only hosting --project rising-loop`）
 
 ## ライセンス
 

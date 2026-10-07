@@ -88,6 +88,7 @@ export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; o
             <span className="key">スキル</span>
             <span className="val">v{p.snap.skillVersion}</span>
           </div>
+          <StatsRow />
         </section>
         </div>
         {/* 使い方と同じく、ボタンは下の右端 */}
@@ -223,5 +224,34 @@ function AiSettings() {
       <h3>AI</h3>
       <AiRows />
     </section>
+  )
+}
+
+/**
+ * 使い方の統計（匿名）。使っている人の数を数えるために、新しい版を確かめるとき、アプリごとのランダムな番号・版・OS・使っている AI を送る。
+ * 名前やメールは送らない。止めても新しい版は確かめる（情報を付けないだけ）。押したらすぐ覚える（設定の［OK］を待たない）
+ */
+function StatsRow() {
+  const [on, setOn] = useState<boolean | null>(null)
+  useEffect(() => void window.rla.settings().then((s) => setOn(!s.statsOff)), [])
+  return (
+    <div className="row stats-row">
+      <span className="key">使い方の統計</span>
+      <span className="val">
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={!!on}
+            disabled={on == null}
+            onChange={(e) => {
+              setOn(e.target.checked)
+              void window.rla.setStats(e.target.checked)
+            }}
+          />
+          送る
+        </label>
+        <span className="sub">使っている人の数を知るため、匿名の番号・版・OS・使っている AI だけを送ります（名前やメールは送りません）</span>
+      </span>
+    </div>
   )
 }

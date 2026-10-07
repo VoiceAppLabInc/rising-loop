@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkUpdate, checkUpdateNow, readWithProgress, updateFrom } from '../../src/main/update'
+import { checkUpdate, checkUpdateNow, isWslPath, readWithProgress, updateFrom, withStats } from '../../src/main/update'
 
 const release = (o: Record<string, unknown> = {}) => ({
   tag_name: 'v0.2.0',
@@ -110,5 +110,45 @@ describe('落としながら % を数える', () => {
     const buf = await readWithProgress(new Response(chunks(3, 10)), (p) => seen.push(p))
     expect(seen).toEqual([])
     expect(buf.length).toBe(30)
+  })
+})
+
+describe('配る場所の latest.json（0.3.0 から）', () => {
+  const manifest = (o: Record<string, unknown> = {}) => ({
+    version: '0.3.0',
+    notes: '- 新しいお知らせ',
+    files: { 'mac-arm64': 'https://storage.example/arm64.dmg', 'mac-x64': 'https://storage.example/x64.dmg', 'win-x64': 'https://storage.example/setup.exe' },
+    page: 'https://rising-loop.web.app/',
+    ...o
+  })
+  it('いまより新しければ、版・説明・この OS と CPU 向けのファイル・LP を返す', () => {
+    expect(updateFrom(manifest(), '0.2.9', 'darwin', 'arm64')).toEqual({ version: '0.3.0', notes: '- 新しいお知らせ', download: 'https://storage.example/arm64.dmg', page: 'https://rising-loop.web.app/' })
+    expect(updateFrom(manifest(), '0.2.9', 'win32', 'x64')?.download).toBe('https://storage.example/setup.exe')
+  })
+  it('同じ版・古い版は null。この OS 向けのファイルが無ければ LP', () => {
+    expect(updateFrom(manifest(), '0.3.0', 'darwin', 'arm64')).toBeNull()
+    expect(updateFrom(manifest(), '0.2.9', 'linux', 'x64')?.download).toBe('https://rising-loop.web.app/')
+  })
+  it('形が違えば null', () => {
+    expect(updateFrom(manifest({ version: 'next' }), '0.2.9', 'darwin', 'arm64')).toBeNull()
+    expect(updateFrom(manifest({ page: undefined }), '0.2.9', 'darwin', 'arm64')).toBeNull()
+  })
+})
+
+describe('使い方の統計（匿名の情報をクエリで付ける）', () => {
+  const stats = { id: 'abc', app: '0.3.0', skill: '2.5.3', platform: 'win32', arch: 'x64', ai: 'claude', wsl: true }
+  it('番号・版・スキルの版・OS・AI・WSL を付ける', () => {
+    const u = new URL(withStats('https://storage.googleapis.com/rising-loop-dist/latest.json', stats))
+    expect(Object.fromEntries(u.searchParams)).toEqual({ id: 'abc', v: '0.3.0', s: '2.5.3', os: 'win32-x64', ai: 'claude', wsl: '1' })
+  })
+  it('止めているとき（null）と、テストの file:// には付けない', () => {
+    expect(withStats('https://x/latest.json', null)).toBe('https://x/latest.json')
+    expect(withStats('file:///tmp/latest.json', stats)).toBe('file:///tmp/latest.json')
+  })
+  it('WSL の中のフォルダを見分ける', () => {
+    expect(isWslPath('\\\\wsl.localhost\\Ubuntu-24.04\\home\\a')).toBe(true)
+    expect(isWslPath('\\\\wsl$\\Ubuntu\\home')).toBe(true)
+    expect(isWslPath('C:\\Users\\a\\proj')).toBe(false)
+    expect(isWslPath('/Users/a/proj')).toBe(false)
   })
 })

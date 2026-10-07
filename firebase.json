@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "rising-loop",
+    "public": "site",
+    "ignore": ["**/.*"],
+    "headers": [
+      { "source": "/*.sh", "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }, { "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "/*.tgz", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  }
+}

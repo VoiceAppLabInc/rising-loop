@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rising Loop（ライジング・ループ）</title>
+<meta name="description" content="ひとつの指標を計測し、その数字を上げるための施策を AI と一緒に回し続けるデスクトップアプリ。">
+<link rel="icon" href="mark.png">
+<style>
+  :root{
+    --bar:#1c1c1b; --bar-2:#262624; --lime:#ccef67; --lime-ink:#2b3a0c;
+    --paper:#f0f2ed; --card:#ffffff; --ink:#1a1a19; --sub:#5e625c; --dim:#8a8f88; --line:#e2e4de;
+    --good:#52751f;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.8 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",sans-serif;-webkit-font-smoothing:antialiased}
+  a{color:var(--good)}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace}
+
+  /* ── 上の帯（アプリの「使い方」の見出しと同じ形） ── */
+  .hero{background:var(--bar);color:#fff;padding:56px 0 64px}
+  .brand{display:flex;align-items:center;gap:22px}
+  .brand img{height:96px;width:auto;display:block}
+  .brand-text{display:flex;flex-direction:column;gap:10px}
+  .brand-text b{color:var(--lime);font:800 52px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em}
+  .brand-text i{font-style:normal;font-size:12.5px;color:#dfe6d6;opacity:.75}
+  .hero .lede{margin:34px 0 0;font-size:22px;line-height:1.7;font-weight:650;max-width:760px}
+  .hero .lede small{display:block;margin-top:10px;font-size:15px;font-weight:400;color:#c9cec4}
+  .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;font-weight:700;font-size:15px;text-decoration:none;border:0;cursor:pointer}
+  .btn-lime{background:var(--lime);color:var(--lime-ink)}
+  .btn-ghost{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px #5b5e57}
+  .btn-dark{background:var(--ink);color:#fff}
+
+  /* ── 本文 ── */
+  section{padding:64px 0 0}
+  h2{margin:0 0 6px;font-size:13px;letter-spacing:.18em;color:var(--good);font-family:ui-monospace,Menlo,monospace;font-weight:800}
+  h3{margin:0 0 18px;font-size:26px;line-height:1.45}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
+  .video{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 20px 50px rgba(0,0,0,.18)}
+  .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+
+  .loop{display:grid;grid-template-columns:260px 1fr;gap:36px;align-items:start}
+  .loop .fig svg{width:100%;height:auto;display:block}
+  .steps{margin:0;padding-left:22px}
+  .steps li{margin:0 0 14px}
+  .free{margin-top:18px;padding:16px 18px;border-radius:10px;background:#f4f7ec;border:1px solid #dfe8cc}
+  .free ul{margin:8px 0 0;padding-left:20px;color:var(--sub)}
+
+  .install{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .install h4{margin:0 0 6px;font-size:18px}
+  .install p{margin:0 0 12px;color:var(--sub)}
+  .cmd{display:flex;align-items:center;gap:10px;background:var(--bar);color:#e6e6e6;border-radius:10px;padding:12px 12px 12px 16px}
+  .cmd code{flex:1;font-size:12.5px;line-height:1.5;word-break:break-all}
+  .copy{flex:none;background:var(--lime);color:var(--lime-ink);border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer}
+  .note{margin-top:10px;font-size:13px;color:var(--dim)}
+
+  .start ol{margin:0;padding-left:22px}
+  .start li{margin:0 0 12px}
+  .tip{margin-top:6px;padding:14px 18px;border-left:4px solid var(--lime);background:#fff;border-radius:0 10px 10px 0}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .feedback{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .feedback p{margin:0;color:var(--sub);max-width:560px}
+
+  footer{margin-top:72px;background:var(--bar);color:#bfc4ba;padding:28px 0;font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer b{color:var(--lime);font-family:ui-monospace,Menlo,monospace;letter-spacing:.2em}
+  footer a{color:#dfe6d6}
+
+  @media (max-width:760px){
+    .brand img{height:64px}
+    .brand-text b{font-size:32px}
+    .hero .lede{font-size:18px}
+    .loop,.install,.two{grid-template-columns:1fr}
+    .loop .fig{max-width:240px;margin:0 auto}
+    h3{font-size:22px}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brand">
+      <img src="mark.png" alt="">
+      <div class="brand-text">
+        <b>RISING LOOP</b>
+        <i>Mac / Windows · 無料 · Created by Voice App Lab</i>
+      </div>
+    </div>
+    <p class="lede">ひとつの数字を測り、それを上げる施策を、AI と一緒に回し続ける。
+      <small>ループの画面と、Claude Code（または Codex）のチャットを、1つのウィンドウにまとめたデスクトップアプリです。</small></p>
+    <div class="cta">
+      <a class="btn btn-lime" href="#install">ダウンロード（無料）</a>
+      <a class="btn btn-ghost" href="#video">▶ 解説動画を見る</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="video">
+    <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/3b6so58MULM" title="Rising Loop の解説動画" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+  </section>
+
+  <section id="loop">
+    <h2>HOW IT WORKS</h2>
+    <h3>ゴール → ボトルネック → 施策 → 評価。回すたびに、ゴールに近づく。</h3>
+    <div class="card loop">
+      <div class="fig"><svg viewBox="0 0 260 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ゴール → 数字を測る → ボトルネック → 施策案から1つ選ぶ → 施策 → 期間をおいて測る → 評価 → 数字が動く → ゴールへ戻る。回すたびにゴールに近づく">
+        <defs><marker id="hw-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52751f"/></marker></defs>
+        <g font-family="-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif">
+          <!-- 1. ゴール（着地点。濃い色） -->
+          <rect x="70" y="10" width="150" height="60" rx="10" fill="#1c2821"/>
+          <text x="78" y="22" font-size="8" font-weight="700" fill="#8fa86a" letter-spacing=".12em" font-family="ui-monospace,monospace">GOAL</text>
+          <text x="145" y="38" text-anchor="middle" font-size="15" font-weight="700" fill="#ccef67">ゴール</text>
+          <text x="145" y="56" text-anchor="middle" font-size="11.5" fill="#dfe6d6">動かしたい数字</text>
+          <path d="M145 72 L145 104" stroke="#52751f" stroke-width="2.5" marker-end="url(#hw-ah)"/>
+          <text x="153" y="82" font-size="11" fill="#52751f">数字を測る。</text>
+          <text x="153" y="96" font-size="11" fill="#52751f">届いていない</text>
+          <!-- 2. ボトルネック -->
+          <rect x="70" y="108" width="150" height="60" rx="10" fill="#f4f6f0" stroke="#c9d3bd"/>
+          <text x="78" y="120" font-size="8" font-weight="700" fill="#8fa86a" letter-spacing=".12em" font-family="ui-monospace,monospace">BOTTLENECK</text>
+          <text x="145" y="136" text-anchor="middle" font-size="15" font-weight="700" fill="#1c2821">ボトルネック</text>
+          <text x="145" y="154" text-anchor="middle" font-size="11.5" fill="#5a6a5f">届かない理由</text>
+          <path d="M145 170 L145 202" stroke="#52751f" stroke-width="2.5" marker-end="url(#hw-ah)"/>
+          <text x="153" y="180" font-size="11" fill="#52751f">施策案から</text>
+          <text x="153" y="194" font-size="11" fill="#52751f">1つ選ぶ</text>
+          <!-- 3. 施策 -->
+          <rect x="70" y="206" width="150" height="60" rx="10" fill="#f4f6f0" stroke="#c9d3bd"/>
+          <text x="78" y="218" font-size="8" font-weight="700" fill="#8fa86a" letter-spacing=".12em" font-family="ui-monospace,monospace">TRIAL</text>
+          <text x="145" y="234" text-anchor="middle" font-size="15" font-weight="700" fill="#1c2821">施策の実行</text>
+          <text x="145" y="252" text-anchor="middle" font-size="11.5" fill="#5a6a5f">打ち手を実行</text>
+          <path d="M145 268 L145 300" stroke="#52751f" stroke-width="2.5" marker-end="url(#hw-ah)"/>
+          <text x="153" y="278" font-size="11" fill="#52751f">期間をおいて</text>
+          <text x="153" y="292" font-size="11" fill="#52751f">測る</text>
+          <!-- 4. 評価 -->
+          <rect x="70" y="304" width="150" height="60" rx="10" fill="#f4f6f0" stroke="#c9d3bd"/>
+          <text x="78" y="316" font-size="8" font-weight="700" fill="#8fa86a" letter-spacing=".12em" font-family="ui-monospace,monospace">RECORD</text>
+          <text x="145" y="332" text-anchor="middle" font-size="15" font-weight="700" fill="#1c2821">施策の評価</text>
+          <text x="145" y="350" text-anchor="middle" font-size="11.5" fill="#5a6a5f">効いたか A〜E</text>
+          <path d="M145 366 L145 392" stroke="#52751f" stroke-width="2.5"/>
+          <text x="153" y="380" font-size="11" fill="#52751f">数字が動く</text>
+          <!-- 戻り: 下から左を通ってゴールへ -->
+          <path d="M145 392 L36 392 L36 38 L66 38" fill="none" stroke="#52751f" stroke-width="2.5" marker-end="url(#hw-ah)"/>
+          <text x="22" y="215" text-anchor="middle" font-size="11.5" font-weight="700" fill="#52751f" style="writing-mode:vertical-rl;text-orientation:upright" letter-spacing="1">回すたびにゴールに近づく</text>
+        </g>
+      </svg></div>
+      <div>
+        <ol class="steps">
+          <li><b>施策を始めるには</b>、やりたい施策の「AIに指示」を押して<b>「施策を実行する」</b>を選んで送る。実装が全部 ✅ になったら、同じ「AIに指示」から<b>「完了にして（評価に移す）」</b></li>
+          <li><b>ボタンはぜんぶ、押すと指示文が右のチャットに送られます。</b>カスタマイズ・更新・AIに指示、どれも AI がそれを読んで動きます</li>
+          <li><b>ループの期間を決めて</b>（1日1回、週1回、など）、都度「更新」を押して AI に指示。全体のステータスが更新されるので、次の施策に進みます</li>
+        </ol>
+        <div class="free">
+          <b>右のチャットはただの Claude Code（Codex）です。普段どおりに使いましょう</b>
+          <ul>
+            <li>（スクショを貼って）「ここをグラフにして」「この説明は短く」</li>
+            <li>「施策案が弱い。別案で5案だして」</li>
+            <li>「GA4 の API から数字取って」「Google Drive に保存して」</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>INSTALL</h2>
+    <h3>入れ方</h3>
+    <div class="install">
+      <div class="card">
+        <h4>Mac</h4>
+        <p>ターミナル（アプリケーション → ユーティリティ → ターミナル）にこの1行を貼って、Enter。初回も入れ直しも同じです。</p>
+        <div class="cmd"><code id="mac-cmd">curl -fsSL https://rising-loop.web.app/install-app.sh | sh</code><button class="copy" data-copy="mac-cmd">コピー</button></div>
+        <p class="note">Apple シリコン・Intel のどちらにも合う版を入れます。</p>
+      </div>
+      <div class="card">
+        <h4>Windows</h4>
+        <p>インストーラーを落として開きます。</p>
+        <a class="btn btn-dark" href="https://storage.googleapis.com/rising-loop-dist/latest/Rising-Loop-win-x64.exe">Windows 用をダウンロード</a>
+        <p class="note">「Windows によって PC が保護されました」と出たら、「詳細情報」→「実行」を押してください。</p>
+      </div>
+    </div>
+    <p class="note">新しい版が出ると、アプリが起動したときにお知らせします。プロジェクトとループは、入れ替えてもそのまま使えます。</p>
+  </section>
+
+  <section id="start" class="start">
+    <h2>GETTING STARTED</h2>
+    <h3>使い始め</h3>
+    <div class="card">
+      <ol>
+        <li>アプリを開くと、<b>AI を使えるようにする</b>画面が出ます。Claude Code か Codex のどちらか1つを［入れる］→［ログイン］。どちらもアプリの中から公式の手順で入れるので、Node などを先に入れる必要はありません</li>
+        <li><b>フォルダを開く…</b> で、このサービス専用のフォルダを選ぶ</li>
+        <li>チャットで AI と目標（動かしたい数字）を決めると、AI がループの画面を作ります。以後はその画面が入口です</li>
+      </ol>
+      <div class="tip"><b>チャットを進める前に、そのフォルダに資料を山ほど入れておきましょう。</b>企画書・仕様書、ソースコード、LP の HTML、GA4・Stripe・管理画面の CSV など、何でも。AI が最初に読んで、目標とボトルネックを考えます。</div>
+    </div>
+  </section>
+
+  <section id="tips">
+    <div class="two">
+      <div class="card">
+        <h2>TIPS</h2>
+        <h3>効果を上げるコツ</h3>
+        <p>数字が自動で取れる口を、できるだけ多く AI につなぐこと。GA4・Search Console・Stripe・Shopify・広告管理画面・自社 DB・Google Sheets などの API や MCP をつなぐほど、AI が自分で数字を取りに行けるようになり、更新が速く、評価が正確になります。つなぐ口が無いときは、AI がどの画面で見られるかを聞いて、ブラウザで取りに行きます。</p>
+      </div>
+      <div class="card">
+        <h2>FROM SKILL</h2>
+        <h3>スキル版（/rising-loop）を使っていた人へ</h3>
+        <p>アプリを入れて、ループのあるフォルダを開き、「HTMLを最新版にする」を押せば、そのまま使えます。数字・施策・記録は消えず、控えも残ります（［元に戻す］もできます）。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="feedback">
+    <h2>CONTACT</h2>
+    <div class="card feedback">
+      <div>
+        <h3 style="margin-bottom:8px">お問い合わせ・ご意見</h3>
+        <p>使い方の質問、不具合、ご要望、仕事でのご相談など、なんでもどうぞ。一言で大丈夫です。アプリのタブの列の［フィードバック］からも送れます。</p>
+      </div>
+      <a class="btn btn-lime" target="_blank" rel="noopener" href="https://docs.google.com/forms/d/e/1FAIpQLSddVHFdbG6Sq75vxj2b6SnCVRllV6cWoM44XobscyH8w5hLsw/viewform" id="feedback-link">お問い合わせ・ご意見を送る</a>
+    </div>
+    <p class="note">アプリは、使っている人の数を知るために、新しい版を確かめるときに匿名の情報（アプリごとのランダムな番号・版・OS・使っている AI）を送ります。名前やメールアドレスは送りません。設定の「使い方の統計」で止められます。</p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span><b>RISING LOOP</b>　© Voice App Lab</span>
+    <span><a href="https://creativecommons.org/licenses/by-nc/4.0/deed.ja">CC BY-NC 4.0</a>（個人・社内での利用は自由。商用利用は不可）</span>
+  </div>
+</footer>
+
+<script>
+  // 1行インストールを写す
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var t = document.getElementById(b.getAttribute('data-copy')).textContent
+      navigator.clipboard.writeText(t).then(function () { b.textContent = 'コピーしました'; setTimeout(function () { b.textContent = 'コピー' }, 1800) })
+    })
+  })
+</script>
+</body>
+</html>

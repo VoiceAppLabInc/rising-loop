@@ -11,6 +11,10 @@ export interface AppSettings {
   lastVersion?: string
   /** 右のチャットの窓の幅（左端のドラッグで決めた幅。全プロジェクト共通） */
   paneWidth?: number
+  /** 使っている人の数を数えるための、アプリごとのランダムな番号（初回に作る） */
+  anonId?: string
+  /** 使い方の統計（匿名の番号・版・OS・AI）を送らない（設定で止めたとき true。既定は送る） */
+  statsOff?: boolean
 }
 
 export function loadSettings(file: string): AppSettings {

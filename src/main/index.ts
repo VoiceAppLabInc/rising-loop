@@ -1,5 +1,6 @@
 import { execFile, spawn } from 'node:child_process'
-import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { BrowserWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, net, shell } from 'electron'
@@ -18,7 +19,8 @@ import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledge
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
 import { addProject, clearKickoff, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { LSREGISTER, MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, needsIconRefresh, readWithProgress, type UpdateCheck } from './update'
+import { envLine, feedbackUrl, parseFeedbackFile } from '@shared/feedback'
+import { LSREGISTER, MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, isWslPath, needsIconRefresh, readWithProgress, withStats, type Stats, type UpdateCheck } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
 const data = dataDirOf({ packaged: app.isPackaged, override: process.env.RISING_LOOP_APP_DATA_DIR, appData: app.getPath('appData'), exists: existsSync })
@@ -181,8 +183,63 @@ function snapshot(): ProjectsSnapshot {
 
 /** 新しい版のアプリ（見つけたら一覧に添えて、タブの列とお知らせに出す） */
 let update: AppUpdate | null = null
+/**
+ * お問い合わせ・フィードバックのフォームを、いつものブラウザで開く。環境の欄（版・OS・AI・WSL か）はアプリが入れる。
+ * 送るかどうかは、開いたフォームで使う人が決める（アプリからは送らない）
+ */
+function openFeedback(d: { kind?: string; body?: string }): void {
+  const p = state ? current() : null
+  const env = envLine({ app: app.getVersion(), skill: skillVersion(), platform: process.platform, arch: process.arch, ai: p ? aiOf(p) : '', wsl: !!p && isWslPath(p.folder) })
+  void shell.openExternal(feedbackUrl({ ...d, env }))
+}
+
+/** AI の報告を拾う間（ミリ秒）。書きかけを拾わないよう、最後に書いてから FEEDBACK_SETTLE_MS たったものだけ拾う */
+const FEEDBACK_SCAN_MS = 2000
+const FEEDBACK_SETTLE_MS = 1000
+
+/**
+ * 各プロジェクトの loops/.feedback/*.md（AI が SKILL.md の「開発者に送る」で書く）を拾い、中身を入れたフォームを開いて、ファイルは消す。
+ * 1つのファイルにつき1回だけ開く（消してから開く）
+ */
+function scanFeedback(): void {
+  if (!state) return
+  for (const p of state.projects) {
+    const dir = join(p.folder, 'loops', '.feedback')
+    let names: string[]
+    try {
+      names = readdirSync(dir).filter((n) => n.endsWith('.md')).sort()
+    } catch {
+      continue
+    }
+    for (const n of names) {
+      const f = join(dir, n)
+      try {
+        if (Date.now() - statSync(f).mtimeMs < FEEDBACK_SETTLE_MS) continue
+        const text = readFileSync(f, 'utf8')
+        rmSync(f, { force: true })
+        openFeedback(parseFeedbackFile(text))
+      } catch {
+        // 読めない・消せないものは、次の見比べでもう一度
+      }
+    }
+  }
+}
+
+/** 使い方の統計（匿名）。設定で止めていれば null。アプリごとの番号は初回に作って覚える */
+function statsNow(): Stats | null {
+  const s = loadSettings(settingsFile())
+  if (s.statsOff) return null
+  let id = s.anonId
+  if (!id) {
+    id = randomUUID()
+    saveSettings(settingsFile(), { ...s, anonId: id })
+  }
+  const p = state ? current() : null
+  return { id, app: app.getVersion(), skill: skillVersion(), platform: process.platform, arch: process.arch, ai: p ? aiOf(p) : '', wsl: !!p && isWslPath(p.folder) }
+}
+
 async function lookForUpdate(): Promise<UpdateCheck> {
-  const url = process.env.RISING_LOOP_APP_UPDATE_URL || UPDATE_URL
+  const url = withStats(process.env.RISING_LOOP_APP_UPDATE_URL || UPDATE_URL, statsNow())
   // テストは file:// の見本を読む（本物の GitHub には見に行かない）
   const fetcher = url.startsWith('file:') ? async (u: string) => ({ ok: true, json: async () => JSON.parse(readFileSync(new URL(u), 'utf8')) }) : (u: string) => net.fetch(u)
   const r = await checkUpdateNow(url, app.getVersion(), process.platform, process.arch, fetcher)
@@ -612,6 +669,8 @@ ipcMain.on('tool:stop', () => tools.stop())
 // ── アプリ全体の記録・ほかの場所の rising-loop ──
 
 ipcMain.handle('app:settings', () => loadSettings(settingsFile()))
+// 使い方の統計を送るか（設定のチェック）。止めたら、次に見に行くときから匿名の情報を付けない
+ipcMain.handle('app:set-stats', (_e, on: boolean) => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), statsOff: !on }))
 ipcMain.handle('app:howto-seen', () => saveSettings(settingsFile(), { ...loadSettings(settingsFile()), howtoSeen: true }))
 /** いますぐ確かめる（設定の［新しい版を確かめる］）。新しい版があれば、一覧を送り直してから返す */
 ipcMain.handle('app:check-update', async (): Promise<{ status: UpdateCheck['status']; snap: ProjectsSnapshot }> => {
@@ -688,6 +747,8 @@ ipcMain.on('pane:width', (_e, m: { phase: string; grow: number }) => {
   layoutOverlay()
   if (m.phase === 'end' || m.phase === 'reset') saveSettings(settingsFile(), { ...loadSettings(settingsFile()), paneWidth: m.phase === 'reset' ? undefined : w })
 })
+// ［フィードバック］（タブの列）。お問い合わせのフォームを、環境の欄を入れた状態でいつものブラウザで開く
+ipcMain.on('app:feedback', () => openFeedback({}))
 // 画面がキーの決まりに使う OS（テストでは RISING_LOOP_TEST_PLATFORM で Windows のふりをさせる）
 ipcMain.on('app:platform', (e) => {
   e.returnValue = process.env.RISING_LOOP_TEST_PLATFORM || process.platform
@@ -793,6 +854,8 @@ app.whenReady().then(() => {
   createWindow()
   void lookForUpdate()
   setInterval(() => void lookForUpdate(), UPDATE_EVERY_MS)
+  // AI が書いた「開発者に送る」報告（loops/.feedback/*.md）を拾ってフォームを開く。OS の知らせが来ない場所（WSL）でも拾えるよう、見比べで
+  setInterval(scanFeedback, FEEDBACK_SCAN_MS)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

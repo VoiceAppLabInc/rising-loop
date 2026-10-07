@@ -1,17 +1,42 @@
-# タグ v*（例: v0.2.0）を押すと、Mac（arm64・x64）と Windows（x64）の配る形を作って、Releases の下書きに置く。
-# 下書きを確かめてから、GitHub の画面で「公開」を押す（公開した時点でアプリの更新のお知らせに出る）
+# 配る形を作って置く・公開する（0.3.0 から。置き場所は Firebase の rising-loop：Cloud Storage の rising-loop-dist と Hosting の LP）
+#
+# 1. タグ v*（例: v0.3.0）を押す → Mac（arm64・x64）と Windows（x64）の配る形を作り、gs://rising-loop-dist/releases/<版>/ に置く。
+#    ここではまだ使う人には出ない（latest.json を変えないので、アプリのお知らせにも LP にも出ない）
+#    ★引っ越しのあいだ（リポジトリを非公開にするまで）は、GitHub の Releases の下書きにも置く（0.2.9 までのアプリは GitHub を見るため）
+# 2. 確かめる（落として開く・署名・版・同梱のスキル）
+# 3. Actions の画面でこのワークフローを「Run workflow」（publish）。版とお知らせの文を入れる →
+#    latest/ の版の無い名前に写し、latest.json を書き、LP（site/）と案内のスキル（legacy-rising-loop.tgz）を Hosting に出す
+#
+# Google Cloud へは鍵を使わず、Workload Identity 連携で入る（このリポジトリの Actions だけが入れる。サービスアカウント rising-loop-ci）
 name: release
 
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 公開する版（例 0.3.0。先にタグで releases/<版>/ に置いてあること）
+        required: true
+      notes:
+        description: お知らせの文（アプリのお知らせに出る。箇条書きは「- 」で始めて改行）
+        required: true
 
 permissions:
   contents: write
+  id-token: write
+
+env:
+  GCP_PROJECT: rising-loop
+  BUCKET: rising-loop-dist
+  WIF_PROVIDER: projects/1094319580473/locations/global/workloadIdentityPools/github/providers/github-actions
+  WIF_SA: rising-loop-ci@rising-loop.iam.gserviceaccount.com
+  LP: https://rising-loop.web.app/
 
 jobs:
-  # 先に下書きを1つだけ作る。Mac と Windows がそれぞれ作ると、同じタグの下書きが2つに分かれる
+  # 引っ越しのあいだだけ：GitHub の下書きを1つだけ作る（Mac と Windows がそれぞれ作ると、同じタグの下書きが2つに分かれる）
   draft:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: create draft release
@@ -20,6 +45,7 @@ jobs:
         run: gh release view "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft --title "$GITHUB_REF_NAME" --notes ""
 
   build:
+    if: github.event_name == 'push'
     needs: draft
     strategy:
       fail-fast: false
@@ -48,7 +74,76 @@ jobs:
         run: test "v$(node -p "require('./package.json').version")" = "${GITHUB_REF_NAME}"
       - run: node scripts/fetch-python.mjs ${{ matrix.python }}
       - run: pnpm build
+      # 引っ越しのあいだは GitHub の下書きにも置く（--publish always）
       - run: pnpm exec electron-builder ${{ matrix.target }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      # 配る場所の版の場所に置く（まだ使う人には出ない）
+      - name: upload to releases/<版>/
+        shell: bash
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          for f in dist/Rising-Loop-*.dmg dist/Rising-Loop-*.exe; do
+            [ -f "$f" ] || continue
+            gcloud storage cp "$f" "gs://${BUCKET}/releases/${V}/$(basename "$f")" --project="${GCP_PROJECT}"
+          done
+          gcloud storage ls "gs://${BUCKET}/releases/${V}/" --project="${GCP_PROJECT}"
+
+  # 公開：latest/ と latest.json を差し替え、LP を出し直す（手で動かす）
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.WIF_SA }}
+          create_credentials_file: true
+      - uses: google-github-actions/setup-gcloud@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: check files in releases/<版>/
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          for n in "Rising-Loop-${V}-mac-arm64.dmg" "Rising-Loop-${V}-mac-x64.dmg" "Rising-Loop-win-x64.exe"; do
+            gcloud storage ls "gs://${BUCKET}/releases/${V}/${n}" --project="${GCP_PROJECT}" >/dev/null || { echo "見つからない: releases/${V}/${n}"; exit 1; }
+          done
+      - name: copy to latest/
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          R="gs://${BUCKET}/releases/${V}"
+          gcloud storage cp "${R}/Rising-Loop-${V}-mac-arm64.dmg" "gs://${BUCKET}/latest/Rising-Loop-mac-arm64.dmg" --cache-control="no-cache" --project="${GCP_PROJECT}"
+          gcloud storage cp "${R}/Rising-Loop-${V}-mac-x64.dmg" "gs://${BUCKET}/latest/Rising-Loop-mac-x64.dmg" --cache-control="no-cache" --project="${GCP_PROJECT}"
+          gcloud storage cp "${R}/Rising-Loop-win-x64.exe" "gs://${BUCKET}/latest/Rising-Loop-win-x64.exe" --cache-control="no-cache" --project="${GCP_PROJECT}"
+      # latest.json：アプリの更新確認と install-app.sh が読む。1行で書く（install-app.sh は grep で "mac-<arch>": "…" を拾う）
+      - name: write latest.json
+        env:
+          V: ${{ inputs.version }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          node -e '
+            const V = process.env.V, base = `https://storage.googleapis.com/${process.env.BUCKET}/releases/${V}/`
+            const notes = process.env.NOTES.replace(/\\n/g, "\n").trim()
+            const m = { version: V, date: new Date().toISOString().slice(0, 10), notes,
+              files: { "mac-arm64": base + `Rising-Loop-${V}-mac-arm64.dmg`, "mac-x64": base + `Rising-Loop-${V}-mac-x64.dmg`, "win-x64": base + "Rising-Loop-win-x64.exe" },
+              page: process.env.LP }
+            require("fs").writeFileSync("latest.json", JSON.stringify(m))
+          '
+          cat latest.json
+          gcloud storage cp latest.json "gs://${BUCKET}/latest.json" --cache-control="no-cache, max-age=0" --content-type="application/json; charset=utf-8" --project="${GCP_PROJECT}"
+      - name: deploy LP and install scripts
+        run: |
+          tar -czf site/legacy-rising-loop.tgz -C legacy rising-loop
+          npx --yes firebase-tools@14 deploy --only hosting --project "${GCP_PROJECT}" --non-interactive
