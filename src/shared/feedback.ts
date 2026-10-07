@@ -8,7 +8,7 @@ export const FEEDBACK_FORM = 'https://docs.google.com/forms/d/e/1FAIpQLSddVHFdbG
 export const FEEDBACK_ENTRY = { kind: '616376561', body: '964705820', email: '1047216616', env: '1874439526' } as const
 
 /** 「どんなことですか？」の選択肢（フォームと同じ文字にする。違うと入らない） */
-export const FEEDBACK_KINDS = ['使い方を知りたい', 'うまく動かない', 'こうしてほしい', '仕事で使いたい・相談したい', 'その他'] as const
+export const FEEDBACK_KINDS = ['Rising Loopへのフィードバック', 'Rising Loopを商用で使いたい／相談したい', 'その他'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
 /** URL の長さの上限の目安（長すぎると開けないブラウザがある）。超えるときは内容を切る */
@@ -41,12 +41,12 @@ export function feedbackUrl(d: FeedbackDraft): string {
 
 /**
  * AI が書いた報告（loops/.feedback/<日時>.md）を読む。1行目が「種類: …」なら種類、それより後ろが内容。
- * 1行目に種類が無ければ、全体を内容にして種類は「うまく動かない」
+ * 1行目に種類が無ければ、全体を内容にして種類は「Rising Loopへのフィードバック」
  */
 export function parseFeedbackFile(text: string): { kind: FeedbackKind; body: string } {
   const lines = text.replace(/\r\n/g, '\n').split('\n')
   const m = /^種類[:：]\s*(.+)$/.exec(lines[0]?.trim() ?? '')
-  const kind = m && (FEEDBACK_KINDS as readonly string[]).includes(m[1].trim()) ? (m[1].trim() as FeedbackKind) : 'うまく動かない'
+  const kind = m && (FEEDBACK_KINDS as readonly string[]).includes(m[1].trim()) ? (m[1].trim() as FeedbackKind) : 'Rising Loopへのフィードバック'
   const rest = (m ? lines.slice(1) : lines).join('\n').replace(/^\s*---\s*\n/, '').trim()
   return { kind, body: rest }
 }

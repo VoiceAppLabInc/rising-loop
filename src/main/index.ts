@@ -63,6 +63,7 @@ const ledgerPath = () => join(skillDir(), 'migrations.json')
 const backupsOf = (id: string) => join(app.getPath('userData'), 'backups', id)
 const KEEP_BACKUPS = 3
 const paneDir = () => join(resourceRoot(), 'resources', 'pane')
+const TERMS_URL = 'https://rising-loop.web.app/terms.html'
 /** 同梱の Python（python3 が無い人のため）。配るときは Resources/python、開発中は scripts/fetch-python.mjs が落とした vendor/ の中 */
 const pythonDir = () =>
   app.isPackaged ? join(process.resourcesPath, 'python') : join(app.getAppPath(), 'vendor', 'python', `${process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux'}-${process.arch}`, 'python')
@@ -747,8 +748,11 @@ ipcMain.on('pane:width', (_e, m: { phase: string; grow: number }) => {
   layoutOverlay()
   if (m.phase === 'end' || m.phase === 'reset') saveSettings(settingsFile(), { ...loadSettings(settingsFile()), paneWidth: m.phase === 'reset' ? undefined : w })
 })
-// ［フィードバック］（タブの列）。お問い合わせのフォームを、環境の欄を入れた状態でいつものブラウザで開く
-ipcMain.on('app:feedback', () => openFeedback({}))
+// 設定の［フィードバックを送る］。お問い合わせのフォームを、環境の欄を入れた状態でいつものブラウザで開く
+ipcMain.on('app:feedback', () => openFeedback({ kind: 'Rising Loopへのフィードバック' }))
+// 設定の［利用規約］［ほかのソフトのライセンス］。規約は LP のページ、ライセンス表示はアプリの中のテキスト（scripts/notices.mjs で作る）
+ipcMain.on('app:terms', () => void shell.openExternal(TERMS_URL))
+ipcMain.on('app:notices', () => void shell.openPath(join(resourceRoot(), 'resources', 'notices', 'THIRD_PARTY_NOTICES.txt')))
 // 画面がキーの決まりに使う OS（テストでは RISING_LOOP_TEST_PLATFORM で Windows のふりをさせる）
 ipcMain.on('app:platform', (e) => {
   e.returnValue = process.env.RISING_LOOP_TEST_PLATFORM || process.platform

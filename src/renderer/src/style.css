@@ -194,7 +194,15 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .settings .path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings .act { flex: none; margin-left: auto; display: flex; gap: 8px; }
 .settings .act .btn { min-width: 96px; }
+/* ご意見・利用規約の行はリンクの形（ブラウザやファイルを開く。緑は LP と同じ色） */
+.settings .act .link-btn { min-width: 0; height: auto; padding: 2px 0; background: none; color: #52751f; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+.settings .act .link-btn:hover:not(:disabled) { background: none; color: #3b5716; }
+.settings .act .link-btn:active:not(:disabled) { background: none; color: #2c4110; }
+.settings .act.stack { flex-direction: column; align-items: flex-end; gap: 4px; }
 .settings .choice { display: inline-flex; align-items: center; gap: 6px; }
+/* 使い方の統計：チェックと「送る」は折り返さず、説明はその下の段に */
+.settings .stats-row .val { flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 0; }
+.settings .stats-row .choice { white-space: nowrap; }
 input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 .settings .note { margin: 2px 0 0 172px; }
 .sub { color: var(--sub); font-size: 12px; }

@@ -24,7 +24,8 @@
 アプリを更新すれば、このスキルも新しくなります。既存のループを新しい版に合わせる作業は AI が通しでやります。
 
 
-## ライセンス
+## 利用規約
 
-[CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/deed.ja)（表示・非営利）。© Voice App Lab
-個人・社内での利用、改変、再配布は自由です。**商用利用（販売・有償サービスへの組み込み）は不可**。利用の際は「Voice App Lab / rising-loop」のクレジットを残してください。
+[利用規約](https://rising-loop.web.app/terms.html)に従って使えます。© Voice App Lab
+個人での利用は無料です。改変・再配布・販売・有償サービスへの組み込みはできません。**会社での利用・商用はご相談ください**（[お問い合わせ](https://rising-loop.web.app/)）。
+アプリに入っているほかのソフトのライセンスは [third-party.txt](https://rising-loop.web.app/third-party.txt)。0.2.9 までの版は、配ったときのライセンス（CC BY-NC 4.0）のままです。

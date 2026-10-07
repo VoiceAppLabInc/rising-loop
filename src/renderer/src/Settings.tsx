@@ -89,6 +89,33 @@ export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; o
             <span className="val">v{p.snap.skillVersion}</span>
           </div>
           <StatsRow />
+          {/* ご意見・不具合・相談のフォーム（いつものブラウザで開く。版や OS はアプリが入れる） */}
+          <div className="row feedback-row">
+            <span className="key">ご意見・お問い合わせ</span>
+            <span className="val">
+              <span className="sub">不具合・ご要望・ご相談など。フォームがブラウザで開きます</span>
+            </span>
+            <span className="act">
+              <Button variant="quiet" size="sm" className="link-btn" onClick={() => window.rla.feedback()}>
+                フィードバックを送る <span aria-hidden="true">↗</span>
+              </Button>
+            </span>
+          </div>
+          {/* 利用規約（LP のページ）と、アプリに入っているほかのソフトのライセンス表示（アプリの中のテキスト） */}
+          <div className="row terms-row">
+            <span className="key">利用規約・ライセンス</span>
+            <span className="val">
+              <span className="sub">個人での利用は無料。会社での利用・商用はご相談ください</span>
+            </span>
+            <span className="act stack">
+              <Button variant="quiet" size="sm" className="link-btn" onClick={() => window.rla.openTerms()}>
+                利用規約 <span aria-hidden="true">↗</span>
+              </Button>
+              <Button variant="quiet" size="sm" className="link-btn" onClick={() => window.rla.openNotices()}>
+                ほかのソフトのライセンス <span aria-hidden="true">↗</span>
+              </Button>
+            </span>
+          </div>
         </section>
         </div>
         {/* 使い方と同じく、ボタンは下の右端 */}

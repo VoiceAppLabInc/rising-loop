@@ -19,6 +19,9 @@ extraResources:
     filter: ['**/*', '!**/__pycache__/**', '!**/.DS_Store']
   - from: resources/pane
     to: resources/pane
+  # ほかのソフトのライセンス表示（scripts/notices.mjs で作る。設定の［ほかのソフトのライセンス］が開く）
+  - from: resources/notices
+    to: resources/notices
   - from: vendor/python/${os}-${arch}/python
     to: python
 mac:

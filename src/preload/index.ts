@@ -55,6 +55,10 @@ const api = {
   settings: (): Promise<{ howtoSeen?: boolean; updateSeen?: string; statsOff?: boolean }> => ipcRenderer.invoke('app:settings'),
   /** お問い合わせ・フィードバックのフォームを、いつものブラウザで開く（環境の欄はアプリが入れる） */
   feedback: (): void => ipcRenderer.send('app:feedback'),
+  /** 利用規約（LP のページ）を、いつものブラウザで開く */
+  openTerms: (): void => ipcRenderer.send('app:terms'),
+  /** アプリに入っている、ほかのソフトのライセンス表示（THIRD_PARTY_NOTICES.txt）を開く */
+  openNotices: (): void => ipcRenderer.send('app:notices'),
   /** 使い方の統計（匿名）を送るか */
   setStats: (on: boolean): Promise<void> => ipcRenderer.invoke('app:set-stats', on),
   howtoSeen: (): Promise<void> => ipcRenderer.invoke('app:howto-seen'),
