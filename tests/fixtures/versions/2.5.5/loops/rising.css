@@ -351,13 +351,6 @@
     font:700 .94em ui-monospace,SFMono-Regular,Menlo,monospace}
   a.tid-ref:hover{background:var(--good);color:#fff;border-bottom-color:var(--good);
     border-radius:4px;padding:0 3px;margin:0 -3px}
-  /*=== 本文の中の外の資料へのリンク（↗ 付き）。施策の番号のリンクと同じ緑の太字＋点線。
-       乗せたときは反転せず、薄い緑の地を文字の周りに少し広げる（影で広げるので文字は動かない）。
-       ★「出来事のLOG」と画像のサムネイルのリンクは、それぞれの見た目があるので外す ===*/
-  :where(a[target="_blank"]):not(:where(.record-log, .trial-thumbs) a){color:var(--good);text-decoration:none;
-    border-bottom:1px dotted var(--good);font-weight:700}
-  :where(a[target="_blank"]):not(:where(.record-log, .trial-thumbs) a):hover{background:#e6eed8;
-    border-radius:3px;box-shadow:0 0 0 4px #e6eed8}
   .record-item p{margin:10px 0;color:var(--sub)}
   .record-item .record-meta{font-size:13px;color:var(--sub)}
   .record-item .record-assessment{font-size:16px;font-weight:700;color:var(--ink)}
