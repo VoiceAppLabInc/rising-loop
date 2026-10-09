@@ -181,7 +181,8 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 
 /* 設定画面（タブの列の下をおおう）。行は「項目名・値・右端のボタン」の3列で、高さをそろえる */
 .dialog.settings { width: 760px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); display: flex; flex-direction: column; padding: 20px 28px 18px; }
-.settings-body { flex: 1; min-height: 0; overflow: auto; }
+/* スクロールの箱を窓の左右の余白ぶん外へ広げ、スクロールバーを窓の右端の外枠ぴったりに置く（中身の位置は padding で保つ） */
+.settings-body { flex: 1; min-height: 0; overflow: auto; margin: 0 -28px; padding: 0 28px; }
 .dialog .settings-foot { margin-top: 0; padding-top: 14px; border-top: 1px solid var(--line); }
 .settings-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; }
 .settings-head h2 { margin: 0; font-size: 17px; font-weight: 600; }
