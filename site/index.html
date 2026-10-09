@@ -49,7 +49,8 @@
   .free{margin-top:18px;padding:16px 18px;border-radius:10px;background:#f4f7ec;border:1px solid #dfe8cc}
   .free ul{margin:8px 0 0;padding-left:20px;color:var(--sub)}
 
-  .install{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .install .note{margin-top:12px}
+  .install .os-win{margin-top:22px;padding-top:22px;border-top:1px solid var(--line)}
   .install h4{margin:0 0 6px;font-size:18px}
   .install p{margin:0 0 12px;color:var(--sub)}
   .cmd{display:flex;align-items:center;gap:10px;background:var(--bar);color:#e6e6e6;border-radius:10px;padding:12px 12px 12px 16px}
@@ -61,10 +62,78 @@
   .start li{margin:0 0 12px}
   .tip{margin-top:6px;padding:14px 18px;border-left:4px solid var(--lime);background:#fff;border-radius:0 10px 10px 0}
 
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .feedback{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
   .feedback p{margin:0;color:var(--sub);max-width:560px}
 
+  .terms-line{margin:18px 0 0;padding:14px 18px;max-width:760px;border:1px solid #3a3a37;border-radius:12px;font-size:14px;line-height:1.75;color:#dfe3da}
+  .terms-line b{color:#fff}
+  .beta{display:inline-block;vertical-align:middle;margin-left:14px;padding:3px 9px 2px;border-radius:6px;background:var(--lime);color:var(--lime-ink);font:800 13px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.12em;position:relative;top:-6px}
+  .terms-line a{color:var(--lime)}
+.with-fig{display:grid;grid-template-columns:1fr 240px;gap:28px;align-items:start}
+  .with-fig.tips-fig{grid-template-columns:1fr 330px;align-items:center}
+  .with-fig > svg{width:100%;height:auto}
+  .mech-lede{margin:0 0 20px;color:var(--sub);max-width:760px}
+  .mech-lede code,.mech-put code{font:13px ui-monospace,Menlo,monospace;background:#e7eadf;padding:1px 6px;border-radius:5px}
+  .mech{display:grid;grid-template-columns:1fr 36px 1fr 36px 1fr;align-items:stretch;gap:8px;margin:0 0 18px}
+  .mech-col{display:flex;flex-direction:column}
+  .mech-step{font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+  .mech-step span{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--good);color:#fff;font-size:13px}
+  .mech-arrow{display:flex;align-items:center;justify-content:center;color:var(--good);font-size:26px;font-weight:700;padding-top:34px}
+  .tree{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;font:13.5px/1.9 ui-monospace,Menlo,monospace;color:var(--ink)}
+  .tree i{font-style:normal;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;font-size:12px;color:var(--dim);margin-left:6px}
+  .tree-root{font-weight:700}
+  .tree-dim{color:var(--dim)}
+  .tree-new{margin:6px -8px 0;padding:6px 8px;border:2px solid var(--lime);background:#f6fbe4;border-radius:8px}
+  .mech-app{flex:1;display:flex;flex-direction:column;background:#16171a;border-radius:12px;overflow:hidden;border:1px solid #0e0e0d}
+  .app-bar{display:flex;align-items:center;gap:6px;background:var(--bar);padding:9px 12px;border-bottom:1px solid #0e0e0d}
+  .app-bar i{width:9px;height:9px;border-radius:50%;background:#5a5d58}
+  .app-bar span{margin-left:10px;background:#3a3b38;color:#fff;font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:6px}
+  .app-chat{flex:1;display:flex;flex-direction:column;gap:7px;padding:14px;font:12.5px/1.6 ui-monospace,Menlo,"Hiragino Sans",monospace;color:#c9cec4}
+  .app-line{padding-left:14px;position:relative}
+  .app-line::before{content:"●";position:absolute;left:0;top:0;font-size:8px;color:#8fa86a}
+  .app-line b{color:#fff;font-weight:600}
+  .app-out{color:var(--lime);font-weight:700}
+  .app-out::before{color:var(--lime)}
+  .app-who{margin-top:auto;padding-top:8px;font-size:11px;color:#8a8f88;text-align:right}
+  .tree-note{margin-top:10px;font:12.5px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif;color:var(--good);font-weight:600}
+  .mech-ai{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;background:var(--bar);color:#fff;border-radius:12px;padding:18px}
+  .mech-ai b{color:var(--lime);font-size:18px}
+  .mech-ai small{color:#c9cec4}
+  .mech-ai em{font-style:normal;font-size:13px;color:#dfe3da;margin-top:10px;line-height:1.7}
+  .mech-put h4{margin:0 0 2px;font-size:17px}
+  .mech-put .note{margin:0 0 8px}
+  .mech-put ul{margin:0;padding-left:20px}
+  .mech-put li{margin:4px 0}
+  .loop-tips{margin-top:18px}
+  .how-grid img{cursor:zoom-in}
+  .zoom{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100vw;height:100vh;margin:0}
+  .zoom::backdrop{background:rgba(20,22,20,.82)}
+  .zoom-inner{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:56px 20px 24px;box-sizing:border-box;cursor:zoom-out}
+  .zoom-cap{color:#fff;font-weight:700;font-size:15px}
+  .zoom img{max-width:min(1200px,100%);max-height:calc(100vh - 120px);width:auto;height:auto;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .zoom-close{position:fixed;top:14px;right:16px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:20px;cursor:pointer}
+  .zoom-close:hover{background:rgba(255,255,255,.28)}
+  .faq{padding:10px 28px 22px}
+  .faq-group{margin:20px 0 6px;font-size:13px;letter-spacing:.06em;color:var(--good)}
+  .faq-item{border-bottom:1px solid var(--line)}
+  .faq-item summary{cursor:pointer;list-style:none;padding:13px 28px 13px 0;font-weight:650;position:relative}
+  .faq-item summary::-webkit-details-marker{display:none}
+  .faq-item summary::after{content:"+";position:absolute;right:4px;top:10px;font-size:20px;font-weight:400;color:var(--good)}
+  .faq-item[open] summary::after{content:"−"}
+  .faq-q{color:var(--good);margin-right:8px;font-family:ui-monospace,Menlo,monospace}
+  .faq-item p{margin:0 0 14px;color:var(--sub)}
+  .faq-item code{font:13px ui-monospace,Menlo,monospace;background:#e7eadf;padding:1px 6px;border-radius:5px}
+  .how-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:0 0 22px;align-items:start}
+  .how-grid figure{margin:0}
+  .how-grid figcaption{margin:0 0 8px;font-size:14px;color:var(--sub)}
+  .how-grid figcaption b{color:var(--ink);font-size:16px;margin-right:10px}
+  .how-grid img{display:block;width:100%;height:auto;border-radius:10px;border:1px solid var(--line);box-shadow:0 8px 24px rgba(28,40,33,.10)}
+  .shot-img{display:block;width:100%;height:auto;margin:0 0 22px;border-radius:12px;border:1px solid var(--line);box-shadow:0 12px 32px rgba(28,40,33,.12)}
+  .shot{margin:0 0 22px;border:2px dashed #c9d3bd;border-radius:14px;background:#f7f8f4;color:var(--dim);display:flex;align-items:center;justify-content:center;aspect-ratio:16/9;font-size:14px;text-align:center;padding:16px}
+  .flow{margin:0;padding-left:22px}
+  .flow li{margin:0 0 10px}
+  .howto-ui{margin:16px 0 0;padding:14px 18px;background:#f7f8f4;border-radius:10px;font-size:14px;color:var(--sub)}
+  .howto-ui ul{margin:6px 0 0;padding-left:20px}
   footer{margin-top:72px;background:var(--bar);color:#bfc4ba;padding:28px 0;font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
   footer b{color:var(--lime);font-family:ui-monospace,Menlo,monospace;letter-spacing:.2em}
@@ -74,7 +143,9 @@
     .brand img{height:64px}
     .brand-text b{font-size:32px}
     .hero .lede{font-size:18px}
-    .loop,.install,.two{grid-template-columns:1fr}
+    .loop,.with-fig,.with-fig.tips-fig,.how-grid,.mech{grid-template-columns:1fr}
+    .mech-arrow{transform:rotate(90deg);padding:0}
+    .with-fig > svg{max-width:330px;margin:0 auto}
     .loop .fig{max-width:240px;margin:0 auto}
     h3{font-size:22px}
   }
@@ -87,16 +158,19 @@
     <div class="brand">
       <img src="mark.png" alt="">
       <div class="brand-text">
-        <b>RISING LOOP</b>
-        <i>Mac / Windows · 無料 · Created by Voice App Lab</i>
+        <b>RISING LOOP<span class="beta">BETA</span></b>
+        <i>Mac / Windows · 無料 · ベータ版 · Created by Voice App Lab</i>
       </div>
     </div>
-    <p class="lede">ひとつの数字を測り、それを上げる施策を、AI と一緒に回し続ける。
-      <small>ループの画面と、Claude Code（または Codex）のチャットを、1つのウィンドウにまとめたデスクトップアプリです。</small></p>
+    <p class="lede">KPIを測り、それを伸ばす施策を、AI と一緒に回す専用アプリ
+      <small>Claude Code（Codex）の機能をフルに使い、判断や AI への指示を迅速におこなえる、ビジュアル・ループツールです。</small></p>
     <div class="cta">
-      <a class="btn btn-lime" href="#install">ダウンロード（無料）</a>
+      <a class="btn btn-lime" href="#install">インストール方法を見る（無料）</a>
       <a class="btn btn-ghost" href="#video">▶ 解説動画を見る</a>
     </div>
+    <p class="terms-line"><b>個人で使うなら無料です。</b>会社・団体の仕事で使うときは、先に<a href="#feedback">ご相談</a>ください（<a href="terms.html">利用規約</a>）。<br>
+      <b>使うには、Claude（Pro 以上）か ChatGPT（Plus 以上）の有料プランが要ります。</b><br>
+      ベータ版のため、機能や画面は予告なく変わることがあります。</p>
   </div>
 </header>
 
@@ -106,9 +180,94 @@
     <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/3b6so58MULM" title="Rising Loop の解説動画" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
   </section>
 
-  <section id="loop">
+  <section id="install">
+    <h2>INSTALL</h2>
+    <h3>インストール方法</h3>
+    <div class="install card">
+      <div class="os">
+        <h4>Mac</h4>
+        <p>ターミナル（アプリケーション → ユーティリティ → ターミナル）にこの1行を貼って、Enter。初回も入れ直しも同じです。</p>
+        <div class="cmd"><code id="mac-cmd">curl -fsSL https://rising-loop.web.app/install-app.sh | sh</code><button class="copy" data-copy="mac-cmd">コピー</button></div>
+        <p class="note">このコマンドが、最新のアプリを落として「アプリケーション」に入れ、開くところまで自動でやります。パスワードは聞かれません。数十秒でアプリが開きます。Apple シリコン・Intel のどちらにも合う版を入れます。<a href="install-app.sh" target="_blank" rel="noopener">中身を見る</a></p>
+      </div>
+      <div class="os os-win">
+        <h4>Windows</h4>
+        <p>インストーラーを落として開きます。</p>
+        <a class="btn btn-dark" href="https://storage.googleapis.com/rising-loop-dist/latest/Rising-Loop-win-x64.exe">Windows 用をダウンロード</a>
+        <p class="note">「Windows によって PC が保護されました」と出たら、「詳細情報」→「実行」を押してください。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="mechanism">
     <h2>HOW IT WORKS</h2>
+    <h3>あなたのプロジェクトフォルダの中で動作します。</h3>
+    <p class="mech-lede">Rising Loop は、資料を入れたプロジェクトフォルダに <code>loops</code> フォルダを足して、ループの画面（HTML）を作ります。資料も画面も、あなたの手元のファイルです。</p>
+    <div class="mech">
+      <div class="mech-col">
+        <div class="mech-step"><span>1</span>あなたが入れる</div>
+        <div class="tree">
+          <div class="tree-root">my-salon/</div>
+          <div>├ 企画書.pdf</div>
+          <div>├ サービス概要.md</div>
+          <div>├ data/ga4.csv</div>
+          <div>├ data/売上.csv</div>
+          <div>├ site/index.html</div>
+          <div>└ .env <i>API キー</i></div>
+        </div>
+      </div>
+      <div class="mech-arrow" aria-hidden="true">→</div>
+      <div class="mech-col">
+        <div class="mech-step"><span>2</span>Rising Loop で読み込む</div>
+        <div class="mech-app" role="img" aria-label="Rising Loop のアプリの中で、Claude Code がプロジェクトフォルダの資料と数字を順に読み、目標の候補を出している">
+          <div class="app-bar"><i></i><i></i><i></i><span>my-salon</span></div>
+          <div class="app-chat">
+            <div class="app-line">企画書.pdf を読んでいます…</div>
+            <div class="app-line"><b>data/ga4.csv</b>：直近30日の訪問 8,046 回</div>
+            <div class="app-line"><b>data/売上.csv</b>：月の売上 275 万円</div>
+            <div class="app-line app-out">→ 目標の候補：サイトからの予約を30日で340件に</div>
+            <div class="app-who">Claude Code（または Codex）</div>
+          </div>
+        </div>
+      </div>
+      <div class="mech-arrow" aria-hidden="true">→</div>
+      <div class="mech-col">
+        <div class="mech-step"><span>3</span>loops フォルダが作成される</div>
+        <div class="tree">
+          <div class="tree-root">my-salon/</div>
+          <div class="tree-dim">├ 企画書.pdf …</div>
+          <div class="tree-new">
+            <div class="tree-root">└ loops/</div>
+            <div>　├ index.html <i>ループ一覧</i></div>
+            <div>　├ L01.html <i>ループの画面</i></div>
+            <div>　└ logs/ <i>出来事の記録</i></div>
+          </div>
+          <div class="tree-note">AI のコンテキストとして、いつでも参照できる</div>
+        </div>
+      </div>
+    </div>
+    <div class="card mech-put">
+      <h4>プロジェクトフォルダに入れるもの</h4>
+      <p class="note">整理しなくて大丈夫です。放り込むだけで、AI が読みます。</p>
+      <ul>
+        <li><b>事業の説明</b>：企画書・サービス概要・料金表・ターゲット像</li>
+        <li><b>いまの数字</b>：GA4・Stripe・広告・管理画面の CSV、スプレッドシート</li>
+        <li><b>作っているもの</b>：LP・サイトの HTML、ソースコード</li>
+        <li><b>これまでの経緯</b>：過去の施策のメモ、議事録、お客さまの声</li>
+        <li><b>各種 API キー</b>：GA4・Search Console・Stripe などの API キー（<code>.env</code> などに）。AI がそれを使って、数字を自分で取りに行きます</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="loop">
+    <h2>THE LOOP</h2>
     <h3>ゴール → ボトルネック → 施策 → 評価。回すたびに、ゴールに近づく。</h3>
+    <div class="how-grid">
+      <figure><figcaption><b>① ゴール</b>動かしたい数字と、いまの位置</figcaption><img src="how-goal.jpg" alt="ゴール。サイトからの予約を30日で340件に。いまは281件で、日ごとの件数のグラフ" loading="lazy"></figure>
+      <figure><figcaption><b>② ボトルネック</b>届かない理由と、施策案</figcaption><img src="how-bottleneck.jpg" alt="ボトルネック。ふだんの日は予約ページまで進む人が少ない。施策案が並ぶ" loading="lazy"></figure>
+      <figure><figcaption><b>③ 施策</b>選んだ打ち手を、手順に分けて実行</figcaption><img src="how-trial.jpg" alt="施策の実行。どの頁からも予約ページへ1回で進めるようにする。手順1が済み、次は実現方法を決める" loading="lazy"></figure>
+      <figure><figcaption><b>④ 評価</b>効いたかを A〜E で残す</figcaption><img src="how-record.jpg" alt="施策の評価。LINE の配信を週1回に増やす施策が評価 B（おおむね狙いどおり）" loading="lazy"></figure>
+    </div>
     <div class="card loop">
       <div class="fig"><svg viewBox="0 0 260 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="ゴール → 数字を測る → ボトルネック → 施策案から1つ選ぶ → 施策 → 期間をおいて測る → 評価 → 数字が動く → ゴールへ戻る。回すたびにゴールに近づく">
         <defs><marker id="hw-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52751f"/></marker></defs>
@@ -150,10 +309,11 @@
         </g>
       </svg></div>
       <div>
-        <ol class="steps">
-          <li><b>施策を始めるには</b>、やりたい施策の「AIに指示」を押して<b>「施策を実行する」</b>を選んで送る。実装が全部 ✅ になったら、同じ「AIに指示」から<b>「完了にして（評価に移す）」</b></li>
-          <li><b>ボタンはぜんぶ、押すと指示文が右のチャットに送られます。</b>カスタマイズ・更新・AIに指示、どれも AI がそれを読んで動きます</li>
-          <li><b>ループの期間を決めて</b>（1日1回、週1回、など）、都度「更新」を押して AI に指示。全体のステータスが更新されるので、次の施策に進みます</li>
+        <ol class="steps flow">
+          <li><b>上げたい数字を1つ決める。</b>チャットで AI と話して決めます</li>
+          <li><b>AI が資料と数字を読んで、詰まっている所（ボトルネック）と打ち手の案を挙げる</b></li>
+          <li><b>打ち手を1つ選んで、実行する。</b>AI がファイルや文案を作ります。出すかどうかは、あなたが決めます</li>
+          <li><b>期間をおいて測り、効いたかを A〜E で残す。</b>次の打ち手に進みます</li>
         </ol>
         <div class="free">
           <b>右のチャットはただの Claude Code（Codex）です。普段どおりに使いましょう</b>
@@ -165,53 +325,65 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <section id="install">
-    <h2>INSTALL</h2>
-    <h3>入れ方</h3>
-    <div class="install">
-      <div class="card">
-        <h4>Mac</h4>
-        <p>ターミナル（アプリケーション → ユーティリティ → ターミナル）にこの1行を貼って、Enter。初回も入れ直しも同じです。</p>
-        <div class="cmd"><code id="mac-cmd">curl -fsSL https://rising-loop.web.app/install-app.sh | sh</code><button class="copy" data-copy="mac-cmd">コピー</button></div>
-        <p class="note">Apple シリコン・Intel のどちらにも合う版を入れます。</p>
-      </div>
-      <div class="card">
-        <h4>Windows</h4>
-        <p>インストーラーを落として開きます。</p>
-        <a class="btn btn-dark" href="https://storage.googleapis.com/rising-loop-dist/latest/Rising-Loop-win-x64.exe">Windows 用をダウンロード</a>
-        <p class="note">「Windows によって PC が保護されました」と出たら、「詳細情報」→「実行」を押してください。</p>
-      </div>
-    </div>
-    <p class="note">新しい版が出ると、アプリが起動したときにお知らせします。プロジェクトとループは、入れ替えてもそのまま使えます。</p>
-  </section>
-
-  <section id="start" class="start">
-    <h2>GETTING STARTED</h2>
-    <h3>使い始め</h3>
+    <div id="tips" class="loop-tips">
     <div class="card">
-      <ol>
-        <li>アプリを開くと、<b>AI を使えるようにする</b>画面が出ます。Claude Code か Codex のどちらか1つを［入れる］→［ログイン］。どちらもアプリの中から公式の手順で入れるので、Node などを先に入れる必要はありません</li>
-        <li><b>フォルダを開く…</b> で、このサービス専用のフォルダを選ぶ</li>
-        <li>チャットで AI と目標（動かしたい数字）を決めると、AI がループの画面を作ります。以後はその画面が入口です</li>
-      </ol>
-      <div class="tip"><b>チャットを進める前に、そのフォルダに資料を山ほど入れておきましょう。</b>企画書・仕様書、ソースコード、LP の HTML、GA4・Stripe・管理画面の CSV など、何でも。AI が最初に読んで、目標とボトルネックを考えます。</div>
+      <h2>TIPS</h2>
+      <div class="with-fig tips-fig">
+      <div>
+      <h3>効果を上げるコツ</h3>
+      <p>数字が自動で取れる口を AI につなぎましょう。GA4・Search Console・Stripe・Shopify・広告管理画面・Google Sheets など（API や MCP）をつなぐほど、AI が自分で数字を取りに行けるようになり、更新が速く、評価が正確になります。</p>
+      <p>つなぎ方が分からなくても大丈夫です。お使いの Claude Code（または Codex）に「GA4 の数字を見えるようにして」のように頼めば、AI が設定まで進めます。</p>
+      </div>
+      <svg viewBox="0 0 330 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GA4・Search Console・Stripe・Shopify・Google Sheets から AI が数字を取りに行き、ループの画面を更新する">
+        <defs><marker id="tp-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#52751f"/></marker></defs>
+        <g font-family="-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif">
+          <path d="M108 27 C 140 27, 140 110, 160 110" fill="none" stroke="#8fa86a" stroke-width="1.6"/><path d="M108 67 C 140 67, 140 110, 160 110" fill="none" stroke="#8fa86a" stroke-width="1.6"/><path d="M108 107 C 140 107, 140 110, 160 110" fill="none" stroke="#8fa86a" stroke-width="1.6"/><path d="M108 147 C 140 147, 140 110, 160 110" fill="none" stroke="#8fa86a" stroke-width="1.6"/><path d="M108 187 C 140 187, 140 110, 160 110" fill="none" stroke="#8fa86a" stroke-width="1.6"/>
+          <rect x="4" y="14" width="104" height="26" rx="13" fill="#fff" stroke="#c9d3bd"/><text x="56" y="31" text-anchor="middle" font-size="10.5" fill="#1c2821">GA4</text><rect x="4" y="54" width="104" height="26" rx="13" fill="#fff" stroke="#c9d3bd"/><text x="56" y="71" text-anchor="middle" font-size="10.5" fill="#1c2821">Search Console</text><rect x="4" y="94" width="104" height="26" rx="13" fill="#fff" stroke="#c9d3bd"/><text x="56" y="111" text-anchor="middle" font-size="10.5" fill="#1c2821">Stripe</text><rect x="4" y="134" width="104" height="26" rx="13" fill="#fff" stroke="#c9d3bd"/><text x="56" y="151" text-anchor="middle" font-size="10.5" fill="#1c2821">Shopify</text><rect x="4" y="174" width="104" height="26" rx="13" fill="#fff" stroke="#c9d3bd"/><text x="56" y="191" text-anchor="middle" font-size="10.5" fill="#1c2821">Google Sheets</text>
+          <circle cx="186" cy="110" r="27" fill="#1c2821"/>
+          <text x="186" y="116" text-anchor="middle" font-size="16" font-weight="800" fill="#ccef67" font-family="ui-monospace,monospace">AI</text>
+          <path d="M215 110 L238 110" stroke="#52751f" stroke-width="2.5" marker-end="url(#tp-ah)"/>
+          <rect x="244" y="64" width="82" height="92" rx="8" fill="#f4f6f0" stroke="#c9d3bd"/>
+          <rect x="252" y="74" width="66" height="16" rx="4" fill="#1c2821"/>
+          <text x="285" y="85.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="#ccef67">更新</text>
+          <rect x="256" y="128" width="9" height="18" fill="#c9d3bd"/><rect x="270" y="118" width="9" height="28" fill="#8fa86a"/><rect x="284" y="108" width="9" height="38" fill="#52751f"/><rect x="298" y="98" width="9" height="48" fill="#52751f"/>
+          <text x="285" y="176" text-anchor="middle" font-size="10" fill="#52751f">ループの画面</text>
+        </g>
+      </svg>
+      </div>
+    </div>
     </div>
   </section>
 
-  <section id="tips">
-    <div class="two">
-      <div class="card">
-        <h2>TIPS</h2>
-        <h3>効果を上げるコツ</h3>
-        <p>数字が自動で取れる口を、できるだけ多く AI につなぐこと。GA4・Search Console・Stripe・Shopify・広告管理画面・自社 DB・Google Sheets などの API や MCP をつなぐほど、AI が自分で数字を取りに行けるようになり、更新が速く、評価が正確になります。つなぐ口が無いときは、AI がどの画面で見られるかを聞いて、ブラウザで取りに行きます。</p>
-      </div>
-      <div class="card">
-        <h2>FROM SKILL</h2>
-        <h3>スキル版（/rising-loop）を使っていた人へ</h3>
-        <p>アプリを入れて、ループのあるフォルダを開き、「HTMLを最新版にする」を押せば、そのまま使えます。数字・施策・記録は消えず、控えも残ります（［元に戻す］もできます）。</p>
-      </div>
+  <section id="faq">
+    <h2>FAQ</h2>
+    <h3>よくある質問</h3>
+    <div class="card faq">
+      <h4 class="faq-group">Rising Loop について</h4>
+      <details class="faq-item"><summary><span class="faq-q">Q1.</span>「ループ」とは何ですか？ ダッシュボードと何が違いますか？</summary><p>ダッシュボードは数字を見せるところまでです。Rising Loop は、その先の「なぜ届かないか（ボトルネック）」「何をするか（施策）」「効いたか（評価）」までを1つの画面にまとめ、AI と一緒に回し続けます。打った施策と結果が記録として残るので、次の判断の材料になります。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q2.</span>Web アプリではないのですか？ なぜインストールが要るのですか？</summary><p>デスクトップアプリです。AI（Claude Code・Codex）があなたの PC の上で動き、手元のプロジェクトフォルダの資料を読み書きするためです。ブラウザだけでは使えません。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q3.</span>ベータ版とは？</summary><p>いまも作りながら公開している段階です。機能や画面は、使う人の声を聞きながら変えていきます。不具合やご要望は、<a href="#feedback">お問い合わせ</a>から送ってください。</p></details>
+      <h4 class="faq-group">アカウントとデータ</h4>
+      <details class="faq-item"><summary><span class="faq-q">Q4.</span>Rising Loop のアカウント登録やログインは要りますか？</summary><p>要りません。メールアドレスの登録もありません。ログインするのは、使う AI（Claude Code または Codex）だけです。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q5.</span>データはどこに保存されますか？</summary><p>すべて、あなたの PC の中です。資料もループの画面も、プロジェクトフォルダの中のファイルです。Rising Loop のサーバーに保存されるものはありません。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q6.</span>入れた資料や数字は、どこかに送られますか？</summary><p>AI が読んだ中身は、あなたが使う AI の提供元（Claude なら Anthropic、Codex なら OpenAI）に送られます。扱いは、提供元の規約とあなたのアカウントの設定によります。Voice App Lab には届きません。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q7.</span>API キーを <code>.env</code> に入れて、AI に読ませても大丈夫ですか？</summary><p>AI はそのキーを使って数字を取りに行きます。キーの中身も AI の提供元に送られることがあります。読み取りだけの権限のキーなど、必要最小限の権限で作ったキーをおすすめします。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q8.</span>AI が勝手にファイルを書き換えたり、サイトを公開したりしませんか？</summary><p>アプリの中で動いているのは、あなたの Claude Code（または Codex）そのものです。何をどこまでするかは、Claude Code の設定と、あなたの指示しだいです。アプリの既定では、あなたの Claude Code の権限の設定がそのまま使われます。アプリの設定で「すべて自動で許可」を選んだときだけ、確認なしで動きます。させたくない操作があるなら、そのように指示してください。大事なフォルダは、git などで控えを取っておくことをおすすめします。</p></details>
+      <h4 class="faq-group">始め方</h4>
+      <details class="faq-item"><summary><span class="faq-q">Q9.</span>資料がほとんど無くても始められますか？</summary><p>始めることはできますが、おすすめしません。Rising Loop は、ありったけの資料を入れて使うことを想定しています。資料が少ないと、AI が出す目標やボトルネックが一般論になりがちです。企画書・数字・サイトの HTML・ソースコードなど、手元にあるものを全部入れてから始めてください。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q10.</span>ソースコードのフォルダ（git の管理下）で使えますか？</summary><p>使えます。むしろおすすめの使い方です。AI がループの数字とソースコードを両方見ながら改善点を見つけ、その場でコードを直せます。<code>loops</code> フォルダが1つ増えるだけなので、git に入れて共有しても、<code>.gitignore</code> で外してもかまいません。</p></details>
+      <h4 class="faq-group">使い方</h4>
+      <details class="faq-item"><summary><span class="faq-q">Q11.</span>毎回、自分で更新するのですか？ 自動で回りますか？</summary><p>ループの期間（1日1回、週1回など）を決めて、そのつど「更新」を押します。AI が数字を取り直し、施策の評価を見直します。今は、決まった時刻に自動で回す仕組みはありません。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q12.</span>施策の実行は、AI がやるのですか？</summary><p>AI が勝手に進めることはありません。あなたが指示を出し、確認しながら AI に作業させます。任せられるのは、コードの修正や実装、ページの修正、画像の生成、文案、計測の設定など、手元でできる作業です。公開・配信・発注など外に出す判断も、あなたがします。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q13.</span>評価の A〜E は、何を基準に付きますか？</summary><p>施策を始めるときに立てた「予想」に対して、どこまで届いたかで AI が付けます。A 狙いどおり／B おおむね／C 半分／D わずか／E 届かず、です。実務の感触に合わせて、手で変えることもよくあります。チャットで「この評価は C にして」と頼めば変わります。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q14.</span>ループや KPI は、いくつも持てますか？</summary><p>持てます。1つのプロジェクトにいくつでもループを作れて、一覧で並べて見られます。プロジェクトも、アプリのタブで複数開けます。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q15.</span>チームで共有できますか？</summary><p>ループの画面はフォルダの中のファイルなので、git や共有ドライブで共有できます。同じファイルを同時に何人かで書き換えると、ぶつかることがあります。</p></details>
+      <h4 class="faq-group">アプリについて</h4>
+      <details class="faq-item"><summary><span class="faq-q">Q16.</span>PC を買い替えたら、どうなりますか？</summary><p>プロジェクトフォルダを新しい PC に移し、アプリを入れて、そのフォルダを開けば続きから使えます。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q17.</span>2台の PC で、同じプロジェクトを使えますか？</summary><p>プロジェクトフォルダを共有ドライブや git で同期すれば使えます。2台で同時に作業すると、ぶつかることがあります。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q18.</span>スマホやタブレットで見られますか？</summary><p>アプリは Mac と Windows だけです。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q19.</span>ネットにつながっていなくても動きますか？</summary><p>AI がネットの向こうで動くので、つながっている必要があります。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q20.</span>アンインストールするには？</summary><p>Mac は「アプリケーション」の Rising Loop をゴミ箱へ、Windows は「設定」→「アプリ」から外します。プロジェクトフォルダの <code>loops</code> は残ります。要らなければ、フォルダごと消してください。</p></details>
+      <details class="faq-item"><summary><span class="faq-q">Q21.</span>新しいバージョンは、どうやって入れますか？</summary><p>新しいバージョンが出ると、アプリを開いたときにお知らせが出ます。Mac は［アップデート］を押すだけで入れ替わり、Windows は新しいインストーラーを落として開きます。プロジェクトとループは、そのまま使えます。</p></details>
     </div>
   </section>
 
@@ -224,7 +396,6 @@
       </div>
       <a class="btn btn-lime" target="_blank" rel="noopener" href="https://docs.google.com/forms/d/e/1FAIpQLSddVHFdbG6Sq75vxj2b6SnCVRllV6cWoM44XobscyH8w5hLsw/viewform" id="feedback-link">お問い合わせ・ご意見を送る</a>
     </div>
-    <p class="note">アプリは、使っている人の数を知るために、新しい版を確かめるときに匿名の情報（アプリごとのランダムな番号・版・OS・使っている AI）を送ります。名前やメールアドレスは送りません。設定の「使い方の統計」で止められます。</p>
   </section>
 
 </main>
@@ -236,7 +407,25 @@
   </div>
 </footer>
 
+<dialog class="zoom" id="zoom" aria-label="写真を拡大">
+  <button class="zoom-close" type="button" aria-label="閉じる">✕</button>
+  <div class="zoom-inner"><div class="zoom-cap"></div><img alt=""></div>
+</dialog>
+
 <script>
+  // THE LOOP の写真をクリックで拡大（もう一度クリック・✕・Esc で閉じる）
+  ;(function () {
+    var d = document.getElementById('zoom'), img = d.querySelector('img'), cap = d.querySelector('.zoom-cap')
+    document.querySelectorAll('.how-grid img').forEach(function (im) {
+      im.addEventListener('click', function () {
+        img.src = im.src; img.alt = im.alt
+        var fc = im.closest('figure').querySelector('figcaption b')
+        cap.textContent = fc ? fc.textContent : ''
+        d.showModal()
+      })
+    })
+    d.addEventListener('click', function () { d.close() })
+  })()
   // 1行インストールを写す
   document.querySelectorAll('[data-copy]').forEach(function (b) {
     b.addEventListener('click', function () {
