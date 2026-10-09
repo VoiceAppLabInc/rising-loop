@@ -9,10 +9,10 @@ import * as pty from 'node-pty'
 import type { WebFrameMain } from 'electron'
 import { pasteForTerminal } from '@shared/intercept'
 import type { AiKind, Project } from '@shared/types'
-import { claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from './launch'
+import { HANDOFF_ASK, claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, handoffNote, parseCodexThreadId } from './launch'
 import { childEnv, killTree } from './platform'
 import { resolveCli } from './aiCli'
-import { findSession, loadBook, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
+import { findSession, loadBook, previousSession, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
 
 /** 1つのターミナルが持っておく出力の上限（開き直したときに出す分） */
 const KEEP = 2 * 1024 * 1024
@@ -85,6 +85,31 @@ function claudeSessionExists(id: string): boolean {
     return readdirSync(root).some((d) => existsSync(join(root, d, id + '.jsonl')))
   } catch {
     return false
+  }
+}
+
+/** codex の設定と会話の記録の置き場所。CODEX_HOME があればそこ */
+const codexDir = () => process.env.CODEX_HOME || join(homedir(), '.codex')
+
+/**
+ * 会話の記録のファイル。無ければ null（消した・別の機械で作った会話）。
+ * claude は projects/<フォルダ>/<ID>.jsonl、codex は sessions/<年>/<月>/<日>/rollout-…-<ID>.jsonl
+ */
+function transcriptFile(ai: AiKind, id: string): string | null {
+  try {
+    if (ai === 'claude') {
+      const root = join(claudeDir(), 'projects')
+      for (const d of readdirSync(root)) {
+        const f = join(root, d, id + '.jsonl')
+        if (existsSync(f)) return f
+      }
+      return null
+    }
+    const root = join(codexDir(), 'sessions')
+    const hit = (readdirSync(root, { recursive: true }) as string[]).find((p) => p.endsWith(`-${id}.jsonl`))
+    return hit ? join(root, hit) : null
+  } catch {
+    return null
   }
 }
 
@@ -304,7 +329,8 @@ export class Chats {
       }
       const env = await childEnv()
       const book = loadBook(this.bookFile)
-      let id = findSession(book, readChatSessions(project.folder), project.folder, screen, ai, this.paths.skillVersion)
+      const chatSessions = readChatSessions(project.folder)
+      let id = findSession(book, chatSessions, project.folder, screen, ai, this.paths.skillVersion)
       // スキルの版が変わって新しい会話にするときは、何が変わったかを先に出す
       const prev = book[project.folder]?.screens[screen]?.[ai]?.skill
       if (!id && prev && prev !== this.paths.skillVersion) {
@@ -313,14 +339,28 @@ export class Chats {
       }
       // 新しい会話を始めるときは、そう出す（版が変わった・刷新した・初めて）
       if (!id) this.out(t, `\x1b[2m新しい会話を始めます（スキル ${this.paths.skillVersion}）\x1b[0m\r\n`)
+      // 新しい会話にするとき、その画面の直前の会話の記録があれば、読んで現在地を確かめるよう起動時の指示に足す。
+      // 記録はそのまま AI に読ませる（アプリは場所を伝えるだけ。抜き書きのファイルは作らない）
+      const prevId = id ? null : previousSession(book, chatSessions, project.folder, screen, ai)
+      const prevFile = prevId ? transcriptFile(ai, prevId) : null
+      const note = prevFile ? '\n\n' + handoffNote(screen, prevFile, this.paths.skillVersion) : ''
+      if (prevFile) this.out(t, `\x1b[2m直前の会話の記録を読んで、続きから始めます\x1b[0m\r\n`)
       // 起動時の指示に、そのチャットの担当（どの画面のチャットか）を入れる
-      const instructions = codexInstructions(this.paths.skillDir, screen)
+      // codex は起動時の指示を会話を作るときにだけ取り込むので、案内は作る段階から入れる
+      // （作る段階の「了解」だけの返事では読まないよう、案内の文で伝えている）
+      const instructions = codexInstructions(this.paths.skillDir, screen) + note
       const promptFile = join(this.paths.dataDir, `claude-prompt-${screen}.md`)
-      if (ai === 'claude') writeFileSync(promptFile, claudePrompt(screen))
+      if (ai === 'claude') writeFileSync(promptFile, claudePrompt(screen) + note)
+      // codex は会話を作るときに裏で一文を送る。直前の会話の記録を読ませるだけのとき（ほかに送る文が無いとき）は、
+      // その一文を「現在地を教えて」にして、作る段階で読ませる（AI に送るのが1回で済む）。
+      // 作り直しの作業などは、裏では確認を出せないので、作ったあとに画面で送る
+      let askedAtCreate = false
       if (ai === 'claude') id ??= randomUUID()
       else if (!id) {
-        this.out(t, 'codex の会話を作っています（30秒ほど）…\r\n')
-        id = await this.createCodexThread(cmd.file, cmd.args, project, screen, instructions, env)
+        const ask = prevFile && t.queue.length === 0 ? HANDOFF_ASK : undefined
+        this.out(t, ask ? 'codex の会話を作り、直前の会話の記録を読んでいます（1分ほど）…\r\n' : 'codex の会話を作っています（30秒ほど）…\r\n')
+        id = await this.createCodexThread(cmd.file, cmd.args, project, screen, instructions, env, ask)
+        askedAtCreate = !!ask
         if (!id) {
           this.out(t, 'codex の会話を作れませんでした。codex にログインしているかを確かめて、Enter を押してください。\r\n')
           return
@@ -331,7 +371,9 @@ export class Chats {
       // 会話を始めるときに送る文は、貼り付けずに起動時の引数で渡す（起動直後の貼り付けは捨てられる）。
       // 起動の準備のあいだに積まれた文も含めて、ここで1つ拾う
       const first = t.queue.shift()
-      const prompt = first?.text
+      // 直前の会話の記録を読ませるときは、ほかに送る文が無ければ、AI に現在地をひとこと話させる（会話に中身が残る）。
+      // 作り直しの作業などが決まっていれば、それを送る（記録は、それに答える前に読む）
+      const prompt = first?.text ?? (prevFile && !askedAtCreate ? HANDOFF_ASK : undefined)
       const args =
         ai === 'claude'
           ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
@@ -359,8 +401,8 @@ export class Chats {
     }
   }
 
-  private createCodexThread(file: string, pre: string[], project: Project, screen: string, instructions: string, env: NodeJS.ProcessEnv): Promise<string | null> {
-    const prompt = `これは ${project.name} の Rising Loop の右のチャット（${screen}）専用の窓口です。返事は「了解」だけ。`
+  private createCodexThread(file: string, pre: string[], project: Project, screen: string, instructions: string, env: NodeJS.ProcessEnv, ask?: string): Promise<string | null> {
+    const prompt = ask ?? `これは ${project.name} の Rising Loop の右のチャット（${screen}）専用の窓口です。返事は「了解」だけ。`
     return new Promise((resolve) => {
       const child = execFile(file, [...pre, ...codexCreateArgs({ instructions, prompt })], { cwd: project.folder, env, windowsHide: true, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 }, (_err, stdout) =>
         resolve(parseCodexThreadId(String(stdout ?? '')))

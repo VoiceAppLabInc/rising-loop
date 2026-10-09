@@ -1,9 +1,10 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { cardPage, CURRENT, dialogOf, inLoops, launch, mainWindow, nextFolder, paneText } from './helpers'
 import { changelogSummary } from '../../src/shared/migrate'
+import { HANDOFF_ASK } from '../../src/main/launch'
 
 /** タブの列の高さ（src/main/views.ts の TAB_H と同じ） */
 const TAB_H = 48
@@ -302,6 +303,53 @@ test('記録した会話のスキルの版がいまと違えば、新しい会�
   const first = changelogSummary(readFileSync(resolve('skill/skills/rising-loop/CHANGELOG.md'), 'utf8'), CURRENT)[0]
   expect(text.replace(/\n/g, '')).toContain('・' + first.slice(0, 20))
   expect(text).toContain(`新しい会話を始めます（スキル ${CURRENT}）`)
+  // 直前の会話の記録が無いので、読ませる指示は足さない
+  expect(text).not.toContain('直前の会話の記録を読んで')
+  expect(readFileSync(join(root, 'data', 'claude-prompt-s-list.md'), 'utf8')).not.toContain('直前の')
+})
+
+test('新しい会話にするとき、直前の会話の記録があれば、読んで現在地を確かめるよう起動時の指示に足す', async () => {
+  const folder = join(root, 'proj-now')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
+  const oldId = '22222222-2222-2222-2222-222222222222'
+  await app.close()
+  writeFileSync(join(root, 'data', 'sessions.json'), JSON.stringify({ [folder]: { screens: { 's-list': { claude: { id: oldId, skill: '1.9.0' } } } } }))
+  // 前の会話の記録（claude の置き場所）
+  const dir = join(root, 'claude-config', 'projects', 'proj-now')
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, oldId + '.jsonl')
+  writeFileSync(file, '{"type":"user","message":{"role":"user","content":"前の会話"}}\n')
+  app = await launch(root)
+  win = await mainWindow(app)
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: /フォルダを開く…|プロジェクトを追加/ }).first().click()
+  await expect.poll(lastSessionId).not.toBeNull()
+  expect(await lastSessionId()).not.toBe(oldId)
+  expect((await paneText(app, 's-list')) ?? '').toContain('直前の会話の記録を読んで、続きから始めます')
+  const prompt = readFileSync(join(root, 'data', 'claude-prompt-s-list.md'), 'utf8')
+  expect(prompt).toContain(file)
+  expect(prompt).toContain(`いまのスキル（${CURRENT}）に従う`)
+  // ほかに送る文が無いので、現在地をひとこと話させる一文を自動で送る（会話に中身が残る）
+  await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
+  expect((await received())[0]).toContain(HANDOFF_ASK)
+})
+
+test('［新しい形にする］で直前の会話の記録を読ませるときは、作り直しの作業だけを送る（自動の一文は送らない）', async () => {
+  const folder = await open('1.7.5')
+  await (await dialogOf(app)).getByRole('button', { name: 'あとで' }).click()
+  await expect.poll(lastSessionId).not.toBeNull()
+  const before = (await lastSessionId()) as string
+  const dir = join(root, 'claude-config', 'projects', 'proj-1.7.5')
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, before + '.jsonl')
+  writeFileSync(file, '{"type":"user","message":{"role":"user","content":"前の会話"}}\n')
+  await (await cardPage(app)).getByRole('status').getByRole('button', { name: 'HTMLを最新版にする' }).click()
+  await expect.poll(lastSessionId, { timeout: 15_000 }).not.toBe(before)
+  await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)
+  expect((await received())[0]).toContain('新しい形への作り直し')
+  expect((await received())[0]).not.toContain(HANDOFF_ASK)
+  expect(readFileSync(join(root, 'data', 'claude-prompt-s-list.md'), 'utf8')).toContain(file)
+  void folder
 })
 
 test('起動直後に入力を捨てる AI にも、作り直しの作業が届く（起動時の引数で渡す）', async () => {

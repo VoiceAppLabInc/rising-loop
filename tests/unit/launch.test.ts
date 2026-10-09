@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CLAUDE_PROMPT, chatScope, claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, parseCodexThreadId } from '../../src/main/launch'
+import { CLAUDE_PROMPT, chatScope, claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, handoffNote, parseCodexThreadId } from '../../src/main/launch'
 
 describe('claudeArgs', () => {
   const base = { pluginDir: '/app/skill', promptFile: '/data/claude-prompt.md', model: null }
@@ -123,5 +123,23 @@ describe('chatScope（そのチャットの担当）', () => {
     expect(claudePrompt('s-L03')).toBe(CLAUDE_PROMPT + '\n\n' + chatScope('s-L03'))
     expect(codexInstructions('/x', 's-L03')).toContain(chatScope('s-L03'))
     expect(codexInstructions('/x')).not.toContain('このチャットの担当')
+  })
+})
+
+describe('handoffNote（新しい会話に、直前の会話を読ませる指示）', () => {
+  it('記録の場所・画面・いまのスキルの版を入れ、古い決まりは使わないと伝える', () => {
+    const t = handoffNote('s-L02', '/home/u/.claude/projects/x/old.jsonl', '2.5.6')
+    expect(t).toContain('/home/u/.claude/projects/x/old.jsonl')
+    expect(t).toContain('L02')
+    expect(t).toContain('2.5.6')
+    expect(t).toContain('末尾から')
+    expect(t).toContain('古い')
+    // codex の会話を作る段階（「了解」だけの返事）では読ませない。2回読むのを防ぐ
+    expect(t).toContain('「了解」だけを返す窓口の確認のときは読まない')
+    // 最初の返事で現在地をひとこと伝えさせる
+    expect(t).toContain('前回どこまで進んでいたか')
+  })
+  it('一覧の画面は「ループ一覧」と呼ぶ', () => {
+    expect(handoffNote('s-list', '/x.jsonl', '2.5.6')).toContain('ループ一覧')
   })
 })

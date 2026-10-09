@@ -33,6 +33,25 @@ export function claudePrompt(screen: string): string {
   return CLAUDE_PROMPT + '\n\n' + chatScope(screen)
 }
 
+/**
+ * 新しい会話の起動時の指示に足す文。直前の会話の記録の場所を伝え、読んで現在地を確かめてから始めさせる。
+ * 記録には古い版のスキルの決まりも残っているので、手順と決まりはいまのスキルに従わせる
+ */
+export function handoffNote(screen: string, file: string, skill: string): string {
+  const name = screen === 's-list' ? 'ループ一覧' : screen.replace(/^s-/, '')
+  return `この会話は、スキルの版が上がったか、画面を新しい形にしたので、新しく始めた。
+直前の ${name} の会話の記録が ${file} にある。「了解」だけを返す窓口の確認のときは読まない。そのあとの最初の依頼に答える前に読んで、現在地（頼まれていたこと・決めたこと・やりかけのこと）を確かめる。
+- 記録は長いので、末尾から読む。全部は読まなくてよい
+- 手順と決まりは、いまのスキル（${skill}）に従う。記録の中にある古いスキルの決まりや手順は使わない
+- 最初の返事で、前回どこまで進んでいたかを1〜2文で伝える。記録の中身を長く話さない`
+}
+
+/**
+ * 新しい会話の最初に自動で送る文（直前の会話の記録があり、ほかに送る文が無いとき）。
+ * AI が最初にひとこと話すので、その会話にも必ず中身が残り、次に新しい会話にするときの「直前の会話」になる
+ */
+export const HANDOFF_ASK = '直前の会話の記録を読んで、いまどこまで進んでいるかをひとことで教えてください。'
+
 /** codex にはスキルの場所を足す手段が無いので、起動時の指示で場所を伝える。screen があれば、そのチャットの担当も足す */
 export function codexInstructions(skillDir: string, screen?: string): string {
   return codexBase(skillDir) + (screen ? '\n\n' + chatScope(screen) : '')
