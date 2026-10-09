@@ -12,7 +12,7 @@ import type { AiKind, Project } from '@shared/types'
 import { HANDOFF_ASK, claudeArgs, claudePrompt, codexArgs, codexCreateArgs, codexInstructions, handoffNote, parseCodexThreadId } from './launch'
 import { childEnv, killTree } from './platform'
 import { resolveCli } from './aiCli'
-import { findSession, loadBook, previousSession, readChatSessions, recordSession, renewFolder, saveBook } from './sessions'
+import { findSession, keepAsPrevious, loadBook, previousSession, readChatSessions, recordSession, renewFolder, saveBook, transcriptHasReply } from './sessions'
 
 /** 1つのターミナルが持っておく出力の上限（開き直したときに出す分） */
 const KEEP = 2 * 1024 * 1024
@@ -113,6 +113,17 @@ function transcriptFile(ai: AiKind, id: string): string | null {
   }
 }
 
+/** 会話に AI の返事が入っているか（記録のファイルを読んで見る。無ければ false） */
+function hasReply(ai: AiKind, id: string): boolean {
+  const f = transcriptFile(ai, id)
+  if (!f) return false
+  try {
+    return transcriptHasReply(ai, readFileSync(f, 'utf8'))
+  } catch {
+    return false
+  }
+}
+
 function claudeModel(): string | null {
   try {
     const m = JSON.parse(readFileSync(join(claudeDir(), 'settings.json'), 'utf8'))?.model
@@ -168,7 +179,7 @@ export class Chats {
    * 開いている右の窓は新しい会話で起動し直す（古い会話の中身は消さない。続けなくなるだけ）
    */
   renewProject(project: Project, ai: AiKind, first?: { screen: string; text: string }): void {
-    saveBook(this.bookFile, renewFolder(loadBook(this.bookFile), project.folder))
+    saveBook(this.bookFile, renewFolder(loadBook(this.bookFile), project.folder, hasReply))
     // 新しい会話で最初に送る文（作り直しの作業など）。起動時の引数で渡すので、起動の前に積んでおく
     if (first) this.term(project.id, first.screen, 100, 30).queue.unshift({ text: first.text, at: Date.now() })
     for (const [key, t] of this.terms) {
@@ -328,7 +339,7 @@ export class Chats {
         return
       }
       const env = await childEnv()
-      const book = loadBook(this.bookFile)
+      let book = loadBook(this.bookFile)
       const chatSessions = readChatSessions(project.folder)
       let id = findSession(book, chatSessions, project.folder, screen, ai, this.paths.skillVersion)
       // スキルの版が変わって新しい会話にするときは、何が変わったかを先に出す
@@ -341,8 +352,10 @@ export class Chats {
       if (!id) this.out(t, `\x1b[2m新しい会話を始めます（スキル ${this.paths.skillVersion}）\x1b[0m\r\n`)
       // 新しい会話にするとき、その画面の直前の会話の記録があれば、読んで現在地を確かめるよう起動時の指示に足す。
       // 記録はそのまま AI に読ませる（アプリは場所を伝えるだけ。抜き書きのファイルは作らない）
+      // 版が変わったときは、それまでの会話に返事があれば、それを直前の会話にする（返事の無い会話では前のものを残す）
+      if (!id) saveBook(this.bookFile, (book = keepAsPrevious(book, project.folder, screen, ai, hasReply)))
       const prevId = id ? null : previousSession(book, chatSessions, project.folder, screen, ai)
-      const prevFile = prevId ? transcriptFile(ai, prevId) : null
+      const prevFile = prevId && hasReply(ai, prevId) ? transcriptFile(ai, prevId) : null
       const note = prevFile ? '\n\n' + handoffNote(screen, prevFile, this.paths.skillVersion) : ''
       if (prevFile) this.out(t, `\x1b[2m直前の会話の記録を読んで、続きから始めます\x1b[0m\r\n`)
       // 起動時の指示に、そのチャットの担当（どの画面のチャットか）を入れる

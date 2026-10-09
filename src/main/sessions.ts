@@ -14,7 +14,8 @@ export interface SessionEntry {
 /**
  * フォルダ → { 刷新したか, 画面ID → AI → 会話 }。
  * renewed: ［新しい形にする］で会話を刷新したプロジェクト。スキルの頃の .chat-sessions の会話には戻らない
- * prev: 刷新の前の会話。続けはしないが、新しい会話に「直前の会話の記録」として読ませる
+ * prev: 直前の会話（AI の返事が入っている、いちばん新しい会話）。続けはしないが、新しい会話に記録を読ませる。
+ *       返事の無い会話（引き継ぎの途中で切り替えた・開いただけの会話）では上書きしない
  */
 type Screens = Record<string, Partial<Record<AiKind, SessionEntry>>>
 export type SessionBook = Record<string, { renewed?: boolean; screens: Screens; prev?: Screens }>
@@ -50,26 +51,59 @@ export function recordSession(book: SessionBook, folder: string, screen: string,
   return { ...book, [folder]: { ...f, screens: { ...f.screens, [screen]: { ...f.screens[screen], [ai]: { id, skill } } } } }
 }
 
+/** 会話に AI の返事が入っているか（会話の記録を見て答える。main が渡す） */
+export type HasReply = (ai: AiKind, id: string) => boolean
+
 /**
  * ［新しい形にする］のとき、そのプロジェクトの会話をすべて新しくする（古い会話の中身は消さない。続けなくなるだけ）。
- * 直前の会話は prev に残し、新しい会話に記録を読ませる
+ * 返事の入っている会話は直前の会話として prev に残し、新しい会話に記録を読ませる
  */
-export function renewFolder(book: SessionBook, folder: string): SessionBook {
+export function renewFolder(book: SessionBook, folder: string, hasReply: HasReply = () => true): SessionBook {
   const f = book[folder]
   const prev: Screens = { ...f?.prev }
-  for (const [screen, ais] of Object.entries(f?.screens ?? {})) prev[screen] = { ...prev[screen], ...ais }
+  for (const [screen, ais] of Object.entries(f?.screens ?? {}))
+    for (const [ai, e] of Object.entries(ais) as [AiKind, SessionEntry][]) if (e && hasReply(ai, e.id)) prev[screen] = { ...prev[screen], [ai]: e }
   return { ...book, [folder]: Object.keys(prev).length ? { renewed: true, screens: {}, prev } : { renewed: true, screens: {} } }
 }
 
-/**
- * 新しい会話にするときの、その画面の直前の会話の ID。無ければ null。
- * 版が変わったときは記録していた会話、刷新したあとは刷新の前の会話、アプリの記録が無ければスキルの頃の .chat-sessions の会話
- */
-export function previousSession(book: SessionBook, chatSessions: string | null, folder: string, screen: string, ai: AiKind): string | null {
+/** 版が変わって新しい会話にするとき、それまでの会話に返事があれば、それを直前の会話にする（無ければ前のものを残す） */
+export function keepAsPrevious(book: SessionBook, folder: string, screen: string, ai: AiKind, hasReply: HasReply): SessionBook {
   const f = book[folder]
-  const id = f?.screens[screen]?.[ai]?.id ?? f?.prev?.[screen]?.[ai]?.id
+  const own = f?.screens[screen]?.[ai]
+  if (!f || !own || !hasReply(ai, own.id)) return book
+  return { ...book, [folder]: { ...f, prev: { ...f.prev, [screen]: { ...f.prev?.[screen], [ai]: own } } } }
+}
+
+/** 新しい会話にするときの、その画面の直前の会話の ID。アプリの記録に無ければスキルの頃の .chat-sessions の会話。無ければ null */
+export function previousSession(book: SessionBook, chatSessions: string | null, folder: string, screen: string, ai: AiKind): string | null {
+  const id = book[folder]?.prev?.[screen]?.[ai]?.id
   if (id) return id
   return chatSessions == null ? null : (parseChatSessions(chatSessions)[`${screen} ${ai}`] ?? null)
+}
+
+/**
+ * 会話の記録（jsonl の中身）に AI の返事が入っているか。
+ * claude は文のある assistant、codex は会話を作るときの「了解」以外の assistant の文
+ */
+export function transcriptHasReply(ai: AiKind, text: string): boolean {
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.includes('assistant')) continue
+    try {
+      const o = JSON.parse(line)
+      if (ai === 'claude') {
+        const c = o?.type === 'assistant' ? o.message?.content : null
+        if (typeof c === 'string' ? c.trim() : Array.isArray(c) && c.some((x) => x?.type === 'text' && String(x.text ?? '').trim())) return true
+      } else {
+        const p = o?.payload
+        if (o?.type !== 'response_item' || p?.type !== 'message' || p.role !== 'assistant') continue
+        const t = (Array.isArray(p.content) ? p.content : []).map((x: { text?: string }) => x?.text ?? '').join('').trim()
+        if (t && t !== '了解') return true
+      }
+    } catch {
+      // 読めない行は飛ばす
+    }
+  }
+  return false
 }
 
 /** 読んだ記録をいまの形にそろえる。前の形（フォルダ → 画面 → AI → ID）は、版の記録が無い会話として読む */

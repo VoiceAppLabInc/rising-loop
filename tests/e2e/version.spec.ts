@@ -258,6 +258,9 @@ test('1.5 より前の形は、新しい形にできないと知らせる', asyn
   await expect((await cardPage(app)).getByRole('status').getByRole('button')).toHaveCount(0)
 })
 
+/** AI の返事が入った会話の記録（claude の形）。返事の無い会話は「直前の会話」にしない */
+const REPLY = '{"type":"user","message":{"role":"user","content":"前の会話"}}\n{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"前の返事"}]}}\n'
+
 /** 右の窓のテスト用の AI が受け取った会話の ID（最後に起動したもの） */
 async function lastSessionId(): Promise<string | null> {
   const text = (await paneText(app, 's-list')) ?? ''
@@ -318,7 +321,7 @@ test('新しい会話にするとき、直前の会話の記録があれば、�
   const dir = join(root, 'claude-config', 'projects', 'proj-now')
   mkdirSync(dir, { recursive: true })
   const file = join(dir, oldId + '.jsonl')
-  writeFileSync(file, '{"type":"user","message":{"role":"user","content":"前の会話"}}\n')
+  writeFileSync(file, REPLY)
   app = await launch(root)
   win = await mainWindow(app)
   await nextFolder(app, folder)
@@ -334,6 +337,31 @@ test('新しい会話にするとき、直前の会話の記録があれば、�
   expect((await received())[0]).toContain(HANDOFF_ASK)
 })
 
+test('返事の無い会話（引き継ぎの途中で切り替えたなど）は飛ばし、その前の返事のある会話を読ませる', async () => {
+  const folder = join(root, 'proj-now')
+  cpSync(resolve('tests/fixtures/versions', CURRENT), folder, { recursive: true })
+  const emptyId = '33333333-3333-3333-3333-333333333333'
+  const realId = '44444444-4444-4444-4444-444444444444'
+  await app.close()
+  writeFileSync(
+    join(root, 'data', 'sessions.json'),
+    JSON.stringify({ [folder]: { screens: { 's-list': { claude: { id: emptyId, skill: '1.9.0' } } }, prev: { 's-list': { claude: { id: realId, skill: '1.9.0' } } } } })
+  )
+  const dir = join(root, 'claude-config', 'projects', 'proj-now')
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, emptyId + '.jsonl'), '{"type":"user","message":{"role":"user","content":"直前の会話の記録を読んで"}}\n')
+  const realFile = join(dir, realId + '.jsonl')
+  writeFileSync(realFile, REPLY)
+  app = await launch(root)
+  win = await mainWindow(app)
+  await nextFolder(app, folder)
+  await win.getByRole('button', { name: /フォルダを開く…|プロジェクトを追加/ }).first().click()
+  await expect.poll(lastSessionId).not.toBeNull()
+  const prompt = readFileSync(join(root, 'data', 'claude-prompt-s-list.md'), 'utf8')
+  expect(prompt).toContain(realFile)
+  expect(prompt).not.toContain(emptyId)
+})
+
 test('［新しい形にする］で直前の会話の記録を読ませるときは、作り直しの作業だけを送る（自動の一文は送らない）', async () => {
   const folder = await open('1.7.5')
   await (await dialogOf(app)).getByRole('button', { name: 'あとで' }).click()
@@ -342,7 +370,7 @@ test('［新しい形にする］で直前の会話の記録を読ませると�
   const dir = join(root, 'claude-config', 'projects', 'proj-1.7.5')
   mkdirSync(dir, { recursive: true })
   const file = join(dir, before + '.jsonl')
-  writeFileSync(file, '{"type":"user","message":{"role":"user","content":"前の会話"}}\n')
+  writeFileSync(file, REPLY)
   await (await cardPage(app)).getByRole('status').getByRole('button', { name: 'HTMLを最新版にする' }).click()
   await expect.poll(lastSessionId, { timeout: 15_000 }).not.toBe(before)
   await expect.poll(received, { timeout: 15_000 }).toHaveLength(1)

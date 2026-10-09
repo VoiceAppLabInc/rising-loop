@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findSession, normalizeBook, parseChatSessions, previousSession, recordSession, renewFolder } from '../../src/main/sessions'
+import { findSession, keepAsPrevious, normalizeBook, parseChatSessions, previousSession, recordSession, renewFolder, transcriptHasReply } from '../../src/main/sessions'
 
 describe('parseChatSessions', () => {
   it('chat-pane.sh の「<画面ID> <ai> <ID>」の行を読む', () => {
@@ -68,14 +68,31 @@ describe('recordSession / renewFolder', () => {
     book = recordSession(renewFolder(book, '/a'), '/a', 's-L01', 'claude', 'y', '2.0.0')
     expect(renewFolder(book, '/a')['/a'].prev).toEqual({ 's-list': { claude: { id: 'x', skill: '2.0.0' } }, 's-L01': { claude: { id: 'y', skill: '2.0.0' } } })
   })
+
+  it('刷新のとき、AI の返事が入っていない会話では prev を上書きしない（引き継ぎの途中で切り替えた・開いただけの会話）', () => {
+    let book = recordSession({}, '/a', 's-list', 'claude', 'real', '2.0.0')
+    book = renewFolder(book, '/a')
+    book = recordSession(book, '/a', 's-list', 'claude', 'empty', '2.0.0')
+    const hasReply = (_ai: string, id: string) => id !== 'empty'
+    expect(renewFolder(book, '/a', hasReply)['/a'].prev).toEqual({ 's-list': { claude: { id: 'real', skill: '2.0.0' } } })
+  })
 })
 
-describe('previousSession（新しい会話にするときの、直前の会話）', () => {
+describe('previousSession / keepAsPrevious（新しい会話にするときの、直前の会話）', () => {
   const folder = '/a/proj'
 
-  it('版が変わって新しい会話にするときは、記録していた会話', () => {
+  it('版が変わって新しい会話にするとき、それまでの会話に返事があれば、それを直前の会話にする', () => {
     const book = recordSession({}, folder, 's-L02', 'claude', 'old', '2.5.5')
-    expect(previousSession(book, null, folder, 's-L02', 'claude')).toBe('old')
+    const kept = keepAsPrevious(book, folder, 's-L02', 'claude', () => true)
+    expect(previousSession(kept, null, folder, 's-L02', 'claude')).toBe('old')
+  })
+
+  it('それまでの会話に返事が無ければ、前の直前の会話を残す', () => {
+    let book = recordSession({}, folder, 's-L02', 'claude', 'real', '2.5.5')
+    book = keepAsPrevious(book, folder, 's-L02', 'claude', () => true)
+    book = recordSession(book, folder, 's-L02', 'claude', 'empty', '2.5.6')
+    book = keepAsPrevious(book, folder, 's-L02', 'claude', (_ai, id) => id !== 'empty')
+    expect(previousSession(book, null, folder, 's-L02', 'claude')).toBe('real')
   })
 
   it('刷新したあとは、刷新の前の会話', () => {
@@ -88,9 +105,25 @@ describe('previousSession（新しい会話にするときの、直前の会話�
   })
 
   it('どこにも無ければ null（AI が違えば別の会話）', () => {
-    const book = recordSession({}, folder, 's-L02', 'claude', 'old', '2.5.5')
+    const book = keepAsPrevious(recordSession({}, folder, 's-L02', 'claude', 'old', '2.5.5'), folder, 's-L02', 'claude', () => true)
     expect(previousSession(book, null, folder, 's-L02', 'codex')).toBeNull()
     expect(previousSession({}, null, folder, 's-L02', 'claude')).toBeNull()
+  })
+})
+
+describe('transcriptHasReply（会話の記録に、AI の返事が入っているか）', () => {
+  it('claude：assistant の文があれば返事あり。ユーザーの文だけなら無し', () => {
+    expect(transcriptHasReply('claude', '{"type":"user","message":{"role":"user","content":"直前の会話の記録を読んで"}}\n')).toBe(false)
+    expect(transcriptHasReply('claude', '{"type":"user","message":{"role":"user","content":"x"}}\n{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"前回は…"}]}}\n')).toBe(true)
+  })
+  it('claude：道具を使っただけで文の無い返事は数えない', () => {
+    expect(transcriptHasReply('claude', '{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Read"}]}}\n')).toBe(false)
+  })
+  it('codex：会話を作るときの「了解」だけなら無し。ほかの返事があれば有り', () => {
+    const ok = '{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"了解"}]}}\n'
+    const real = '{"type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"前回は保存版のショート化まで"}]}}\n'
+    expect(transcriptHasReply('codex', ok)).toBe(false)
+    expect(transcriptHasReply('codex', ok + real)).toBe(true)
   })
 })
 
