@@ -193,7 +193,7 @@ if (IS_SHELL) (function(){
       askApp(kind === 'mv-ins'
         ? { title:'施策について', sub:itx, ph:'', value:MOVE.ins, chips:[], compose:function(v){ return block(iid, 'TRIAL', itx, v); } }
         : { title:'施策について', sub:itx, ph:PH_INS,
-            chips:[['これは消して','これは消して'],['この認識は違う','この認識は違う'],['次に進んで','次に進んで'],['TODOを見直したい','TODOを見直したい']],
+            chips:[['これは消して','これは消して'],['この認識は違う','この認識は違う。'],['次に進んで','次に進んで'],['TODOを見直したい','TODOを見直したい']],
             compose:function(v){ return block(iid, 'TRIAL', itx, v); } });
       return;
     }
@@ -203,7 +203,7 @@ if (IS_SHELL) (function(){
       askApp(kind === 'mv-do'
         ? { title:'施策案 '+dno+'について', sub:dtx, ph:'', value:MOVE.do, chips:[], compose:function(v){ return block(did, 'BOTTLENECK', dtx, v); } }
         : { title:'施策案 '+dno+'について', sub:dtx, ph:PH_DO,
-            chips:[['これは消して','これは消して'],['この認識は違う','この認識は違う'],['別案にして','別案にして']],
+            chips:[['これは消して','これは消して'],['この認識は違う','この認識は違う。'],['別案にして','別案にして']],
             compose:function(v){ return block(did, 'BOTTLENECK', dtx, v); } });
       return;
     }
@@ -213,7 +213,7 @@ if (IS_SHELL) (function(){
       var rec = d.rec != null ? d.rec : ((csec || '').match(/「(.+)」$/) || [])[1];
       if (rec != null){
         askApp({ title:'評価中の施策について', sub:rec, ph:PH_REC,
-          chips:[['評価を見直して','評価を見直して'],['判定を確定して','判定を確定して'],['この認識は違う','この認識は違う'],['これは消して','これは消して']],
+          chips:[['評価を見直して','評価を見直して',true],['判定を確定して','判定を確定して'],['この認識は違う','この認識は違う。'],['これは消して','これは消して']],
           compose:function(v){ return block(cid, 'RECORD', rec, v); } });
       } else {
         //=== 一覧の［AIに指示］は、一覧の上の見出しの所（ヘッダセクション）にある

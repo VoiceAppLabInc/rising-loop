@@ -446,6 +446,33 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.5.8",
+      "templates": {
+        "loop": "ac37a2ccdc6e8130",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.5.9",
+      "templates": {
+        "loop": "ac37a2ccdc6e8130",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
+    },
+    {
+      "version": "2.5.10",
+      "templates": {
+        "loop": "ac37a2ccdc6e8130",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }

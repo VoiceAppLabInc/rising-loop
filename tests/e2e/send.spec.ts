@@ -100,7 +100,7 @@ test('一覧の上の［カスタマイズ］を押すとアプリの入力の�
   expect(await clipWrites()).toBe(0)
 })
 
-test('施策案の［指示する］では説明と札を出し、札は入力欄に入るだけで送らない', async () => {
+test('施策案の［AIに指示］では説明と札を出し、札は入力欄に入るだけで送らない（札は これは消して・この認識は違う・別案にして）', async () => {
   await startCurrent()
   await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
   await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.do")')).toBe(true)
@@ -108,11 +108,15 @@ test('施策案の［指示する］では説明と札を出し、札は入力�
   const d = (await dialogOf(app))
   await expect(d.getByRole('heading')).toHaveText('施策案 1について')
   await expect(d).toContainText('課金モーダルで、1枚で有料5本すべてが24時間遊べることを見せる')
-  // いちばん勧める札［施策を実行する］は目立たせる
-  await expect(d.getByRole('button', { name: '施策を実行する' })).toHaveClass(/btn-primary/)
-  await expect(d.getByRole('button', { name: 'これは消して' })).not.toHaveClass(/btn-primary/)
-  await d.getByRole('button', { name: '施策を実行する' }).click()
-  await expect(d.getByRole('textbox')).toHaveValue('この施策を実行して（TRIAL に移して手順を出す。実装はまだしない）')
+  await expect(d.getByRole('textbox')).toHaveValue('')
+  for (const name of ['これは消して', 'この認識は違う', '別案にして']) await expect(d.getByRole('button', { name })).toBeVisible()
+  // 施策を次の段へ移す文は札にしない（［↓ 実行へ移動］のボタンが受け持つ）
+  await expect(d.getByRole('button', { name: '施策を実行する' })).toHaveCount(0)
+  await d.getByRole('button', { name: 'この認識は違う' }).click()
+  // 入る文は札の文字のまま（句点を付けない）
+  await expect(d.getByRole('textbox')).toHaveValue('この認識は違う')
+  await d.getByRole('button', { name: '別案にして' }).click()
+  await expect(d.getByRole('textbox')).toHaveValue('別案にして')
   await win.waitForTimeout(500)
   expect(await received('s-L01')()).toHaveLength(0)
   await d.getByRole('button', { name: '送る' }).click()
@@ -120,16 +124,39 @@ test('施策案の［指示する］では説明と札を出し、札は入力�
   expect((await received('s-L01')())[0]).toContain('loop: L01⏎section: BOTTLENECK⏎target: 課金モーダルで')
 })
 
-test('TRIAL にいる施策の［指示する］は「TRIAL に移して」と書かず、［完了にして（評価に移す）］を目立たせる', async () => {
+test('施策案の［↓ 実行へ移動］は、文を書き込んだ窓を札なしで開き、送ると BOTTLENECK の指示になる', async () => {
   await startCurrent()
   await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
-  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.ins")')).toBe(true)
-  await inFrame(app, '/L01.html', 'document.querySelector("button.ins").click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.mv-do")')).toBe(true)
+  // ［AIに指示］の左にある（同じ箱の先頭）
+  expect(await inFrame(app, '/L01.html', 'document.querySelector("button.mv-do").nextElementSibling.classList.contains("do")')).toBe(true)
+  await inFrame(app, '/L01.html', 'document.querySelector("button.mv-do").click()')
   const d = (await dialogOf(app))
+  await expect(d.getByRole('heading')).toHaveText('施策案 1について')
+  await expect(d.getByRole('textbox')).toHaveValue('施策を実行したい。TRIALに移動してTODOを見せて')
+  await expect(d.getByRole('button', { name: 'これは消して' })).toHaveCount(0)
+  await d.getByRole('button', { name: '送る' }).click()
+  await expect.poll(received('s-L01'), { timeout: 15_000 }).toHaveLength(1)
+  const got = (await received('s-L01')())[0]
+  expect(got).toContain('loop: L01⏎section: BOTTLENECK⏎target: 課金モーダルで')
+  expect(got).toContain('施策を実行したい。TRIALに移動してTODOを見せて')
+})
+
+test('TRIAL の［AIに指示］は 次に進んで・TODOを見直したい などの札、［↓ 評価へ移動］は「完了にして評価に移動して」を書き込んで札なし', async () => {
+  await startCurrent()
+  await inLoops(app, folder, 'document.querySelector(\'[data-go="s-L01"]\').click()')
+  await expect.poll(() => inFrame(app, '/L01.html', '!!document.querySelector("button.mv-ins")')).toBe(true)
+  await inFrame(app, '/L01.html', 'document.querySelector("button.ins").click()')
+  let d = (await dialogOf(app))
   await expect(d.getByRole('heading')).toHaveText('施策について')
-  await expect(d.getByRole('textbox')).toHaveAttribute('placeholder', /完了にして（評価に移す）/)
   await expect(d.getByRole('textbox')).not.toHaveAttribute('placeholder', /TRIAL に移して/)
-  await expect(d.getByRole('button', { name: '完了にして（評価に移す）' })).toHaveClass(/btn-primary/)
+  for (const name of ['これは消して', 'この認識は違う', '次に進んで', 'TODOを見直したい']) await expect(d.getByRole('button', { name })).toBeVisible()
+  await expect(d.getByRole('button', { name: /完了にして/ })).toHaveCount(0)
+  await d.getByRole('button', { name: 'キャンセル' }).click()
+  await inFrame(app, '/L01.html', 'document.querySelector("button.mv-ins").click()')
+  d = (await dialogOf(app))
+  await expect(d.getByRole('textbox')).toHaveValue('完了にして評価に移動して')
+  await expect(d.getByRole('button', { name: '次に進んで' })).toHaveCount(0)
 })
 
 test('セクションは［カスタマイズ］、項目は［AIに指示］と出し、白地・細い実線・頭に吹き出し。施策の実行・評価のセクションのボタンは出さず、評価の［AIに指示］は題の右、TRIAL の状態は題の下（頁の HTML は書き換えない）', async () => {
@@ -230,6 +257,8 @@ test('施策の評価の［AIに指示］は、頁の書き方が揺れても「
   let d = await open('b.setAttribute("data-sec", "施策の評価"); b.setAttribute("data-text", "台本を1本書く")')
   await expect(d).toContainText('台本を1本書く')
   await expect(d.locator('.ask-chips button')).toHaveText(['評価を見直して', '判定を確定して', 'この認識は違う', 'これは消して'])
+  // どの候補も黒く強調しない（2.5.9）
+  await expect(d.locator('.ask-chips .btn-primary')).toHaveCount(0)
   await d.getByRole('button', { name: 'キャンセル' }).click()
   await expect(d).toHaveCount(0)
   // どちらにも無ければ、その施策の題（番号の札は除く）
