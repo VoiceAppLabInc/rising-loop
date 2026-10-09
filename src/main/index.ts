@@ -48,6 +48,18 @@ let covered = false
 const SWIPE_QUIET_MS = 400
 /** 層がダイアログを出しているか（そのあいだは層を窓いっぱいに広げる） */
 let overlayDialog = false
+let lastSwipe = 0
+/**
+ * 戻る・進む（スワイプとマウスのボタン）。3本指のスワイプ（win の swipe）と2本指のスワイプ（nav:swipe）の両方がここに来る。
+ * 1回で続けて何回も届くので、少しのあいだに来た分は1回とみなす。ダイアログのあいだは効かない
+ */
+function swipeNav(step: -1 | 1): void {
+  const p = current()
+  const now = Date.now()
+  if (!p || overlayDialog || now - lastSwipe < SWIPE_QUIET_MS) return
+  lastSwipe = now
+  views?.go(p.id, step)
+}
 let chats: Chats
 
 /** 同梱のスキルと、右の窓の動き。開発中はリポジトリの中、配るときはアプリの Resources の中 */
@@ -461,16 +473,11 @@ function createWindow(): void {
   if (process.env.ELECTRON_RENDERER_URL) void overlay.webContents.loadURL(process.env.ELECTRON_RENDERER_URL + '?overlay=bar')
   else void overlay.webContents.loadFile(join(__dirname, '../renderer/index.html'), { query: { overlay: 'bar' } })
   win.on('resize', layoutOverlay)
-  // Mac の「戻る・進むのスワイプ」。トラックパッドのほか、マウスの戻る・進むボタンもドライバーがこの合図に置き換えて送ってくる。
-  // 左へで戻る、右へで進む。1回押すと続けて何回も届くので、少しのあいだに来た分は1回とみなす。ダイアログのあいだは効かない
-  let lastSwipe = 0
+  // Mac の「戻る・進むのスワイプ」（3本指）。マウスの戻る・進むボタンもドライバーがこの合図に置き換えて送ってくる。左へで戻る、右へで進む。
+  // 2本指のスワイプは、ループの画面から nav:swipe で届く（下の swipeNav に合流する）
   win.on('swipe', (_e, dir) => {
     const step = dir === 'left' ? -1 : dir === 'right' ? 1 : 0
-    const p = current()
-    const now = Date.now()
-    if (!step || !p || overlayDialog || now - lastSwipe < SWIPE_QUIET_MS) return
-    lastSwipe = now
-    views?.go(p.id, step)
+    if (step) swipeNav(step)
   })
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
@@ -759,6 +766,10 @@ ipcMain.on('app:platform', (e) => {
 })
 // ターミナル（右の窓・全面のチャット・ログイン）のコピーと貼り付け。画面は sandbox なのでクリップボードは main が持つ
 ipcMain.on('clip:write', (_e, t: string) => clipboard.writeText(String(t)))
+// ループの画面の2本指のスワイプ（preload の loops.ts が判定して送る）
+ipcMain.on('nav:swipe', (_e, dir: unknown) => {
+  if (dir === -1 || dir === 1) swipeNav(dir)
+})
 ipcMain.handle('clip:read', () => clipboard.readText())
 // ループが無いときの見出しの高さ（画面が測って伝える）。全面のチャットをその下に置く
 ipcMain.on('ui:setup-head', (_e, h: number) => views?.setSetupHead(h))

@@ -2,6 +2,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { PANE_PORT, isInstruction } from '@shared/intercept'
 import { rightClickClipboard, termKeyAction, type KeyLike } from '@shared/termKeys'
+import { swipeStep, type SwipeState } from '@shared/swipe'
 import type { AskRequest } from '@shared/types'
 
 /** キーの決まりに使う OS。main に聞く（sandbox の preload には process.env が無い。テストでは main が Windows のふりをする） */
@@ -28,6 +29,30 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
     }
   })
 } else {
+  // 2本指の横スクロール（Mac のトラックパッドの「ページ間をスワイプ」）を、戻る・進むの合図にして main に送る。
+  // 戻る・進むの判断は main（3本指のスワイプ・マウスの戻る/進むボタンと同じ所）
+  let swipe: SwipeState = { sum: 0, last: -Infinity, fired: false }
+  /** 払った向きに、まだ横スクロールできる場所の中か（表や図の中で端まで来ていない） */
+  const canScrollX = (target: EventTarget | null, dx: number): boolean => {
+    for (let el = target instanceof Element ? target : null; el; el = el.parentElement) {
+      if (el.scrollWidth <= el.clientWidth + 1) continue
+      const ox = getComputedStyle(el).overflowX
+      if (ox !== 'auto' && ox !== 'scroll' && el !== document.scrollingElement) continue
+      if (dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1) return true
+    }
+    return false
+  }
+  window.addEventListener(
+    'wheel',
+    (e) => {
+      if (!e.deltaX) return
+      const r = swipeStep(swipe, e.deltaX, e.deltaY, e.timeStamp, canScrollX(e.target, e.deltaX))
+      swipe = r.state
+      if (r.dir) ipcRenderer.send('nav:swipe', r.dir)
+    },
+    { passive: true, capture: true }
+  )
+
   // アプリとの約束（2.3.0 からの殻）。入力の窓はアプリが出し、指示文はクリップボードを通さず直接受け取る。
   // それより前の殻は、下のクリップボードの横取りで受け取る
   const text = (v: unknown) => (typeof v === 'string' ? v : '')
