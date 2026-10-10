@@ -2,7 +2,9 @@
 // 切り替えは表示を入れ替えるだけにする（読み込み直さない）。
 import { existsSync, readFileSync, readdirSync, statSync, watch } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { BrowserWindow, WebContentsView, net, session, webFrameMain, type Session } from 'electron'
+import { fileURLToPath } from 'node:url'
+import { BrowserWindow, Menu, WebContentsView, clipboard, net, session, shell, webFrameMain, type MenuItemConstructorOptions, type Session, type WebContents } from 'electron'
+import { contextItems, type ContextItem } from '@shared/contextMenu'
 import { PANE_PORT, parsePaneUrl, screenOfUrl } from '@shared/intercept'
 import { compareVersions } from '@shared/migrate'
 import { isReloadKey, navKeyDir } from './platform'
@@ -18,6 +20,47 @@ export const SETUP_HEAD_H = 160
 export { PANE_W } from '@shared/paneWidth'
 /** ループの画面・右のチャットからリンクを開いたときの、新しいウィンドウの大きさ */
 export const LINK_WINDOW = { width: 1024, height: 680 }
+
+/**
+ * 右クリックのメニュー（コピー・貼り付け・リンクを開く）を付ける。ループの画面と、リンクを開いた窓に付ける。
+ * 右のチャット（ターミナル）は、自分の右クリック（貼り付け）を持っているので出さない
+ */
+export function attachContextMenu(wc: WebContents, win: () => BrowserWindow | null): void {
+  wc.on('context-menu', (_e, p) => {
+    if (p.frame && parsePaneUrl(p.frame.url)) return
+    const url = p.linkURL
+    const items: Record<ContextItem, MenuItemConstructorOptions> = {
+      cut: { label: '切り取り', enabled: p.editFlags.canCut, click: () => wc.cut() },
+      copy: { label: 'コピー', enabled: p.isEditable ? p.editFlags.canCopy : true, click: () => wc.copy() },
+      paste: { label: '貼り付け', enabled: p.editFlags.canPaste, click: () => wc.paste() },
+      selectAll: { label: 'すべて選択', click: () => wc.selectAll() },
+      openLinkInApp: { label: 'アプリ内で開く', click: () => openLinkWindow(url) },
+      openLinkExternal: { label: 'デフォルトのブラウザで開く', click: () => void shell.openExternal(url) },
+      // 手元のファイルは、ファイルの種類ごとの既定のアプリで開く（.md ならエディタなど）
+      openFileDefault: { label: '既定のアプリで開く', click: () => void shell.openPath(filePathOf(url)) },
+      revealFile: { label: process.platform === 'darwin' ? 'Finder で表示' : process.platform === 'win32' ? 'エクスプローラーで表示' : 'フォルダで表示', click: () => shell.showItemInFolder(filePathOf(url)) },
+      copyLink: { label: 'リンクをコピー', click: () => clipboard.writeText(url) },
+      separator: { type: 'separator' }
+    }
+    const w = win()
+    Menu.buildFromTemplate(contextItems(p).map((k) => items[k])).popup(w ? { window: w } : undefined)
+  })
+}
+
+/** file:// のリンクを、ファイルの場所にする（#… や ?… は外す） */
+function filePathOf(url: string): string {
+  const u = new URL(url)
+  u.hash = ''
+  u.search = ''
+  return fileURLToPath(u)
+}
+
+/** リンクをアプリの中の別の窓で開く（リンクをクリックしたときと同じ大きさ）。開いた窓にも右クリックのメニューを付ける */
+function openLinkWindow(url: string): void {
+  const w = new BrowserWindow({ ...LINK_WINDOW, show: process.env.RISING_LOOP_APP_HIDDEN !== '1' })
+  attachContextMenu(w.webContents, () => w)
+  void w.loadURL(url)
+}
 /** この版からの殻は右の窓を持たない。アプリが自分の窓としてループの画面の右に並べる */
 const APP_CHAT_FROM = '2.2.0'
 
@@ -174,6 +217,9 @@ export class ProjectViews {
     // リンクを開くと、アプリの中の別のウィンドウで開く（大きさだけ指定する）
     // （テストなどでウィンドウを出さずに動かすときは、開いたウィンドウも出さない）
     v.webContents.setWindowOpenHandler(() => ({ action: 'allow', overrideBrowserWindowOptions: { ...LINK_WINDOW, show: process.env.RISING_LOOP_APP_HIDDEN !== '1' } }))
+    // 右クリックのメニュー。リンクをクリックして開いた窓にも付ける
+    attachContextMenu(v.webContents, () => this.win)
+    v.webContents.on('did-create-window', (w) => attachContextMenu(w.webContents, () => w))
     this.win.contentView.addChildView(v)
     // 後から足した画面はいちばん上に来るので、main が透明な層（カード・ダイアログ）を上に戻す
     queueMicrotask(() => this.added())
