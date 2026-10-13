@@ -44,6 +44,16 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
   .video{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 20px 50px rgba(0,0,0,.18)}
   .video video{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .yt-list{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px;align-items:start}
+  .yt-item{display:block;padding:0;border:0;background:none;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .yt-thumb{position:relative;display:block;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000;box-shadow:0 8px 24px rgba(28,40,33,.12)}
+  .yt-thumb img{display:block;width:100%;height:100%;object-fit:cover;transition:transform .2s}
+  .yt-thumb::after{content:"";position:absolute;left:50%;top:50%;width:64px;height:44px;margin:-22px 0 0 -32px;border-radius:12px;background:rgba(20,20,19,.78) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 5v14l11-7z' fill='%23fff'/%3E%3C/svg%3E") center/26px no-repeat}
+  .yt-item:hover .yt-thumb img{transform:scale(1.03)}
+  .yt-item:hover .yt-thumb::after{background-color:#e33}
+  .yt-title{display:block;margin-top:8px;font-size:14px;font-weight:650;line-height:1.6}
+  .yt-frame{width:min(1200px,100%,calc((100vh - 120px) * 16 / 9));aspect-ratio:16/9;cursor:auto}
+  .yt-frame iframe{display:block;width:100%;height:100%;border:0;border-radius:10px;background:#000}
 
   .loop{display:grid;grid-template-columns:260px 1fr;gap:36px;align-items:start}
   .loop .fig svg{width:100%;height:auto;display:block}
@@ -147,7 +157,7 @@
     .brand-text b{font-size:32px}
     .catch{position:static;margin-bottom:8px}
     .hero .lede{font-size:20px}
-    .loop,.with-fig,.with-fig.tips-fig,.how-grid,.mech{grid-template-columns:1fr}
+    .loop,.with-fig,.with-fig.tips-fig,.how-grid,.mech,.yt-list{grid-template-columns:1fr}
     .mech-arrow{transform:rotate(90deg);padding:0}
     .with-fig > svg{max-width:330px;margin:0 auto}
     .loop .fig{max-width:240px;margin:0 auto}
@@ -185,6 +195,16 @@
 
   <section id="video">
     <div class="video"><video src="https://storage.googleapis.com/rising-loop-dist/media/explainer-261013.mp4" poster="video-poster.webp" controls playsinline preload="none" title="Rising Loop の解説動画"></video></div>
+    <div class="yt-list">
+      <button class="yt-item" type="button" data-yt="twGTGUe0nsU">
+        <span class="yt-thumb"><img src="https://i.ytimg.com/vi/twGTGUe0nsU/maxresdefault.jpg" alt="" loading="lazy"></span>
+        <span class="yt-title">【注目のAI新手法】KPIを伸ばすループエンジニアリング・ツール「ライジングループ」</span>
+      </button>
+      <button class="yt-item" type="button" data-yt="3b6so58MULM">
+        <span class="yt-thumb"><img src="https://i.ytimg.com/vi/3b6so58MULM/maxresdefault.jpg" alt="" loading="lazy"></span>
+        <span class="yt-title">ライジング・ループの使い方 v2／インストールから基本的な使い方まで</span>
+      </button>
+    </div>
   </section>
 
   <section id="install">
@@ -419,6 +439,11 @@
   <div class="zoom-inner"><div class="zoom-cap"></div><img alt=""></div>
 </dialog>
 
+<dialog class="zoom" id="yt" aria-label="動画を再生">
+  <button class="zoom-close" type="button" aria-label="閉じる">✕</button>
+  <div class="zoom-inner"><div class="yt-frame"></div></div>
+</dialog>
+
 <script>
   // THE LOOP の写真をクリックで拡大（もう一度クリック・✕・Esc で閉じる）
   ;(function () {
@@ -432,6 +457,18 @@
       })
     })
     d.addEventListener('click', function () { d.close() })
+  })()
+  // YouTube のサムネをクリックで大きく再生（背景・✕・Esc で閉じて止める）
+  ;(function () {
+    var d = document.getElementById('yt'), box = d.querySelector('.yt-frame')
+    document.querySelectorAll('[data-yt]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/' + b.getAttribute('data-yt') + '?autoplay=1&rel=0" title="' + b.querySelector('.yt-title').textContent + '" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>'
+        d.showModal()
+      })
+    })
+    d.addEventListener('click', function (e) { if (e.target.closest('.yt-frame') === null) d.close() })
+    d.addEventListener('close', function () { box.innerHTML = '' })
   })()
   // 1行インストールを写す
   document.querySelectorAll('[data-copy]').forEach(function (b) {
