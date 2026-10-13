@@ -26,8 +26,11 @@
   .brand-text{display:flex;flex-direction:column;gap:10px}
   .brand-text b{color:var(--lime);font:800 52px/1 ui-monospace,Menlo,monospace;letter-spacing:.2em}
   .brand-text i{font-style:normal;font-size:12.5px;color:#dfe6d6;opacity:.75}
-  .hero .lede{margin:34px 0 0;font-size:22px;line-height:1.7;font-weight:650;max-width:760px}
-  .hero .lede small{display:block;margin-top:10px;font-size:15px;font-weight:400;color:#c9cec4}
+  .stage{position:relative;margin-top:30px}
+  .catch{position:absolute;z-index:1;left:0;top:5%;margin:0;font-size:clamp(28px,5.4vw,54px);font-weight:800;letter-spacing:.02em;line-height:1.3;color:#fff}
+  .catch em{font-style:normal;color:var(--lime)}
+  .art{display:block;width:100%;height:auto;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 7%,#000 93%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 7%,#000 93%,transparent 100%)}
+  .hero .lede{margin:18px 0 0;font-size:26px;line-height:1.7;font-weight:650;max-width:760px}
   .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px}
   .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:999px;font-weight:700;font-size:15px;text-decoration:none;border:0;cursor:pointer}
   .btn-lime{background:var(--lime);color:var(--lime-ink)}
@@ -40,7 +43,7 @@
   h3{margin:0 0 18px;font-size:26px;line-height:1.45}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px 28px}
   .video{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 20px 50px rgba(0,0,0,.18)}
-  .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .video video{position:absolute;inset:0;width:100%;height:100%;display:block}
 
   .loop{display:grid;grid-template-columns:260px 1fr;gap:36px;align-items:start}
   .loop .fig svg{width:100%;height:auto;display:block}
@@ -142,7 +145,8 @@
   @media (max-width:760px){
     .brand img{height:64px}
     .brand-text b{font-size:32px}
-    .hero .lede{font-size:18px}
+    .catch{position:static;margin-bottom:8px}
+    .hero .lede{font-size:20px}
     .loop,.with-fig,.with-fig.tips-fig,.how-grid,.mech{grid-template-columns:1fr}
     .mech-arrow{transform:rotate(90deg);padding:0}
     .with-fig > svg{max-width:330px;margin:0 auto}
@@ -162,8 +166,11 @@
         <i>Mac / Windows · 無料 · ベータ版 · Created by Voice App Lab</i>
       </div>
     </div>
-    <p class="lede">KPIを測り、それを伸ばす施策を、AI と一緒に回す専用アプリ
-      <small>Claude Code（Codex）の機能をフルに使い、判断や AI への指示を迅速におこなえる、ビジュアル・ループツールです。</small></p>
+    <div class="stage">
+      <h1 class="catch">作れる人が、<br><em>成果を出す人</em>になる</h1>
+      <img class="art" src="hero.webp" width="1600" height="823" alt="">
+    </div>
+    <p class="lede">Claude Code（Codex）の力で、KPIを伸ばすループツール</p>
     <div class="cta">
       <a class="btn btn-lime" href="#install">インストール方法を見る（無料）</a>
       <a class="btn btn-ghost" href="#video">▶ 解説動画を見る</a>
@@ -177,7 +184,7 @@
 <main class="wrap">
 
   <section id="video">
-    <div class="video"><iframe src="https://www.youtube-nocookie.com/embed/3b6so58MULM" title="Rising Loop の解説動画" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>
+    <div class="video"><video src="https://storage.googleapis.com/rising-loop-dist/media/explainer-261013.mp4" poster="video-poster.webp" controls playsinline preload="none" title="Rising Loop の解説動画"></video></div>
   </section>
 
   <section id="install">
