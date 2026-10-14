@@ -160,7 +160,7 @@ function Welcome(p: { onOpen: () => void }) {
           </li>
           <li>
             <h2>プロジェクトのフォルダを開く</h2>
-            <p className="sub">サービスごとにフォルダを1つ選びます（企画書などがあれば入れておくと、AI が読みます）。ループがまだ無ければ、AI と目標を決めるところから始めます。</p>
+            <p className="sub">伸ばしたい事業のフォルダ（ソースコードや企画書、エクセルファイルなど、関連ファイルが入っているもの）を選びます。AI が中身を読んで、伸ばす数字を一緒に決めます。</p>
             <Button variant="primary" onClick={p.onOpen}>
               フォルダを開く…
             </Button>

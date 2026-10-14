@@ -110,7 +110,7 @@ test('タブを切り替えても、ループの画面は読み込み直さな�
 
   await nextFolder(noLoops)
   await win.getByRole('button', { name: 'プロジェクトを追加' }).click()
-  await (await dialogOf(app)).getByRole('button', { name: '追加する' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: '始める' }).click()
   await expect(win.getByRole('tab', { name: 'new-service' })).toHaveAttribute('aria-selected', 'true')
   await expect(win.getByText('資料を入れたら、下のチャットで目標を決めましょう。')).toBeVisible()
 
@@ -127,7 +127,7 @@ test('同じフォルダを選んでもタブは増えず、開き直しても�
   await later(app) // 見本は古い形なので、知らせに「あとで」と答える
   await nextFolder(noLoops)
   await win.getByRole('button', { name: 'プロジェクトを追加' }).click()
-  await (await dialogOf(app)).getByRole('button', { name: '追加する' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: '始める' }).click()
   await nextFolder(withLoops + '/')
   await win.getByRole('button', { name: 'プロジェクトを追加' }).click()
   await expect(win.getByRole('tab')).toHaveCount(2)

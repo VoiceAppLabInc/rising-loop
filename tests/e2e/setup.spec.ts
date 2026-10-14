@@ -15,7 +15,7 @@ const count = (text: string | null, s: string) => (text ?? '').split(s).length -
 async function open(): Promise<void> {
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
-  await (await dialogOf(app)).getByRole('button', { name: '追加する' }).click()
+  await (await dialogOf(app)).getByRole('button', { name: '始める' }).click()
 }
 
 test.beforeEach(async () => {
@@ -63,7 +63,7 @@ test('ループが無いフォルダは、新しいプロジェクトにして�
   await nextFolder(app, folder)
   await win.getByRole('button', { name: 'フォルダを開く…' }).click()
   const d = (await dialogOf(app))
-  await expect(d).toContainText('「new-service」にはループがありません。新しいプロジェクトとして追加しますか？')
+  await expect(d).toContainText('「new-service」でループを始めます')
   await d.getByRole('button', { name: 'やめる' }).click()
   await expect(d).toHaveCount(0)
   await expect(win.getByRole('tab')).toHaveCount(0)

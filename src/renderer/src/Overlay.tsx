@@ -234,14 +234,14 @@ function AddProjectDialog(p: { name: string; busy: boolean; onCancel: () => void
   return (
     <div className="backdrop">
       <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="add-project-title">
-        <h2 id="add-project-title">このフォルダにはループがありません</h2>
-        <p>「{p.name}」にはループがありません。新しいプロジェクトとして追加しますか？</p>
+        <h2 id="add-project-title">「{p.name}」でループを始めます</h2>
+        <p>フォルダには loops/ を1つ足します。ほかのファイルは、あなたが「直す」と決めたときだけ触ります。</p>
         <div className="actions">
           <Button onClick={p.onCancel} disabled={p.busy}>
             やめる
           </Button>
           <Button variant="primary" onClick={p.onAdd} disabled={p.busy}>
-            追加する
+            始める
           </Button>
         </div>
       </div>
