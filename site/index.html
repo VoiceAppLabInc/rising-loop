@@ -14,6 +14,14 @@
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="mark.png">
+<!-- Google tag (gtag.js)：GA4 プロパティ「Rising Loop」（voiceapp-lab.com）のストリーム「Rising Loop LP」 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0DWMYBZL3K"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0DWMYBZL3K');
+</script>
 <style>
   :root{
     --bar:#1c1c1b; --bar-2:#262624; --lime:#ccef67; --lime-ink:#2b3a0c;
@@ -480,6 +488,17 @@
       navigator.clipboard.writeText(t).then(function () { b.textContent = 'コピーしました'; setTimeout(function () { b.textContent = 'コピー' }, 1800) })
     })
   })
+  // GA4 のイベント：インストールまで進んだか、動画・YouTube・お問い合わせが押されたか
+  ;(function () {
+    function ev(name, params) { if (window.gtag) gtag('event', name, params || {}) }
+    document.querySelectorAll('[data-copy="mac-cmd"]').forEach(function (b) { b.addEventListener('click', function () { ev('mac_install_copy') }) })
+    document.querySelectorAll('a[href$=".exe"]').forEach(function (a) { a.addEventListener('click', function () { ev('win_download') }) })
+    document.querySelectorAll('[data-yt]').forEach(function (b) { b.addEventListener('click', function () { ev('youtube_open', { video_id: b.getAttribute('data-yt') }) }) })
+    var v = document.querySelector('video')
+    if (v) v.addEventListener('play', function () { ev('explainer_play') }, { once: true })
+    var f = document.getElementById('feedback-link')
+    if (f) f.addEventListener('click', function () { ev('contact_click') })
+  })()
 </script>
 </body>
 </html>
