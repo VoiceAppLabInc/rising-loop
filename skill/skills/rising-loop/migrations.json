@@ -473,6 +473,15 @@
         "const": "e882eb68aa364a59"
       },
       "changes": []
+    },
+    {
+      "version": "2.5.11",
+      "templates": {
+        "loop": "ac37a2ccdc6e8130",
+        "loops": "77e8dee0e6bda4f0",
+        "const": "e882eb68aa364a59"
+      },
+      "changes": []
     }
   ]
 }
