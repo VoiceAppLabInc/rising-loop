@@ -660,3 +660,26 @@
   /* 色の見方。札と同じ形で、小さく */
   .hist-sec .hs-legend .hs-tp{font-size:10.5px;padding:1px 6px 1px 3px;border-radius:5px}
   .hist-sec .hs-legend .hs-tp::before{min-width:14px;height:14px;padding:0 3px;margin-right:4px;font-size:9.5px;line-height:14px}
+
+  /* ── 図の札（マウスを乗せる・触ると出る）。札には、画面にまだ書いていない数字だけを出す ── */
+  .rl-tip{position:fixed;z-index:60;pointer-events:none;padding:4px 9px;border-radius:5px;
+    background:var(--ink);color:#fff;font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace;
+    white-space:nowrap;box-shadow:0 2px 8px rgba(28,40,33,.22)}
+  .rl-tip[hidden]{display:none}
+  .rl [data-tip]{cursor:default}
+  .rl-bullet .tr[data-tip]:hover .val{filter:brightness(.9)}
+  .rv-h .t[data-tip]:hover i{filter:brightness(.82)}
+  .rl-stack .rl-band span[data-tip]:hover{filter:brightness(.9)}
+  .rl-cal .gr i[data-tip]:hover{outline:2px solid var(--ink);outline-offset:-2px}
+  .rl-dumbbell .r[data-tip]:hover{background:var(--surface-2)}
+  .rv-col[data-tip]:hover i{filter:brightness(.85)}
+  .rl-pie path{transition:transform .12s}
+  .rl-pie path:hover{transform:translate(var(--dx),var(--dy))}
+  .rl-treemap rect[data-tip]:hover{opacity:.8}
+  .rl-treemap text,.rl-venn text{pointer-events:none}
+  .rl-slope .sl{transition:opacity .12s}
+  /* 線に乗っているあいだだけ、ほかの線を薄くする（図の余白に乗っただけでは薄くしない。全部薄いと壊れたように見える） */
+  .rl-slope svg:has(.sl:hover) .sl:not(:hover){opacity:.2}
+  .rl-venn circle[data-tip]:hover{opacity:.5}
+  /* 分母つきの棒の凡例（薄い棒＝機会の数） */
+  .rl-key i.of{background:#f6f8f1;box-shadow:inset 0 0 0 1px #c9d3b6}

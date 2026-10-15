@@ -17,6 +17,50 @@ var IS_SHELL = !!document.getElementById('loop-frame');
 //=== 4桁以上は桁区切りを入れる（1000 → 1,000）。小数は2桁まで
 function fmt(n){ return Number(+Number(n).toFixed(2)).toLocaleString('ja-JP', { maximumFractionDigits: 2 }); }
 
+//=== 図の札（マウスを乗せる・触ると出る）。★札には、画面にまだ書いていない数字だけを出す。
+//===   書いてある数字を繰り返すと、同じことを2回言うだけで何も足さない。
+//===   部品は data-tip に札の文を置くだけ。出し方はここ1か所（文字は textContent。markup にしない）
+var RL_TIP = (function(){
+  //=== owner ＝ いま出している札の持ち主（data-tip の要素、または自分で札を出す図の箱）
+  var el = null, owner = null;
+  function show(text, x, y, from){
+    if (!el){ el = document.createElement('div'); el.className = 'rl-tip'; document.body.appendChild(el); }
+    owner = from || null;
+    el.textContent = text;
+    el.hidden = false;
+    var w = el.offsetWidth, h = el.offsetHeight;
+    el.style.left = Math.max(4, Math.min(innerWidth - w - 4, x - w / 2)) + 'px';
+    el.style.top = (y - h - 12 < 4 ? y + 18 : y - h - 12) + 'px';
+  }
+  function hide(){ if (el) el.hidden = true; owner = null; }
+  //=== 触った場所が札を持っていれば出す。持ち主の外に出たら消す。
+  //===   ★タッチでは pointermove が来ないので pointerdown でも拾う。
+  //===   ★「札の無い所に乗ったら消す」では足りない。自分で札を出す図の上では消せず、
+  //===     上のゲージの札が、下の棒グラフの上に残った（2026-10-16）。持ち主を覚えて、その外なら消す
+  function pick(e){
+    var t = e.target.closest && e.target.closest('[data-tip]');
+    if (t) show(t.getAttribute('data-tip'), e.clientX, e.clientY, t);
+    else if (owner && !(owner.contains && owner.contains(e.target))) hide();
+  }
+  document.addEventListener('pointermove', pick);
+  document.addEventListener('pointerdown', pick);
+  //=== ★一覧（殻）の札は、ループの頁（iframe）の上に移ると pointermove が来なくなる（動きは iframe の中に届く）。
+  //===   iframe に入った瞬間の pointerover で拾って消す。一覧の札がループの頁の上に残った（2026-10-16）
+  document.addEventListener('pointerover', pick);
+  //=== 画面が動いた・窓の外へ出た・ほかの画面へ移った・描き直したときは、指している物が変わるので消す。
+  //===   scroll は中の箱のスクロールも拾うよう capture で聞く
+  document.addEventListener('scroll', hide, { capture: true, passive: true });
+  addEventListener('wheel', hide, { passive: true });
+  addEventListener('resize', hide);
+  addEventListener('blur', hide);
+  addEventListener('pagehide', hide);
+  //=== 一覧からループの頁へ移る（殻の hash が変わる）ときも消す
+  addEventListener('hashchange', hide);
+  document.addEventListener('mouseleave', hide);
+  document.addEventListener('visibilitychange', hide);
+  return { show: show, hide: hide };
+})();
+
 //=== 押されたボタンから data-* を素で読む。殻でも頁でも同じものを取り、
 //===   「どう組み立てるか」は殻の doAction だけが知っている（加工は殻に一本化）
 //=== 施策の評価の各施策のボタン（.record-comment）なら、その施策名。ほかのボタンは null。
@@ -96,6 +140,8 @@ if (IS_SHELL) (function(){
   //=== 行けるのは「一覧」と「一覧に行がある画面」だけ。PANES は見ない（アプリのチャット専用）
   function knownId(id){ return id === 's-list' || !!document.querySelector('[data-go="' + id + '"]'); }
   function show(id){
+    //=== 画面を替えたら、前の画面の札は消す（指している物がもう見えない）
+    RL_TIP.hide();
     if (!knownId(id)){
       //=== 知らない #hash は一覧に丸める。hash も揃えないと戻る／再読込で同じ所に戻ってしまう
       id = 's-list';
@@ -376,7 +422,7 @@ if (!IS_SHELL) (function(){
     //=== 折れ線。ファネルと同じく D3 で描く（描画の仕方をこのファイルで1通りに揃えている）。
     //===   ★実寸で描くので viewBox の引き伸ばしをしない。丸が楕円に歪まず、目標ラベルも SVG に置ける。
     //===   D3 が読めなかったときは何も描かない（数字は上のゲージと記録に出ている）。
-    function drawChart(el, pts, target, unit, cur, days, dayUnit, dayTarget, dayTargetUnit, dual, line, tlabel){
+    function drawChart(el, pts, target, unit, cur, days, dayUnit, dayTarget, dayTargetUnit, line, tlabel, opt){
       //=== ★幅を先に見る。幅ゼロ（非表示中）で消すと、描き直しが来るまで図が空になる。
       //===   drawFunnel と同じ順（見られる状態か確かめてから消す）
       var W = el.clientWidth;
@@ -385,7 +431,7 @@ if (!IS_SHELL) (function(){
       var H = 96, PAD = 10, PAD_R = 78;                       //=== 右は「目標」ラベルのぶん空ける
       //=== 日ごとの数字を持っているループは、棒＋折れ線で描く（下の drawBars）。
       //===   持っていないループはこれまでどおり折れ線だけ。
-      if (days && days.length) return drawBars(el, pts, target, unit, cur, days, W, dayUnit, dayTarget, dayTargetUnit, dual, line, tlabel);
+      if (days && days.length) return drawBars(el, pts, cur, days, W, dayUnit, dayTarget, dayTargetUnit, unit, line, opt || {});
       var vals = pts.map(function(p){ return p.value; }).concat([target, 0]);
       var y = d3.scaleLinear()
         .domain([d3.min(vals), d3.max(vals)])
@@ -407,20 +453,51 @@ if (!IS_SHELL) (function(){
         .attr('cy', function(p){ return y(p.value); })
         .attr('r', function(p, i){ return i === cur ? 5 : 3.5; })
         .attr('fill', function(p, i){ return i === cur ? '#52751f' : '#a8b3a4'; });
+
+      //=== 触ると: いちばん近い日に縦の線を引き、その点に「日付 値」を添える。
+      //===   ★小さい丸に当てさせない。グラフのどこに乗せても、横の位置でいちばん近い点に吸い付く
+      //===   （折れ線には日付の目盛りも値も書いていないので、札は日付と値の2つ）
+      var hv = hoverLayer(svg, PAD - 4, H - PAD + 4);
+      overlay(svg, W, H, function(mx){
+        var i = Math.max(0, Math.min(pts.length - 1, Math.round(x.invert(mx))));
+        var p = pts[i];
+        hv.at(x(i), y(p.value), String(p.label || '').replace('月', '/').replace('日', '') + '  ' + fmt(p.value) + unit, W);
+      }, hv.off);
     }
 
-    //=== 目標の破線と、その正体を書くラベル（折れ線でも棒でも同じ見た目にする）
-    //===   ★下げたいループ（コストなど）は LOOP_DATA.hist に targetLabel: '上限' を置く。既定は「目標」
-    //=== 目標がグラフの外にあるとき。★線は引かない。
-    //===   上端に破線を引くと「上端＝目標」に見えて、距離を読みちがえる。
-    //===   どれだけ離れているかはゲージ（value / target）が持っているので、ここは在りかだけ示す。
-    function drawTargetOff(svg, W, PAD_T, target, unit, tlabel){
-      svg.append('text').attr('x', W).attr('y', PAD_T - 5).attr('text-anchor', 'end')
+    //=== 触ったときの縦の線・丸・札（折れ線と棒＋線で共通）。札は SVG の文字で、点のすぐ上に直に書く
+    function hoverLayer(svg, y1, y2, noLine){
+      var g = svg.append('g').style('pointer-events', 'none').attr('display', 'none');
+      //=== 棒＋線は日の帯を敷くので縦の線は引かない
+      var gl = g.append('line').attr('y1', y1).attr('y2', y2).attr('stroke', '#87918b').attr('stroke-dasharray', '2 3').attr('display', noLine ? 'none' : null);
+      var gc = g.append('circle').attr('r', 5.5).attr('fill', '#52751f').attr('stroke', '#fff').attr('stroke-width', 2);
+      var gt = g.append('text').attr('font-size', 12).attr('font-weight', 700).attr('fill', '#1c2821')
         .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
-        .attr('font-size', 12).attr('fill', '#87918b')
-        .text('↑ ' + (tlabel || '目標') + ' ' + fmt(target) + unit + '（グラフの外）');
+        .attr('stroke', '#fffefb').attr('stroke-width', 4).attr('paint-order', 'stroke');
+      return {
+        at: function(cx, cy, text, W){
+          g.attr('display', null);
+          gl.attr('x1', cx).attr('x2', cx);
+          gc.attr('cx', cx).attr('cy', cy).attr('display', cy == null ? 'none' : null);
+          //=== 右寄りの点は左へ、左寄りの点は右へ札を出す（枠の外に出さない）
+          var anc = cx > W * 0.7 ? 'end' : cx < W * 0.15 ? 'start' : 'middle';
+          gt.attr('display', text ? null : 'none').text(text || '')
+            .attr('text-anchor', anc).attr('x', cx + (anc === 'end' ? -9 : anc === 'start' ? 9 : 0))
+            .attr('y', Math.max(13, (cy == null ? y1 : cy) - 11));
+        },
+        off: function(){ g.attr('display', 'none'); }
+      };
+    }
+    //=== 図の全面に透明な板を敷いて、横の位置を渡す。★タッチは指を離しても消さない（離した瞬間に消えると読めない）
+    var rawEv = null;
+    function overlay(svg, W, H, onX, onOff){
+      svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'transparent')
+        .on('pointermove pointerdown', function(ev){ rawEv = ev; onX(d3.pointer(ev)[0]); })
+        .on('pointerleave', function(ev){ if (ev.pointerType !== 'touch') onOff(); });
     }
 
+    //=== 目標の破線と、その正体を書くラベル（折れ線だけの図。棒＋線は目標を描かない）
+    //===   ★下げたいループ（コストなど）は LOOP_DATA.hist に targetLabel: '上限' を置く。既定は「目標」
     function drawTarget(svg, W, PAD_R, ty, target, unit, tlabel){
       svg.append('line').attr('x1', 0).attr('x2', W - PAD_R + 6)
         .attr('y1', ty).attr('y2', ty)
@@ -434,45 +511,41 @@ if (!IS_SHELL) (function(){
     //=== 棒＝その日の数字 ／ 折れ線＝計測点（その窓の最終日の位置に置く）。
     //===   ★折れ線だけだと 44→37→37→39 が 0〜60 の縦軸の中で潰れて水平線に見える。
     //===     棒を下敷きにすると 0 からの高さが出て、日ごとの動きも同じ絵で読める。
-    //=== ★棒が「1日ぶんの実額」で、ゴールが月額のときは、目標線と折れ線も1日ぶんに直す
-    //===   （dayTarget と各点の dayValue）。棒だけ月換算にすると「6470円」のような
+    //=== ★棒が「1日ぶんの実額」で、ゴールが月額のときは、折れ線も1日ぶんに直す
+    //===   （各点の dayValue。単位は dayTargetUnit）。棒だけ月換算にすると「6470円」のような
     //===   実在しない額が並んで読めなくなる（2026-09-05 のフィードバック）。
-    function drawBars(el, pts, target, unit, cur, days, W, dayUnit, dayTarget, dayTargetUnit, dual, line, tlabel){
-      if (dayTarget != null) { target = dayTarget; unit = dayTargetUnit || unit; }
-      var H = 150, PAD_T = 18, PAD_B = 22, PAD_L = 4, PAD_R = 78;
+    //=== ★分母つきの棒（days[].of）。その日に「できた数」の棒を、「機会の数」の薄い棒の中に重ね、上に「できた/機会」を書く。
+    //===   例: 払った/決済シートが出た、コンバージョン/クリック。2つのループが別々に頁の中で同じ絵を描いていたので部品にした。
+    //===   of・n は件数。v が件数でないループ（金額など）は、できた件数を n に置く。v は札に回す（単位は dayUnit）。
+    //===   ★1件の額で割って件数を出さない。額は券ごとに違う（L01 は 9/13 から3日券・30日券が混ざる）
+    function drawBars(el, pts, cur, days, W, dayUnit, dayTarget, dayTargetUnit, unit, line, opt){
+      //=== 目標は図に描かない（下の ★いつも2軸）。単位だけ1日ぶんに合わせる
+      if (dayTarget != null) unit = dayTargetUnit || unit;
+      var OF = days.some(function(d){ return d.of != null; });
+      //=== 分母つきのとき、棒の高さは件数（n。無ければ v）。分母つきでないときは v
+      var cnt = function(d){ return OF && d.n != null ? d.n : d.v; };
+      var top2 = function(d){ return Math.max(cnt(d), d.of || 0); };
+      var H = 190, PAD_T = 18, PAD_B = 22, PAD_L = 4, PAD_R = 8;
+      var esc = function(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
+      if (OF && (opt.ofLabel || opt.vLabel))
+        el.insertAdjacentHTML('beforeend', '<div class="rl-key"><span><i class="of"></i>' + esc(opt.ofLabel || '') + '</span>'
+          + '<span><i style="background:#c3d29b"></i>' + esc(opt.vLabel || '') + '（数字は ' + esc(opt.vLabel || '') + '/' + esc(opt.ofLabel || '') + '）</span></div>');
       var svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
-      //=== ★縦軸の上端は max(目標, 実測)。目標で切ると、目標を超えた日が
-      //===   グラフの外に出て見えなくなる。
-      //=== ★ただし目標が実測の5倍を超えるときは、この規則が逆に働く。
-      //===   棒が高さ12%まで潰れて、日ごとの動きが読めなくなる（2026-09-10 に実際に起きた）。
-      //===   そのときは縦軸をデータに合わせ、目標は「グラフの外」と文字で出す（線は引かない）。
-      var dataMax = d3.max(
-        days.map(function(d){ return d.v; }).concat(
-        (line && line.length) ? line.map(function(q){ return q.v; })
-                              : pts.map(function(p){ return p.dayValue != null ? p.dayValue : p.value; })));
-      var farTarget = target > dataMax * 5;
-      var top = farTarget ? dataMax * 1.15 : d3.max([target, dataMax]);
-      var y = d3.scaleLinear().domain([0, top]).range([H - PAD_B, PAD_T]);
-      //=== ★dual: 棒（その日の実額）と折れ線（ゴールの数字＝過去30日の合計）で桁が違うとき、
-      //===   縦軸を分ける。1本にすると、目標がはるか上にあるぶん**棒も線もぺたんこ**になって
-      //===   何も読めない（2026-09-05 に実際にそうなった）。
-      var yBar = y, yLine = y, lo = 0, hi = 0;
-      if (dual) {
-        yBar = d3.scaleLinear()
-          .domain([0, d3.max(days.map(function(d){ return d.v; }))])
-          .range([H - PAD_B, PAD_T + 26]);
-        //=== ★線の縦軸は「実際に描く系列」から取る。line を持つループで pts から取ると、
-        //===   計測点が1つしか無いとき domain が潰れて、線がグラフの外へ飛ぶ（2026-09-14）
-        var inWin = {}; days.forEach(function(q){ inWin[q.d] = 1; });
-        var lvals = (line && line.length)
-          ? line.filter(function(q){ return inWin[q.d]; }).map(function(q){ return q.v; })
-          : pts.map(function(p){ return p.value; });
-        lo = d3.min(lvals);
-        hi = d3.max(lvals);
-        yLine = d3.scaleLinear()
-          .domain([lo - (hi - lo || 1) * 0.8, hi + (hi - lo || 1) * 0.3])
-          .range([H - PAD_B, PAD_T]);
-      }
+      //=== ★いつも2軸（2026-10-16 から。dualAxis は見ない）。線は上の帯、棒は下の帯に分け、縦軸もそれぞれに取る。
+      //===   1本の縦軸にすると、単位の違う2つ（線は %・棒は人）を同じ目盛りに載せることになり、
+      //===   目標がはるか上にあれば棒も線もぺたんこになる（2026-09-05）。同じ高さを通ると棒の数字が線に隠れる（L01）。
+      //===   目標までの距離は上のゲージが見せているので、図に目標の線は引かない
+      var yBar = d3.scaleLinear()
+        .domain([0, d3.max(days.map(top2)) || 1])
+        .range([H - PAD_B, PAD_T + 84]);
+      //=== ★線の縦軸は「実際に描く系列」から取る。line を持つループで pts から取ると、
+      //===   計測点が1つしか無いとき domain が潰れて、線がグラフの外へ飛ぶ（2026-09-14）
+      var inWin = {}; days.forEach(function(q){ inWin[q.d] = 1; });
+      var lvals = (line && line.length)
+        ? line.filter(function(q){ return inWin[q.d]; }).map(function(q){ return q.v; })
+        : pts.map(function(p){ return p.dayValue != null ? p.dayValue : p.value; });
+      var lo = d3.min(lvals), hi = d3.max(lvals), lastLabel = null;
+      var yLine = d3.scaleLinear().domain([lo, hi > lo ? hi : lo + 1]).range([PAD_T + 56, PAD_T + 4]);
       var x = d3.scaleBand().domain(days.map(function(d){ return d.d; }))
         .range([PAD_L, W - PAD_R]).padding(0.34);
 
@@ -480,25 +553,36 @@ if (!IS_SHELL) (function(){
       var frac = days.some(function(d){ return d.v % 1 !== 0; });
       var dfmt = function(v){ return frac ? v.toFixed(2) : String(v); };
 
-      if (!dual) {
-        if (farTarget) drawTargetOff(svg, W, PAD_T, target, unit, tlabel);
-        else drawTarget(svg, W, PAD_R, y(target), target, unit, tlabel);
-      }
-
-      svg.selectAll('rect').data(days).enter().append('rect')
+      //=== 触った日の帯（棒の後ろに敷く）
+      var band = svg.append('rect').attr('y', PAD_T - 6).attr('height', H - PAD_B - PAD_T + 6)
+        .attr('width', x.step()).attr('fill', '#eef2e6').attr('display', 'none');
+      //=== 分母の薄い棒（of のある日だけ）。できた数の棒は、その内側に少し細く重ねる
+      svg.selectAll('rect.of').data(days.filter(function(d){ return d.of != null; })).enter().append('rect').attr('class', 'of')
         .attr('x', function(d){ return x(d.d); }).attr('width', x.bandwidth())
-        .attr('y', function(d){ return yBar(d.v); })
-        .attr('height', function(d){ return Math.max(0, yBar(0) - yBar(d.v)); })
+        .attr('y', function(d){ return yBar(d.of); })
+        .attr('height', function(d){ return Math.max(0, yBar(0) - yBar(d.of)); })
+        .attr('fill', '#f6f8f1').attr('stroke', '#c9d3b6');
+      var inset = function(d){ return d.of != null ? Math.min(3, x.bandwidth() * 0.2) : 0; };
+      svg.selectAll('rect.bar').data(days).enter().append('rect').attr('class', 'bar')
+        .attr('x', function(d){ return x(d.d) + inset(d); }).attr('width', function(d){ return Math.max(0, x.bandwidth() - inset(d) * 2); })
+        .attr('y', function(d){ return yBar(cnt(d)); })
+        .attr('height', function(d){ return Math.max(0, yBar(0) - yBar(cnt(d))); })
         //=== 途中の日（partial）は薄くするだけ。印や注記は付けない（毎日見る人には分かる）
-        .attr('fill', function(d){ return d.partial ? '#e1e9cf' : '#c3d29b'; });
-      //=== 数字は棒の内側に深めに置く。棒のすぐ上や浅い位置だと折れ線とぶつかる
-      //===   （棒と線は近い値なので必ず近くを通る）。低い棒のときだけ棒の上に出す。
-      var tall = function(d){ return yBar(0) - yBar(d.v) >= 34; };
-      svg.selectAll('text.bv').data(days).enter().append('text').attr('class', 'bv')
-        .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; })
-        .attr('y', function(d){ return tall(d) ? yBar(d.v) + 26 : yBar(d.v) - 6; })
+        .attr('fill', function(d){ return d.partial && d.of == null ? '#e1e9cf' : '#c3d29b'; });
+      //=== 分母つきの日は、薄い棒の上に「できた/機会」。できた日は濃く、0 の日は薄く
+      svg.selectAll('text.bf').data(days.filter(function(d){ return d.of != null; })).enter().append('text').attr('class', 'bf')
+        .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; }).attr('y', function(d){ return yBar(top2(d)) - 5; })
         .attr('text-anchor', 'middle').attr('font-size', 11)
-        .attr('fill', function(d){ return tall(d) ? '#4c5b3c' : '#87918b'; })
+        .attr('font-weight', function(d){ return d.v > 0 ? 700 : 400; })
+        .attr('fill', function(d){ return d.v > 0 ? '#4c5b3c' : '#a8b3a4'; })
+        .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
+        .text(function(d){ return fmt(cnt(d)) + '/' + fmt(d.of); });
+      svg.selectAll('text.bv').data(days.filter(function(d){ return d.of == null; })).enter().append('text').attr('class', 'bv')
+        .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; })
+        //=== 棒の上に置く（線は上の帯にあるので、ぶつからない）
+        .attr('y', function(d){ return yBar(cnt(d)) - 5; })
+        .attr('text-anchor', 'middle').attr('font-size', 11)
+        .attr('fill', function(d){ return d.v > 0 ? '#4c5b3c' : '#a8b3a4'; })
         .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
         .text(function(d){ return dfmt(d.v) + (dayUnit || ''); });
 
@@ -512,7 +596,7 @@ if (!IS_SHELL) (function(){
         line.forEach(function(q){
           var b = x(q.d);
           if (b === undefined) return;
-          seen.push({ v: q.v, cur: false, cx: b + x.bandwidth() / 2 });
+          seen.push({ d: q.d, v: q.v, cur: false, cx: b + x.bandwidth() / 2 });
         });
         if (seen.length) seen[seen.length - 1].cur = true;
       } else {
@@ -520,7 +604,7 @@ if (!IS_SHELL) (function(){
         pts.forEach(function(p, i){
           var b = x(p.end);
           if (b === undefined) return;
-          var s = { v: p.dayValue != null ? p.dayValue : p.value, cur: i === cur, cx: b + x.bandwidth() / 2 };
+          var s = { d: p.end, v: p.dayValue != null ? p.dayValue : p.value, cur: i === cur, cx: b + x.bandwidth() / 2 };
           if (byEnd[p.end] != null) {
             if (seen[byEnd[p.end]].cur) return;
             seen[byEnd[p.end]] = s;
@@ -536,19 +620,40 @@ if (!IS_SHELL) (function(){
         .attr('r', function(s){ return s.cur ? 5 : 3.5; })
         .attr('fill', function(s){ return s.cur ? '#52751f' : '#a8b3a4'; });
 
-      //=== dual のときは軸が2本あるので、線の高さは目盛りでは読めない。最新の点に数字を添える。
-      if (dual && seen.length) {
+      //=== 軸が2本あるので、線の高さは目盛りでは読めない。最新の点に数字を添える。
+      //===   ★「合計」は付けない。線が合計とは限らない（1人あたり・率のループもある）
+      if (seen.length) {
         var last = seen[seen.length - 1];
-        svg.append('text').attr('x', last.cx - 8).attr('y', yLine(last.v) - 9)
+        lastLabel = svg.append('text').attr('x', last.cx - 8).attr('y', yLine(last.v) - 9)
           .attr('text-anchor', 'end').attr('font-size', 11).attr('fill', '#4c5b3c')
           .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
-          .text('合計 ' + fmt(last.v) + (unit || ''));
+          .text(fmt(last.v) + (unit || ''));
       }
       svg.selectAll('text.xl').data(days).enter().append('text').attr('class', 'xl')
         .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; }).attr('y', H - 6)
         .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#87918b')
         .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
         .text(function(d){ return d.d; });
+
+      //=== 触ると: その日の帯を敷き、線の点に値を添える。
+      //===   ★棒の値と日付はもう書いてあるので、札は線の値だけ。
+      //===     その日に線の点が無ければ、帯だけ（足す数字が無い）
+      var hv = hoverLayer(svg, PAD_T - 6, H - PAD_B, true);
+      overlay(svg, W, H, function(mx){
+        var i = Math.max(0, Math.min(days.length - 1, Math.floor((mx - PAD_L) / x.step())));
+        var dd = days[i], s = null;
+        seen.forEach(function(q){ if (q.d === dd.d) s = q; });
+        band.attr('display', null).attr('x', x(dd.d) - x.step() * x.padding() / 2);
+        if (lastLabel) lastLabel.attr('display', 'none');
+        if (s) hv.at(s.cx, yLine(s.v), fmt(s.v) + (unit || ''), W);
+        else hv.off();
+        //=== 分母つきの日は、札に割合（と、棒が金額なら金額）。「できた/機会」の数は棒の上に書いてある
+        if (dd.of != null && rawEv){
+          var r = dd.of ? Math.round(cnt(dd) / dd.of * 100) + '%' : '—';
+          //=== n があるときの v（金額など）は、棒の上に書いていないので札に足す
+          RL_TIP.show(r + (dd.n != null ? '・' + fmt(dd.v) + (dayUnit || '') : ''), rawEv.clientX, rawEv.clientY, el);
+        } else RL_TIP.hide();
+      }, function(){ band.attr('display', 'none'); hv.off(); RL_TIP.hide(); if (lastLabel) lastLabel.attr('display', null); });
     }
 
     //=== 選んだ計測点の窓の最終日までで棒を切る（レポートを畳むのと同じ理屈で、
@@ -609,7 +714,7 @@ if (!IS_SHELL) (function(){
         elNote.appendChild(document.createTextNode(line));
       });
       //=== ⚠️ 注意書きは innerHTML の中に入れる。afterend で足すと render のたびに増える
-      drawChart(elChart, d.points, d.target, d.unit, cur, daysFor(d, p), d.dayUnit, d.dayTarget, d.dayTargetUnit, d.dualAxis, d.line, d.targetLabel);
+      drawChart(elChart, d.points, d.target, d.unit, cur, daysFor(d, p), d.dayUnit, d.dayTarget, d.dayTargetUnit, d.line, d.targetLabel, { ofLabel: d.ofLabel, vLabel: d.vLabel });
       var head = cur === 0 ? "この計測までに入ったこと" : "前の計測から、この計測までに入ったこと";
       elRecs.innerHTML = recList(head, p.recs) +
         recList("この計測のあとに入ったこと（次の計測で判定に使う）", d.after);
@@ -673,14 +778,17 @@ if (!IS_SHELL) (function(){
       var X = st.map(function(_, i){ return mL + iw * i / (n - 1); });
 
       //=== 段のあいだを台形でつなぐ。中央に通過率
+      var segs = [];
       for (var i = 0; i < n - 1; i++) {
-        svg.append('polygon')
+        var sg = svg.append('g').attr('class', 'fseg').style('cursor', 'default');
+        segs.push(sg);
+        sg.append('polygon')
           .attr('points', [
             [X[i], cy - h[i]/2], [X[i+1], cy - h[i+1]/2],
             [X[i+1], cy + h[i+1]/2], [X[i], cy + h[i]/2]
           ].join(' '))
           .attr('fill', SEQ[i % SEQ.length]);
-        svg.append('text')
+        sg.append('text').style('pointer-events', 'none')
           .attr('x', (X[i] + X[i+1]) / 2).attr('y', cy + 4).attr('text-anchor', 'middle')
           .attr('font-size', narrow ? 11 : 13).attr('font-weight', 600)
           .attr('fill', '#fff').attr('font-family', FONT)
@@ -699,6 +807,27 @@ if (!IS_SHELL) (function(){
           .attr('font-size', narrow ? 14 : 16).attr('font-weight', 600)
           .attr('fill', V('--ink')).attr('font-family', FONT)
           .text(label(i));
+      });
+      //=== 触ると: その帯だけ濃く残し、帯の下に「ここで抜けた数」を出す。
+      //===   ★段の数と通過率はもう書いてある。書いていないのは、その間で失った数だけ。
+      //===     単位が違う段のあいだ（人 → 件）は引き算できないので、帯を残すだけにする
+      var lost = svg.append('text').attr('text-anchor', 'middle').attr('display', 'none')
+        .attr('font-size', narrow ? 12 : 13).attr('font-weight', 700).attr('fill', V('--bad')).attr('font-family', FONT);
+      segs.forEach(function(sg, i){
+        function on(){
+          segs.forEach(function(o, j){ o.attr('opacity', j === i ? 1 : 0.35); });
+          var a = st[i], b = st[i+1];
+          if ((a.unit || '') !== (b.unit || '')) { lost.attr('display', 'none'); return; }
+          lost.attr('display', null).attr('x', (X[i] + X[i+1]) / 2)
+            .attr('y', cy + Math.max(h[i], h[i+1]) / 2 + 18)
+            .text('−' + fmt(a.value - b.value) + (b.unit || ''));
+        }
+        sg.on('pointerenter pointerdown', on)
+          .on('pointerleave', function(ev){
+            if (ev.pointerType === 'touch') return;
+            segs.forEach(function(o){ o.attr('opacity', 1); });
+            lost.attr('display', 'none');
+          });
       });
       if (d.note) {
         svg.append('text').attr('x', mL).attr('y', H - 10)
@@ -844,6 +973,12 @@ if (!IS_SHELL) (function(){
   //=== 単位も esc を通す。通さないと d.unit の "<em>円" がそのまま markup になる
   function num(v, unit){ return fmt(n0(v)) + (unit ? esc(unit) : ''); }
   function ttl(s){ return s ? '<div class="rl-ttl">' + esc(s) + '</div>' : ''; }
+  //=== 札の文を属性に置く。★札には画面にまだ書いていない数字だけ（RL_TIP の決まり）
+  function tip(s){ return s ? ' data-tip="' + esc(s) + '"' : ''; }
+  //=== 全体に占める割合。1%未満は小数1桁まで出す（0% と書くと「無い」に見える）
+  function share(v, sum){ if (!sum) return ''; var r = n0(v) / sum * 100; return (r > 0 && r < 1 ? r.toFixed(1) : Math.round(r)) + '%'; }
+  //=== 増えた・減った分。符号は ＋ と −（ハイフンにしない）
+  function diff(a, b, unit){ var x = n0(b) - n0(a); return (x > 0 ? '+' : x < 0 ? '−' : '±') + fmt(Math.abs(x)) + (unit || ''); }
   function note(s){ return s ? '<div class="rl-note">' + esc(s) + '</div>' : ''; }
   function key(items){
     return '<div class="rl-key">' + items.map(function(it){
@@ -890,7 +1025,14 @@ if (!IS_SHELL) (function(){
     var tone = toneOf(d);
     //=== ★ axis:false で目盛りの数字を出さない（線だけ）。一覧の行のように幅が狭い場所で使う
     if (d.axis !== false) h += '<div class="ax">' + ticks(max, n, d.unit) + '</div>';
-    h += '<div class="tr">';
+    //=== 札: 目標（上限）までの残り。いま・目標・まえは書いてあるので、書いていないのは差だけ
+    var gap = '';
+    if (d.aim != null){
+      var lw = d.lower === true || d.aimLabel === '上限', rest = n0(d.aim) - n0(d.now), al = d.aimLabel || '目標';
+      gap = (lw ? rest >= 0 : rest > 0) ? al + 'まで あと ' + fmt(Math.abs(rest)) + (d.unit || '')
+                                        : al + 'を ' + fmt(Math.abs(rest)) + (d.unit || '') + ' 超え';
+    }
+    h += '<div class="tr"' + tip(gap) + '>';
     for (var i = 1; i < n; i++) h += '<i class="g" style="left:' + (i / n * 100) + '%"></i>';
     h += '<i class="val' + (tone ? ' ' + tone : '') + '" style="width:' + pc(d.now, max).toFixed(1) + '%"></i>';
     //=== ★札は印の真ん中に置くので、0% や 100% ぴったりだと半分が枠の外に出る。
@@ -920,11 +1062,12 @@ if (!IS_SHELL) (function(){
   //===     ここで別の markup を作ると、同じ絵が2通りになる（ファネルで起きたのと同じこと）
   function rank(d){
     var rows = d.rows || [], max = mx(rows.map(function(r){ return n0(r.v); }));
+    var sum = rows.reduce(function(a, r){ return a + n0(r.v); }, 0);
     return ttl(d.title) + '<div class="rv-h">' + rows.map(function(r, i){
       var v = n0(r.v);
       //=== 先頭だけ濃い緑、あとは薄い（.rv-h に赤は無いので bad は見ない）
       return '<div class="k">' + esc(lab(r)) + '</div>'
-           + '<div class="t"><i class="' + (i === 0 && v ? '' : 'dim') + '" style="width:'
+           + '<div class="t"' + tip('全体の ' + share(v, sum)) + '><i class="' + (i === 0 && v ? '' : 'dim') + '" style="width:'
            + pc(v, max).toFixed(1) + '%"></i></div>'
            + '<div class="v">' + fmt(v) + esc(d.unit || '') + '</div>';
     }).join('') + '</div>' + note(d.note);
@@ -937,7 +1080,9 @@ if (!IS_SHELL) (function(){
       return ttl(b.title) + '<div class="rl-band">' + parts.map(function(p, i){
         var w = pc(p.v, sum);
         //=== 幅が細いと文字が入らない。8% 未満はラベルを落として色だけ残す
-        return '<span style="width:' + w.toFixed(1) + '%;background:' + (p.c || C[i % C.length]) + '">'
+        //=== 札: 文字が入っている帯は割合だけ。文字を落とした細い帯は、名前と数と割合
+        var tp = w >= 8 ? '全体の ' + share(p.v, sum) : esc(p.k) + ' ' + fmt(n0(p.v)) + (d.unit || '') + '（' + share(p.v, sum) + '）';
+        return '<span' + tip(tp) + ' style="width:' + w.toFixed(1) + '%;background:' + (p.c || C[i % C.length]) + '">'
              + (w >= 8 ? esc(p.k) + ' ' + fmt(n0(p.v)) + (d.unit || '') : '') + '</span>';
       }).join('') + '</div>';
     }).join('') + note(d.note);
@@ -949,7 +1094,8 @@ if (!IS_SHELL) (function(){
     (d.head || ['月','火','水','木','金','土','日']).forEach(function(w){ h += '<b>' + esc(w) + '</b>'; });
     days.forEach(function(x){
       var a = max ? n0(x.v) / max : 0;
-      h += '<i title="' + esc(x.d) + ' ' + num(x.v, d.unit) + '" style="background:rgba(82,117,31,'
+      //=== 札: 日付と数。マスには何も書いていない
+      h += '<i' + tip(lab(x) + ' ' + fmt(n0(x.v)) + (d.unit || '')) + ' style="background:rgba(82,117,31,'
          + (0.10 + a * 0.90).toFixed(2) + ')"></i>';
     });
     return ttl(d.title) + '<div class="gr">' + h + '</div>' + note(d.note);
@@ -961,7 +1107,8 @@ if (!IS_SHELL) (function(){
     var max = d.max != null ? d.max : mx(rows.reduce(function(a, r){ return a.concat([n0(r.a), n0(r.b)]); }, []));
     return ttl(d.title) + rows.map(function(r){
       var A = pc(r.a, max), B = pc(r.b, max), up = n0(r.b) >= n0(r.a);
-      return '<div class="r' + (up ? ' up' : '') + '"><span class="k">' + esc(lab(r)) + '</span>'
+      //=== 札: 増えた・減った分。前といまは書いてある
+      return '<div class="r' + (up ? ' up' : '') + '"' + tip(diff(r.a, r.b, d.unit)) + '><span class="k">' + esc(lab(r)) + '</span>'
            + '<span class="tr"><i class="ln" style="left:' + Math.min(A, B).toFixed(1)
            + '%;width:' + Math.abs(B - A).toFixed(1) + '%"></i>'
            + '<i class="a" style="left:' + A.toFixed(1) + '%"></i>'
@@ -975,10 +1122,12 @@ if (!IS_SHELL) (function(){
   //===   いちばん高い山だけ濃くする。どこが多いかを目で拾えるようにする
   function hist(d){
     var bins = d.bins || [], max = mx(bins.map(function(b){ return n0(b.v); }));
+    var sum = bins.reduce(function(a, b){ return a + n0(b.v); }, 0);
     return ttl(d.title)
       + '<div class="rv-bars">' + bins.map(function(b){
           var v = n0(b.v);
-          return '<div class="rv-col' + (max && v === max ? ' on' : '') + '"><b>' + fmt(v) + '</b>'
+          //=== 札: 全体の何%か。件数は柱の上に書いてある
+          return '<div class="rv-col' + (max && v === max ? ' on' : '') + '"' + tip('全体の ' + share(v, sum)) + '><b>' + fmt(v) + '</b>'
                + '<i style="height:' + pc(v, max).toFixed(1) + '%"></i></div>';
         }).join('') + '</div>'
       + '<div class="rv-labels">' + bins.map(function(b){
@@ -1010,8 +1159,10 @@ if (!IS_SHELL) (function(){
     var a = -Math.PI / 2, s = '<svg viewBox="0 0 120 120">', k = [];
     if (!sum) return '<div class="rl-none">まだ数字がありません</div>';
     sl.forEach(function(x, i){
-      var c = x.c || C[i % C.length], a2 = a + n0(x.v) / sum * Math.PI * 2;
-      s += '<path d="' + arc(60, 60, 54, a, a2) + '" fill="' + c + '"/>';
+      var c = x.c || C[i % C.length], a2 = a + n0(x.v) / sum * Math.PI * 2, mid = (a + a2) / 2;
+      //=== 札: 実際の数。割合は凡例に書いてある。触った切れは外へ少しずらす
+      s += '<path d="' + arc(60, 60, 54, a, a2) + '" fill="' + c + '"' + tip(fmt(n0(x.v)) + (d.unit || ''))
+         + ' style="--dx:' + (Math.cos(mid) * 4).toFixed(2) + 'px;--dy:' + (Math.sin(mid) * 4).toFixed(2) + 'px"/>';
       k.push({ k: x.k + ' ' + Math.round(n0(x.v) / sum * 100) + '%', c: c });
       a = a2;
     });
@@ -1033,6 +1184,8 @@ if (!IS_SHELL) (function(){
       + '<text x="65" y="97" text-anchor="middle" font-size="12" font-weight="700" fill="' + BAD + '" font-family="' + MONO + '">'
       + esc(d.hitLabel || ('うち ' + fmt(hit))) + '</text></svg>';
     var tx = (d.lines || []).map(function(l){ return esc(l); }).join('<br>');
+    //=== 札: 割合。母数と件数は輪の中に書いてある
+    s = s.replace('<svg ', '<svg' + tip(share(hit, total)) + ' ');
     return ttl(d.title) + '<div class="rl-donut">' + s + (tx ? '<div class="tx">' + tx + '</div>' : '') + '</div>' + note(d.note);
   }
 
@@ -1045,7 +1198,7 @@ if (!IS_SHELL) (function(){
     if (!cells.length) return '<div class="rl-none">まだ数字がありません</div>';
     if (!window.d3 || !d3.treemap || !d3.hierarchy)
       return rank({ title: d.title, unit: d.unit, rows: d.cells, note: d.note });
-    var W = 300, H = 150;
+    var W = 300, H = 150, sum = cells.reduce(function(a, c){ return a + n0(c.v); }, 0);
     var root = d3.hierarchy({ children: cells }).sum(function(x){ return n0(x.v); })
                  .sort(function(a, b){ return b.value - a.value; });
     d3.treemap().size([W, H]).paddingInner(2)(root);
@@ -1053,7 +1206,10 @@ if (!IS_SHELL) (function(){
     root.leaves().forEach(function(n, i){
       var w = n.x1 - n.x0, h = n.y1 - n.y0, c = C[i % C.length], fg = i < 2 ? '#fff' : INK;
       s += '<rect x="' + n.x0.toFixed(1) + '" y="' + n.y0.toFixed(1) + '" width="' + w.toFixed(1)
-         + '" height="' + h.toFixed(1) + '" fill="' + c + '"/>';
+         + '" height="' + h.toFixed(1) + '" fill="' + c + '"'
+         //=== 札: 文字が入る枠は割合だけ。小さくて文字を落とした枠は、名前と数と割合
+         + tip(w > 52 && h > 30 ? '全体の ' + share(n.data.v, sum)
+                                : n.data.k + ' ' + fmt(n0(n.data.v)) + (d.unit || '') + '（' + share(n.data.v, sum) + '）') + '/>';
       //=== 小さい枠に文字を入れると読めない。幅52・高さ30 を下回ったら出さない
       if (w > 52 && h > 30){
         s += '<text x="' + (n.x0 + 7).toFixed(1) + '" y="' + (n.y0 + 18).toFixed(1)
@@ -1092,7 +1248,8 @@ if (!IS_SHELL) (function(){
       s += '<polygon points="' + up.concat(dn).join(' ') + '" fill="' + c + '"/>';
       k.push({ k: sr.k, c: c });
     });
-    s += '<line x1="0" y1="' + (H - PB) + '" x2="' + W + '" y2="' + (H - PB) + '" stroke="#c9d3bd"/>';
+    s += '<line x1="0" y1="' + (H - PB) + '" x2="' + W + '" y2="' + (H - PB) + '" stroke="#c9d3bd"/>'
+       + '<line class="rl-guide" x1="0" x2="0" y1="0" y2="' + (H - PB) + '" stroke="' + INK + '" stroke-opacity=".45" stroke-dasharray="2 3" visibility="hidden"/>';
     labels.forEach(function(l, i){
       if (!l) return;
       s += '<text x="' + X(i).toFixed(1) + '" y="' + (H - 4) + '" font-size="9.5" fill="' + DIM
@@ -1113,14 +1270,18 @@ if (!IS_SHELL) (function(){
     rows.forEach(function(r, i){
       var up = n0(r.b) >= n0(r.a), c = up ? C[0] : BAD;
       var y0 = Y(n0(r.a)), y1 = Y(n0(r.b));
-      s += '<line x1="70" y1="' + y0.toFixed(1) + '" x2="190" y2="' + y1.toFixed(1)
+      //=== 札: 増えた・減った分。両端の数は書いてある。触った線だけ残して、ほかは薄くする
+      s += '<g class="sl"' + tip(r.k + ' ' + diff(r.a, r.b, d.unit)) + '>'
+         //=== 細い線に当てさせない。透明の太い線を下に敷いて、触れる幅を広げる
+         + '<line x1="70" y1="' + y0.toFixed(1) + '" x2="190" y2="' + y1.toFixed(1) + '" stroke="transparent" stroke-width="12"/>'
+         + '<line x1="70" y1="' + y0.toFixed(1) + '" x2="190" y2="' + y1.toFixed(1)
          + '" stroke="' + c + '" stroke-width="2"/>'
          + '<circle cx="70" cy="' + y0.toFixed(1) + '" r="4" fill="' + c + '"/>'
          + '<circle cx="190" cy="' + y1.toFixed(1) + '" r="4" fill="' + c + '"/>'
          + '<text x="64" y="' + (y0 + 3.5).toFixed(1) + '" font-size="10" fill="' + INK
          + '" text-anchor="end">' + esc(r.k) + ' ' + num(r.a, d.unit) + '</text>'
          + '<text x="197" y="' + (y1 + 3.5).toFixed(1) + '" font-size="10" fill="' + c + '">'
-         + num(r.b, d.unit) + '</text>';
+         + num(r.b, d.unit) + '</text></g>';
     });
     return ttl(d.title) + s + '</svg>' + note(d.note);
   }
@@ -1128,9 +1289,10 @@ if (!IS_SHELL) (function(){
   /* ── 14. venn（ベン図）2つの集まりの重なり ── */
   function venn(d){
     var a = d.a || {}, b = d.b || {}, both = n0(d.both);
+    //=== 札: その円のうち、両方に入っている割合。円の中の数は「その部分だけ」の数として読む
     var s = '<svg viewBox="0 0 260 120">'
-      + '<circle cx="100" cy="60" r="48" fill="' + C[0] + '" opacity=".3"/>'
-      + '<circle cx="160" cy="60" r="42" fill="' + BAD + '" opacity=".3"/>'
+      + '<circle cx="100" cy="60" r="48" fill="' + C[0] + '" opacity=".3"' + tip(a.k + 'のうち 両方は ' + share(both, n0(a.v) + both)) + '/>'
+      + '<circle cx="160" cy="60" r="42" fill="' + BAD + '" opacity=".3"' + tip(b.k + 'のうち 両方は ' + share(both, n0(b.v) + both)) + '/>'
       + '<text x="60" y="56" font-size="11" fill="' + INK + '" text-anchor="middle">' + esc(a.k) + '</text>'
       + '<text x="60" y="74" font-size="14" fill="' + INK + '" text-anchor="middle" font-family="' + MONO + '">' + fmt(n0(a.v)) + '</text>'
       + '<text x="130" y="64" font-size="14" fill="#8e3c31" text-anchor="middle" font-family="' + MONO + '">' + fmt(both) + '</text>'
@@ -1155,10 +1317,9 @@ if (!IS_SHELL) (function(){
       + '<text x="2" y="' + (PT + 6) + '" font-size="9" fill="' + DIM + '">' + esc(d.y || '') + '</text>'
       + '<text x="' + (W - PR) + '" y="' + (H - 4) + '" font-size="9" fill="' + DIM + '" text-anchor="end">'
       + esc(d.x || '') + '</text>';
-    p.forEach(function(o){
-      s += '<circle cx="' + X(n0(o.x)).toFixed(1) + '" cy="' + Y(n0(o.y)).toFixed(1)
-         + '" r="' + (o.out ? 5 : 4) + '" fill="' + (o.out ? BAD : C[2]) + '"'
-         + (o.k ? ' title="' + esc(o.k) + '"' : '') + '/>';
+    p.forEach(function(o, i){
+      s += '<circle data-i="' + i + '" cx="' + X(n0(o.x)).toFixed(1) + '" cy="' + Y(n0(o.y)).toFixed(1)
+         + '" r="' + (o.out ? 5 : 4) + '" fill="' + (o.out ? BAD : C[2]) + '"/>';
     });
     return ttl(d.title) + s + '</svg>' + note(d.note);
   }
@@ -1167,6 +1328,57 @@ if (!IS_SHELL) (function(){
     bullet: bullet, rank: rank, stack: stack, cal: cal,
     dumbbell: dumbbell, hist: hist, pie: pie, donut: donut,
     treemap: treemap, area: area, slope: slope, venn: venn, scatter: scatter
+  };
+  //=== 描いたあとに、自分で札を出す図（どこに乗せても、いちばん近いものに吸い付く）
+  function vbX(svg, ev){
+    var r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+    return (ev.clientX - r.left) / r.width * vb.width;
+  }
+  function own(el, move, leave){
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerdown', move);
+    el.addEventListener('pointerleave', function(ev){ if (ev.pointerType !== 'touch') { leave(); RL_TIP.hide(); } });
+  }
+  var INTER = {
+    //=== 面グラフ: 縦の線を引き、札に合計、凡例にその時点の内訳を出す。★図には数字を1つも書いていない
+    area: function(el, d){
+      var svg = el.querySelector('svg'), guide = el.querySelector('.rl-guide');
+      var keys = [].slice.call(el.querySelectorAll('.rl-key span'));
+      var ser = d.series || [], labels = d.labels || [];
+      var n = Math.max.apply(null, ser.map(function(s){ return (s.vals || []).length; }).concat([1]));
+      keys.forEach(function(k, j){ k.setAttribute('data-k', ser[j] ? ser[j].k : ''); });
+      own(svg, function(ev){
+        var i = n < 2 ? 0 : Math.max(0, Math.min(n - 1, Math.round(vbX(svg, ev) / 300 * (n - 1))));
+        var gx = n < 2 ? 150 : i / (n - 1) * 300, tot = 0;
+        guide.setAttribute('x1', gx); guide.setAttribute('x2', gx); guide.setAttribute('visibility', 'visible');
+        keys.forEach(function(k, j){
+          var v = n0(ser[j] && ser[j].vals && ser[j].vals[i]); tot += v;
+          k.lastChild.textContent = k.getAttribute('data-k') + ' ' + fmt(v);
+        });
+        RL_TIP.show((labels[i] ? labels[i] + '  ' : '') + '合計 ' + fmt(tot) + (d.unit || ''), ev.clientX, ev.clientY, el);
+      }, function(){
+        guide.setAttribute('visibility', 'hidden');
+        keys.forEach(function(k){ k.lastChild.textContent = k.getAttribute('data-k'); });
+      });
+    },
+    //=== 散布図: いちばん近い点に吸い付き、その点を大きくして、名前と2つの値を出す。★点には何も書いていない
+    scatter: function(el, d){
+      var svg = el.querySelector('svg'), dots = [].slice.call(svg.querySelectorAll('circle[data-i]')), on = null;
+      function off(){ if (on){ on.setAttribute('r', on.getAttribute('data-r')); on.removeAttribute('stroke'); on = null; } }
+      dots.forEach(function(c){ c.setAttribute('data-r', c.getAttribute('r')); });
+      own(svg, function(ev){
+        var best = null, bd = 1e9;
+        dots.forEach(function(c){
+          var r = c.getBoundingClientRect(), dx = r.left + r.width / 2 - ev.clientX, dy = r.top + r.height / 2 - ev.clientY;
+          var dd = dx * dx + dy * dy; if (dd < bd){ bd = dd; best = c; }
+        });
+        //=== 遠すぎる（40px 超）ときは何も指さない
+        if (!best || bd > 1600){ off(); RL_TIP.hide(); return; }
+        if (best !== on){ off(); on = best; on.setAttribute('r', 6.5); on.setAttribute('stroke', '#fff'); on.setAttribute('stroke-width', 2); }
+        var o = (d.pts || [])[+best.getAttribute('data-i')] || {};
+        RL_TIP.show((o.k ? o.k + '  ' : '') + (d.x || 'x') + ' ' + fmt(n0(o.x)) + '・' + (d.y || 'y') + ' ' + fmt(n0(o.y)), ev.clientX, ev.clientY, el);
+      }, off);
+    }
   };
   //=== 一覧を受け取る図は、その一覧が空なら「まだ数字がありません」を出す。
   //===   ★空の箱を出さない。出すと「図が壊れた」のか「数字が無い」のか画面で見分けられない
@@ -1255,6 +1467,7 @@ if (!IS_SHELL) (function(){
       try {
         setKind(el, spec.t);
         el.innerHTML = f(spec);
+        if (INTER[spec.t]) INTER[spec.t](el, spec);
         //=== ★一覧の行の中のブレットなら、行の帯の色と「はじめより」を同じ値から作る。
         //===   AI に百分率を計算させない（間違えるうえ、色の決まりが2か所に分かれる）
         var row = spec.t === 'bullet' && el.closest && el.closest('.loop-row');
