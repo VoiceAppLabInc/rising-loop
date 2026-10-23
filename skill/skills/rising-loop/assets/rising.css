@@ -217,6 +217,33 @@
   .hist-note{margin-left:auto;font-size:13px;color:var(--dim)}
   .hist-chart{margin-top:10px}
   .hist-chart svg{display:block}
+  /* 棒＋線の図の横スクロール（2.5.16）。30日ぶんが入りきらないときだけ横に動く */
+  .hist-chart{position:relative}
+  .rl-scroll{overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:thin}
+  .rl-inner{position:relative}
+  /* 日付の下の施策の印（2.5.16）。施策の ID を小さく、評価の色で（施策の流れの札と同じ4色） */
+  .rl-tid,.rl-mark{--gc:#9aa39d;--gt:#fff;--gb:rgba(0,0,0,.06)}
+  .rl-tid.g-a,.rl-tid.g-b,.rl-mark.g-a,.rl-mark.g-b{--gc:#52751f;--gt:#f2f5ea;--gb:rgba(255,255,255,.24)}
+  .rl-tid.g-c,.rl-mark.g-c{--gc:#9b6518;--gt:#f4e8d2;--gb:rgba(155,101,24,.16)}
+  .rl-tid.g-d,.rl-tid.g-e,.rl-mark.g-d,.rl-mark.g-e{--gc:#4f6b8a;--gt:#e4eaf2;--gb:rgba(79,107,138,.16)}
+  .rl-tid{position:absolute;transform:translateX(-50%);padding:0 4px;border-radius:4px;font:700 10px/14px ui-monospace,SFMono-Regular,Menlo,monospace;
+    background:var(--gt);color:var(--gc);border:1px solid color-mix(in srgb,var(--gc) 35%,transparent);text-decoration:none;cursor:pointer;white-space:nowrap}
+  .rl-tid.g-n{border-style:dashed;color:#7d8780}
+  .rl-tid:hover,.rl-tid.on{background:var(--gc);color:#fff;border-color:var(--gc)}
+  .rl-tid.g-n:hover,.rl-tid.g-n.on{background:#7d8780;border-color:#7d8780}
+  /* 乗せると出る札。一覧の施策の流れの札（.hs-tp）と同じ形。押すとその施策へ */
+  .rl-pop{position:absolute;z-index:5}
+  .rl-pop[hidden]{display:none}
+  .rl-pop::after{content:"";position:absolute;left:0;right:0;top:100%;height:8px}   /* ID から札へマウスが渡る橋 */
+  .rl-mark{display:inline-flex;align-items:center;border-radius:6px;padding:3px 8px 3px 4px;font-size:12px;font-weight:700;line-height:1.4;
+    white-space:nowrap;background:var(--gt);color:var(--ink);text-decoration:none;cursor:pointer;box-shadow:0 3px 10px rgba(28,40,33,.2)}
+  .rl-mark:is(.g-a,.g-b){background:var(--gc);color:#fff}
+  .rl-mark.g-n{background:#fff;color:var(--sub);border:1.5px dashed #bfc7c1}
+  .rl-mark::before{content:attr(data-g);display:inline-block;min-width:17px;height:17px;padding:0 4px;margin-right:6px;text-align:center;border-radius:4px;
+    background:var(--gb);color:var(--gc);font:700 11px/17px ui-monospace,monospace;box-sizing:border-box}
+  .rl-mark:is(.g-a,.g-b)::before{color:#fff}
+  .rl-mark .hs-d{margin-right:5px;font:600 11px ui-monospace,monospace;opacity:.7}
+  .rl-mark::after{content:"›";margin-left:6px;font-size:14px;line-height:1;opacity:.7}
   .hist-report{margin-top:12px}
   .hist-report .hr-title{font-size:12.5px;letter-spacing:.08em;color:var(--dim);font-weight:700}
   .hist-report .hr-when{margin-left:8px;font-weight:400;letter-spacing:0;font-size:12px}

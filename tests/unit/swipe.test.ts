@@ -42,7 +42,7 @@ describe('swipeStep（2本指の横スクロールを、戻る・進むにする
     expect(run(many(-60, 10).map((e) => ({ ...e, dy: 200 })))).toEqual([])
   })
 
-  it('横にスクロールできる表や図の中で、端まで来ていないあいだは数えない', () => {
+  it('横にスクロールできる表や図の中では数えない（端まで来ていても）', () => {
     expect(run(many(-100, 10, { canScroll: true }))).toEqual([])
   })
 })

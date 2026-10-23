@@ -528,8 +528,19 @@ export class ProjectViews {
 /** 右の窓のページ。中身は resources/pane/pane.js が xterm.js で描く */
 const PANE_HTML = `<!doctype html><html><head><meta charset="utf-8">
 <link rel="stylesheet" href="/_rla/xterm.css">
-<style>html,body{margin:0;height:100%;background:#16171a;overflow:hidden}#term{position:absolute;inset:6px 0 0 8px}</style>
-</head><body><div id="term"></div>
+<style>html,body{margin:0;height:100%;background:#16171a;overflow:hidden}#term{position:absolute;inset:28px 0 0 8px}
+/* 上の帯は、ターミナルと同じ地の色（#16171a）。下に細い線を引いて分けるだけ */
+#sid{position:absolute;left:0;right:0;top:0;height:22px;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;
+background:#16171a;border-bottom:1px solid #26282d;font:10.5px "SF Mono",Menlo,"Cascadia Mono",Consolas,monospace;color:#7c818b}
+#sid .lbl{flex:none;color:#5d626b}
+#sid .id{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.02em;user-select:text}
+#sid button{flex:none;display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border:1px solid #30333a;border-radius:4px;
+background:transparent;color:#9aa0aa;font:inherit;cursor:pointer}
+#sid button:hover{background:#24262b;color:#e6e6e6;border-color:#454951}
+#sid button.done{color:#a6d36b;border-color:#4b6630}
+#sid button[hidden]{display:none}
+#sid svg{width:11px;height:11px}</style>
+</head><body><div id="sid"><span class="lbl">セッション</span><span class="id"></span><button type="button" hidden></button></div><div id="term"></div>
 <script src="/_rla/xterm.js"></script><script src="/_rla/addon-fit.js"></script><script src="/_rla/pane.js"></script>
 </body></html>`
 

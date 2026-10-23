@@ -17,6 +17,10 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
     onData: (cb: (d: string) => void) => {
       ipcRenderer.on('pane:data', (_e: IpcRendererEvent, d: string) => cb(d))
     },
+    /** いまのセッションの ID と記録のパス（窓の上の帯に出す）。セッションが替わるたびに来る */
+    onSession: (cb: (s: { id: string; file: string }) => void) => {
+      ipcRenderer.on('pane:session', (_e: IpcRendererEvent, s: { id: string; file: string }) => cb(s))
+    },
     /** 右の窓の幅（左端のドラッグ）。start・move・end と、つかんだ所から広げた px。reset は元の幅に戻す（ダブルクリック） */
     paneWidth: (phase: string, grow: number) => ipcRenderer.send('pane:width', { phase: String(phase), grow: Number(grow) || 0 }),
     // コピーと貼り付け（Windows・Linux のキーと右クリック。どうするかは shared/termKeys.ts が決める）
@@ -32,13 +36,20 @@ if (location.protocol === 'http:' && location.port === PANE_PORT) {
   // 2本指の横スクロール（Mac のトラックパッドの「ページ間をスワイプ」）を、戻る・進むの合図にして main に送る。
   // 戻る・進むの判断は main（3本指のスワイプ・マウスの戻る/進むボタンと同じ所）
   let swipe: SwipeState = { sum: 0, last: -Infinity, fired: false }
-  /** 払った向きに、まだ横スクロールできる場所の中か（表や図の中で端まで来ていない） */
+  /**
+   * 横スクロールに使う場所の中か。表や図など、横にスクロールできる箱の中なら、端まで来ていても横の動きはその箱のもの。
+   * ★端で数え始めると、図を端までスクロールしたあとの指の残りの動き（慣性）で頁が戻ってしまった（2026-10-23。30日の棒グラフ）。
+   *   頁そのもの（document）の横スクロールだけは、払った向きにまだ動けるあいだだけ
+   */
   const canScrollX = (target: EventTarget | null, dx: number): boolean => {
     for (let el = target instanceof Element ? target : null; el; el = el.parentElement) {
       if (el.scrollWidth <= el.clientWidth + 1) continue
+      if (el === document.scrollingElement) {
+        if (dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1) return true
+        continue
+      }
       const ox = getComputedStyle(el).overflowX
-      if (ox !== 'auto' && ox !== 'scroll' && el !== document.scrollingElement) continue
-      if (dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1) return true
+      if (ox === 'auto' || ox === 'scroll') return true
     }
     return false
   }

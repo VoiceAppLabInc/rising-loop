@@ -525,12 +525,25 @@ if (!IS_SHELL) (function(){
       //=== 分母つきのとき、棒の高さは件数（n。無ければ v）。分母つきでないときは v
       var cnt = function(d){ return OF && d.n != null ? d.n : d.v; };
       var top2 = function(d){ return Math.max(cnt(d), d.of || 0); };
-      var H = 190, PAD_T = 18, PAD_B = 22, PAD_L = 4, PAD_R = 8;
+      //=== 日付の下の施策の印（2.5.16）。同じ日の施策は縦に積むので、その段の数だけ下を空ける
+      var marks = chartMarks(days);
+      var under = marks.length ? d3.max(marks, function(m){ return m.list.length; }) * 17 + 4 : 0;
+      var H = 190 + under, PAD_T = 18, PAD_B = 22 + under, PAD_L = 4, PAD_R = 8;
+      //=== ★30日ぶんまで並べる（2.5.16）。1日の幅が DAY_W を切るなら、図を広げて横にスクロールさせる。
+      //===   幅に詰め込むと、日が増えるほど棒も数字も細って読めなくなる。開いたときは右端（いちばん新しい日）を見せる
+      //===   ★46px では棒が細すぎた（2026-10-23）。10日を並べていた頃の太さに近い 64px にする
+      var DAY_W = 64;
+      W = Math.max(W, PAD_L + PAD_R + days.length * DAY_W);
       var esc = function(t){ return String(t == null ? '' : t).replace(/[&<>"]/g, function(c){ return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]; }); };
       if (OF && (opt.ofLabel || opt.vLabel))
         el.insertAdjacentHTML('beforeend', '<div class="rl-key"><span><i class="of"></i>' + esc(opt.ofLabel || '') + '</span>'
           + '<span><i style="background:#c3d29b"></i>' + esc(opt.vLabel || '') + '（数字は ' + esc(opt.vLabel || '') + '/' + esc(opt.ofLabel || '') + '）</span></div>');
-      var svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+      var scroller = el.appendChild(document.createElement('div'));
+      scroller.className = 'rl-scroll';
+      var inner = scroller.appendChild(document.createElement('div'));
+      inner.className = 'rl-inner';
+      inner.style.width = W + 'px';
+      var svg = d3.select(inner).append('svg').attr('width', W).attr('height', H);
       //=== ★いつも2軸（2026-10-16 から。dualAxis は見ない）。線は上の帯、棒は下の帯に分け、縦軸もそれぞれに取る。
       //===   1本の縦軸にすると、単位の違う2つ（線は %・棒は人）を同じ目盛りに載せることになり、
       //===   目標がはるか上にあれば棒も線もぺたんこになる（2026-09-05）。同じ高さを通ると棒の数字が線に隠れる（L01）。
@@ -630,10 +643,11 @@ if (!IS_SHELL) (function(){
           .text(fmt(last.v) + (unit || ''));
       }
       svg.selectAll('text.xl').data(days).enter().append('text').attr('class', 'xl')
-        .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; }).attr('y', H - 6)
+        .attr('x', function(d){ return x(d.d) + x.bandwidth() / 2; }).attr('y', H - 6 - under)
         .attr('text-anchor', 'middle').attr('font-size', 11).attr('fill', '#87918b')
         .attr('font-family', 'ui-monospace,SFMono-Regular,Menlo,monospace')
         .text(function(d){ return d.d; });
+      drawMarks(el, inner, scroller, marks, function(d){ return x(d) + x.bandwidth() / 2; }, H - under + 2);
 
       //=== 触ると: その日の帯を敷き、線の点に値を添える。
       //===   ★棒の値と日付はもう書いてあるので、札は線の値だけ。
@@ -654,10 +668,85 @@ if (!IS_SHELL) (function(){
           RL_TIP.show(r + (dd.n != null ? '・' + fmt(dd.v) + (dayUnit || '') : ''), rawEv.clientX, rawEv.clientY, el);
         } else RL_TIP.hide();
       }, function(){ band.attr('display', 'none'); hv.off(); RL_TIP.hide(); if (lastLabel) lastLabel.attr('display', null); });
+      scroller.scrollLeft = scroller.scrollWidth;
+    }
+
+    //=== 施策の印に使う日付の形。"2026-09-07"・"9/7"・"9/07" をどれも "9/7" にそろえる
+    function mdKey(s){ var m = String(s || '').match(/(\d{1,2})[\/-](\d{1,2})$/); return m ? (+m[1]) + '/' + (+m[2]) : null; }
+    //=== 図に並べた日のうち、施策を入れた日（records[].done・trials[].started）と、その日の施策。古い日から
+    //===   ★施策の流れ（history.py）と同じ値を読む。印のためにデータを足さない
+    function chartMarks(days){
+      var at = {}, by = {}, seen = {};
+      days.forEach(function(d){ var k = mdKey(d.d); if (k) at[k] = d.d; });
+      //=== ★評価に移した施策が trials[] にも残っていることがある（実際のループで T02 が2つ並んだ）。
+      //===   records を先に読み、同じ id の trials は出さない（評価の色を持つほうを残す）
+      function add(t, kind, date, g){
+        var d = at[mdKey(date)];
+        if (!t || !t.id || seen[t.id]) return;
+        seen[t.id] = 1;
+        if (!d) return;
+        (by[d] = by[d] || []).push({ id: t.id, kind: kind, date: date, short: t.short || t.title || '', g: String(g || '-').toUpperCase() });
+      }
+      (DATA.records || []).forEach(function(r){ add(r, 'record', r.done, r.grade); });
+      (DATA.trials || []).forEach(function(t){ add(t, 'trial', t.started, '-'); });
+      return days.filter(function(d){ return by[d.d]; }).map(function(d){
+        return { d: d.d, list: by[d.d].sort(function(a, b){ return a.id < b.id ? -1 : 1; }) };
+      });
+    }
+    //=== 日付の下に施策の ID（T01 など）を小さく置く。乗せると、施策の流れと同じ札が真上に出る。
+    //===   札か ID を押すと、この頁のその施策（#record-LXX-TYY / #trial-LXX-TYY）へ。
+    //===   ★指では乗せられないので、1回目は札を出すだけ、札（または同じ ID）をもう1回押すと飛ぶ
+    function drawMarks(el, inner, scroller, marks, cx, top){
+      if (!marks.length) return;
+      var pop = el.appendChild(document.createElement('div'));
+      pop.className = 'rl-pop'; pop.hidden = true;
+      var on = null, timer = null;
+      function off(){ clearTimeout(timer); pop.hidden = true; if (on) on.classList.remove('on'); on = null; }
+      //=== ID から札へマウスを渡すあいだに消えないよう、少し待ってから消す
+      function later(){ clearTimeout(timer); timer = setTimeout(off, 160); }
+      function anchor(m){ return m.kind + '-' + DATA.id + '-' + m.id; }
+      function cls(m){ return /^[A-E]$/.test(m.g) ? 'g-' + m.g.toLowerCase() : 'g-n'; }
+      function go(m){ off(); var t = document.getElementById(anchor(m)); if (t) t.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      function show(a, m){
+        clearTimeout(timer);
+        if (on) on.classList.remove('on');
+        on = a; a.classList.add('on');
+        pop.innerHTML = '';
+        var c = pop.appendChild(document.createElement('a'));
+        c.className = 'rl-mark ' + cls(m); c.href = '#' + anchor(m); c.title = 'この施策を開く';
+        c.setAttribute('data-g', m.g);
+        c.appendChild(document.createElement('span')).className = 'hs-d';
+        c.firstChild.textContent = mdKey(m.date);
+        c.appendChild(document.createTextNode(m.short));
+        c.addEventListener('click', function(e){ e.preventDefault(); go(m); });
+        pop.hidden = false;
+        var er = el.getBoundingClientRect(), ar = a.getBoundingClientRect();
+        var left = ar.left + ar.width / 2 - er.left - pop.offsetWidth / 2;
+        pop.style.left = Math.max(0, Math.min(el.clientWidth - pop.offsetWidth, left)) + 'px';
+        pop.style.top = (ar.top - er.top - pop.offsetHeight - 6) + 'px';
+      }
+      pop.addEventListener('pointerenter', function(){ clearTimeout(timer); });
+      pop.addEventListener('pointerleave', function(e){ if (e.pointerType !== 'touch') later(); });
+      //=== 横にスクロールしたら、札が指している ID が動くので消す
+      scroller.addEventListener('scroll', off, { passive: true });
+      marks.forEach(function(g){
+        g.list.forEach(function(m, j){
+          var a = inner.appendChild(document.createElement('a'));
+          a.className = 'rl-tid ' + cls(m); a.href = '#' + anchor(m); a.textContent = m.id;
+          a.style.left = cx(g.d) + 'px'; a.style.top = (top + j * 17) + 'px';
+          a.addEventListener('pointerenter', function(e){ if (e.pointerType !== 'touch') show(a, m); });
+          a.addEventListener('pointerleave', function(e){ if (e.pointerType !== 'touch') later(); });
+          a.addEventListener('click', function(e){
+            e.preventDefault();
+            if (on === a && !pop.hidden) go(m); else show(a, m);
+          });
+        });
+      });
     }
 
     //=== 選んだ計測点の窓の最終日までで棒を切る（レポートを畳むのと同じ理屈で、
-    //===   過去の点に戻したときにグラフだけ最新のままにしない）。並べるのは直近10本まで。
+    //===   過去の点に戻したときにグラフだけ最新のままにしない）。並べるのは直近30本まで（2.5.16。それまでは10本）。
+    //===   入りきらない日は横にスクロールする（drawBars の DAY_W）
     function daysFor(d, p){
       if (!d.days || !d.days.length) return null;
       var k = -1;
@@ -665,7 +754,7 @@ if (!IS_SHELL) (function(){
       var ls = k < 0 ? d.days : d.days.slice(0, k + 1);
       //=== 窓の後ろにある途中の日（partial）も並べる
       if (k >= 0) ls = ls.concat(d.days.slice(k + 1).filter(function(x){ return x.partial; }));
-      return ls.slice(-10);
+      return ls.slice(-30);
     }
 
     //=== 「前の計測から入ったこと」の一覧。★ここは放っておくと文字の塊になる。

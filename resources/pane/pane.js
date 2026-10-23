@@ -40,6 +40,33 @@
       else pasteClip()
     })
   }
+  // 上の帯：いまのセッションの ID と［ログのパス］。押すと、そのセッションの記録（jsonl）のパスをコピーする。
+  // 困ったときに、どのセッションかを伝え、記録を別のセッションに読ませるため。
+  // コピーはアプリのクリップボードで（iframe の中の navigator.clipboard は拒まれることがある）
+  var bar = document.getElementById('sid')
+  if (bar && api.onSession) {
+    var idEl = bar.querySelector('.id'), btn = bar.querySelector('button'), file = '', timer = null
+    var ICON_COPY = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-6A1.5 1.5 0 0 0 2 3.5v6A1.5 1.5 0 0 0 3.5 11H5"/></svg>'
+    var ICON_OK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.2 3L13 4.5"/></svg>'
+    var idle = function () { btn.classList.remove('done'); btn.innerHTML = ICON_COPY + 'ログのパス' }
+    idle()
+    api.onSession(function (s) {
+      idEl.textContent = s.id
+      idEl.title = s.id
+      file = s.file || ''
+      btn.title = file
+      btn.hidden = !file
+    })
+    btn.addEventListener('click', function () {
+      if (!file || !clip) return
+      clip.copy(file)
+      btn.classList.add('done')
+      btn.innerHTML = ICON_OK + 'コピーしました'
+      clearTimeout(timer)
+      timer = setTimeout(idle, 1400)
+      term.focus()
+    })
+  }
   function refit() {
     // 隠れている窓（ほかの画面のチャット）は大きさが 0 になるので、そのときは何もしない
     if (!document.body.clientWidth || !document.body.clientHeight) return

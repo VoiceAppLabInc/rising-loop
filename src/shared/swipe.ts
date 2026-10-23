@@ -19,7 +19,7 @@ export interface SwipeState {
 /**
  * 横スクロールを1つ足す。dir は -1（戻る）・1（進む）・0（まだ）。
  * 右へ払うと deltaX がマイナスで届くので戻る、左へ払うとプラスで進む（Safari・Chrome と同じ向き）。
- * canScroll：その場所が、払った向きにまだ横スクロールできる（表や図の中で端まで来ていない）。そのあいだは数えない
+ * canScroll：その場所が横スクロールに使う場所（表や図の横にスクロールできる箱の中。端まで来ていても）。そのあいだは数えない
  */
 export function swipeStep(s: SwipeState, dx: number, dy: number, now: number, canScroll: boolean): { state: SwipeState; dir: -1 | 0 | 1 } {
   const fresh = now - s.last > SWIPE_GAP_MS

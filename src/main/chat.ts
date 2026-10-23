@@ -61,6 +61,14 @@ interface Term {
   /** まだ送っていない指示文 */
   queue: Queued[]
   flushing: boolean
+  /** いまのセッションの ID と、その記録（jsonl）のパス。右の窓の上の帯に出す */
+  session?: PaneSession
+}
+
+/** 右の窓の上の帯に出すセッション。file は記録のパス（まだ無いこともある） */
+export interface PaneSession {
+  id: string
+  file: string
 }
 
 export interface ChatPaths {
@@ -113,6 +121,14 @@ function transcriptFile(ai: AiKind, id: string): string | null {
   }
 }
 
+/**
+ * そのセッションの記録のパス。右の窓の［ログのパス］でコピーする。
+ * claude は最初の発言までファイルが無いので、置き場所の決まり（フォルダのパスの英数字以外を - にした名前）から組み立てる
+ */
+export function sessionFile(ai: AiKind, id: string, folder: string): string {
+  return transcriptFile(ai, id) ?? (ai === 'claude' ? join(claudeDir(), 'projects', folder.replace(/[^A-Za-z0-9]/g, '-'), id + '.jsonl') : '')
+}
+
 /** 会話に AI の返事が入っているか（記録のファイルを読んで見る。無ければ false） */
 function hasReply(ai: AiKind, id: string): boolean {
   const f = transcriptFile(ai, id)
@@ -151,6 +167,7 @@ export class Chats {
     const t = this.term(project.id, screen, cols, rows)
     t.frame = frame
     if (t.buf) this.toPane(t, t.buf)
+    if (t.session) this.sessionToPane(t)
     this.resize(project.id, screen, cols, rows)
     if (!t.proc && !t.starting) void this.start(t, project, screen, ai)
   }
@@ -320,6 +337,14 @@ export class Chats {
     this.toPane(t, s)
   }
 
+  private sessionToPane(t: Term): void {
+    try {
+      if (t.frame && !t.frame.isDestroyed() && t.session) t.frame.send('pane:session', t.session)
+    } catch {
+      // 右の窓が閉じられた
+    }
+  }
+
   private toPane(t: Term, s: string): void {
     try {
       if (t.frame && !t.frame.isDestroyed()) t.frame.send('pane:data', s)
@@ -380,6 +405,8 @@ export class Chats {
         }
       }
       saveBook(this.bookFile, recordSession(loadBook(this.bookFile), project.folder, screen, ai, id, this.paths.skillVersion))
+      t.session = { id, file: sessionFile(ai, id, project.folder) }
+      this.sessionToPane(t)
 
       // 会話を始めるときに送る文は、貼り付けずに起動時の引数で渡す（起動直後の貼り付けは捨てられる）。
       // 起動の準備のあいだに積まれた文も含めて、ここで1つ拾う
