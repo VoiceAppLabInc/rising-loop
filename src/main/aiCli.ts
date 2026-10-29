@@ -13,7 +13,12 @@ export interface Picked {
   cmd: Command | null
   state: 'ok' | 'old' | 'broken' | 'none'
   version: string | null
+  /** claude が auto mode を知っているか（--permission-mode の choices に "auto" がある）。古い版に auto を渡すと、エラーで起動しない */
+  autoMode?: boolean
 }
+
+/** --help の --permission-mode の choices に "auto" があるか（--autocompact <auto|tokens> などは数えない） */
+const knowsAutoMode = (help: string): boolean => /--permission-mode[^]*?\(choices:([^)]*)\)/.exec(help)?.[1].includes('"auto"') ?? false
 
 /** アプリが使う機能（起動の引数は launch.ts）。--help にこれが出ない版は古すぎる */
 const NEEDS: Record<AiKind, { args: string[]; has: string[] }> = {
@@ -36,7 +41,7 @@ export async function pickCli(ai: AiKind, candidates: Command[], probe: Probe): 
       old ??= version
       continue
     }
-    return { cmd: c, state: 'ok', version }
+    return ai === 'claude' ? { cmd: c, state: 'ok', version, autoMode: knowsAutoMode(h.out) } : { cmd: c, state: 'ok', version }
   }
   return { cmd: null, state: old != null ? 'old' : broken ? 'broken' : 'none', version: old }
 }

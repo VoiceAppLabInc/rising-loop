@@ -357,7 +357,8 @@ export class Chats {
     t.starting = true
     try {
       // 動くもの・アプリが使う機能があるものだけを使う（nodenv の入口や古い版は飛ばす）
-      const cmd = (await resolveCli(ai)).cmd
+      const picked = await resolveCli(ai)
+      const cmd = picked.cmd
       if (!cmd) {
         const name = ai === 'claude' ? 'Claude Code' : 'Codex'
         this.out(t, `\r\n${name} が使えません。右上の ⚙（設定）の「AI」で［入れる］を押し、終わったらここで Enter を押してください。\r\n`)
@@ -416,7 +417,7 @@ export class Chats {
       const prompt = first?.text ?? (prevFile && !askedAtCreate ? HANDOFF_ASK : undefined)
       const args =
         ai === 'claude'
-          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto' })
+          ? claudeArgs({ sessionId: id, exists: claudeSessionExists(id), pluginDir: this.paths.pluginDir, promptFile, model: claudeModel(), prompt, autoApprove: project.perm === 'auto', autoMode: picked.autoMode })
           : codexArgs({ threadId: id, instructions, prompt, autoApprove: project.perm === 'auto' })
       const proc = pty.spawn(cmd.file, [...cmd.args, ...args], { name: 'xterm-256color', cols: t.cols, rows: t.rows, cwd: project.folder, env: env as Record<string, string> })
       t.proc = proc

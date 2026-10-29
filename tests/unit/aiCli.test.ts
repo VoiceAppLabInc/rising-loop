@@ -34,6 +34,14 @@ describe('pickCli（動くもの・新しさが足りるものを選ぶ）', () 
     expect(await pickCli('claude', [cmd('/b')], probeOf({ '/b': broken }))).toEqual({ cmd: null, state: 'broken', version: null })
     expect(await pickCli('claude', [], probeOf({}))).toEqual({ cmd: null, state: 'none', version: null })
   })
+  it('claude は auto mode を知っているか（--permission-mode の choices に "auto" があるか）も覚える。古い版は知らない', async () => {
+    const help = (choices: string) => ({ out: `  --plugin-dir <path>  Load a plugin\n  --permission-mode <mode>  Permission mode\n      (choices: ${choices})\n  --autocompact <auto|tokens>\n`, code: 0 })
+    const now: Reply = { ...okClaude, help: help('"acceptEdits", "auto",\n      "bypassPermissions", "plan"') }
+    const before: Reply = { ...okClaude, help: help('"acceptEdits", "bypassPermissions", "default", "plan"') }
+    expect(await pickCli('claude', [cmd('/c')], probeOf({ '/c': now }))).toMatchObject({ state: 'ok', autoMode: true })
+    expect(await pickCli('claude', [cmd('/c')], probeOf({ '/c': before }))).toMatchObject({ state: 'ok', autoMode: false })
+    expect(await pickCli('claude', [cmd('/c')], probeOf({ '/c': okClaude }))).toMatchObject({ state: 'ok', autoMode: false })
+  })
   it('--version が 0 で終わっても、数字が出なければ動かないとみなす', async () => {
     const probe = probeOf({ '/x': { version: { out: 'usage: something\n', code: 0 } } })
     expect(await pickCli('claude', [cmd('/x')], probe)).toMatchObject({ state: 'broken' })

@@ -86,11 +86,16 @@ describe('会話を始めるときに送る文（起動時の引数で渡す）'
 
 describe('コマンド実行の確認のモード', () => {
   const base = { sessionId: 'abc', exists: false, pluginDir: '/p', promptFile: '/f', model: null }
-  it('すべて自動で許可：claude は bypassPermissions で起動する', () => {
-    const a = claudeArgs({ ...base, autoApprove: true, prompt: 'x' })
+  it('すべて自動で許可：claude は auto mode で起動する（確認では止まらず、危ない操作だけを判定して止める。何でも通す bypassPermissions は使わない）', () => {
+    const a = claudeArgs({ ...base, autoApprove: true, autoMode: true, prompt: 'x' })
     expect(a).toContain('--permission-mode')
-    expect(a[a.indexOf('--permission-mode') + 1]).toBe('bypassPermissions')
+    expect(a[a.indexOf('--permission-mode') + 1]).toBe('auto')
+    expect(a).not.toContain('bypassPermissions')
     expect(a.slice(-2)).toEqual(['--', 'x'])
+  })
+  it('すべて自動で許可：auto mode を知らない古い claude は、前と同じ bypassPermissions で起動する（auto を渡すとエラーで起動しない）', () => {
+    const a = claudeArgs({ ...base, autoApprove: true, autoMode: false })
+    expect(a[a.indexOf('--permission-mode') + 1]).toBe('bypassPermissions')
   })
   it('確認する：何も足さない（使う人の設定のまま）', () => {
     expect(claudeArgs(base)).not.toContain('--permission-mode')

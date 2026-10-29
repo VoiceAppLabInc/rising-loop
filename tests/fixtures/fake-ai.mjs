@@ -21,7 +21,9 @@ if (flag && !(await import('node:fs')).existsSync(flag)) {
 // RLA_FAKE_OLD=1 なら、アプリが使う機能（--plugin-dir・exec の --json）が無い古い版のふり
 const old = process.env.RLA_FAKE_OLD === '1'
 if (a0.join(' ') === '--help') {
-  process.stdout.write(old ? '  --print\n' : '  --plugin-dir <path>  Load a plugin\n')
+  // RLA_FAKE_NO_AUTO=1 なら、auto mode を知らない版のふり（--permission-mode の choices に "auto" が無い）
+  const choices = process.env.RLA_FAKE_NO_AUTO === '1' ? '"acceptEdits", "bypassPermissions", "plan"' : '"acceptEdits", "auto",\n      "bypassPermissions", "plan"'
+  process.stdout.write(old ? '  --print\n' : `  --plugin-dir <path>  Load a plugin\n  --permission-mode <mode>  Permission mode\n      (choices: ${choices})\n`)
   process.exit(0)
 }
 if (a0.join(' ') === 'exec --help') {

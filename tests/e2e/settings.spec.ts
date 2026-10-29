@@ -91,9 +91,25 @@ test('すべて自動で許可にすると、同じ会話のままチャット�
   const s = await openSettings()
   await s.getByRole('radio', { name: 'すべて自動で許可' }).check()
   await s.getByRole('button', { name: 'OK' }).click()
-  await expect.poll(async () => (await lastArgv())?.includes('bypassPermissions')).toBe(true)
+  await expect.poll(async () => {
+    const a = await lastArgv()
+    return a ? a[a.indexOf('--permission-mode') + 1] : null
+  }).toBe('auto')
   // 会話は同じ
   expect((await lastArgv())![1]).toBe(before[1])
+})
+
+test('auto mode を知らない古い claude なら、すべて自動で許可は前と同じ bypassPermissions で起動する（auto を渡すとエラーで起動しない）', async () => {
+  await start({ RLA_FAKE_NO_AUTO: '1' })
+  await openCurrent()
+  await expect.poll(lastArgv).not.toBeNull()
+  const s = await openSettings()
+  await s.getByRole('radio', { name: 'すべて自動で許可' }).check()
+  await s.getByRole('button', { name: 'OK' }).click()
+  await expect.poll(async () => {
+    const a = await lastArgv()
+    return a ? a[a.indexOf('--permission-mode') + 1] : null
+  }).toBe('bypassPermissions')
 })
 
 test('設定で変えても、［キャンセル］なら何も変えない（チャットも起動し直さない）', async () => {
