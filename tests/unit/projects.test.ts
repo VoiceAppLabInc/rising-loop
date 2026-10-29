@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { addProject, clearKickoff, emptyState, loadState, markKickoff, markNotice, parseState, removeProject, saveState, selectProject, setMigration, updateProject } from '../../src/main/projects'
+import { addProject, clearKickoff, emptyState, loadState, markAutoUpdate, markKickoff, markNotice, parseState, removeProject, saveState, selectProject, setMigration, updateProject } from '../../src/main/projects'
 
 const NOW = '2026-10-01T10:00:00.000Z'
 
@@ -150,6 +150,24 @@ describe('updateProject / removeProject', () => {
     const s1 = setMigration(markNotice(markKickoff(s0, 'p1', NOW), 'p1', 'k'), 'p1', { at: NOW, backup: '/b', from: '1.7.5', lost: [] })
     const next = updateProject(s1, 'p1', { folder: '/a/two/' })
     expect(next.projects[0]).toEqual({ id: 'p1', name: 'two', folder: '/a/two', addedAt: NOW })
+  })
+
+  it('全ループの自動更新：するにした時を覚え、前に送った記録は消す（久しぶりにするにしても、すぐには送らない）', () => {
+    const s0 = addProject(emptyState(), '/a/one', NOW).state
+    const LATER = '2026-10-28T06:00:00.000Z'
+    const s1 = updateProject(s0, 'p1', { autoUpdate: { on: true, every: 1, at: '08:00' } }, NOW)
+    expect(s1.projects[0].autoUpdate).toEqual({ on: true, every: 1, at: '08:00', since: NOW })
+    const sent = markAutoUpdate(s1, 'p1', LATER)
+    expect(sent.projects[0].autoUpdate).toEqual({ on: true, every: 1, at: '08:00', since: NOW, last: LATER })
+    // するのまま時刻や間隔を変えても、するにした時と送った記録は残す
+    const s2 = updateProject(sent, 'p1', { autoUpdate: { on: true, every: 2, at: '07:30' } }, LATER)
+    expect(s2.projects[0].autoUpdate).toEqual({ on: true, every: 2, at: '07:30', since: NOW, last: LATER })
+    // しないにしてから、もう一度するにしたら、その時から数え直す
+    const off = updateProject(s2, 'p1', { autoUpdate: { on: false, every: 2, at: '07:30' } }, LATER)
+    expect(off.projects[0].autoUpdate).toEqual({ on: false, every: 2, at: '07:30' })
+    const on = updateProject(off, 'p1', { autoUpdate: { on: true, every: 2, at: '07:30' } }, LATER)
+    expect(on.projects[0].autoUpdate).toEqual({ on: true, every: 2, at: '07:30', since: LATER })
+    expect(parseState(JSON.stringify(on)).projects[0].autoUpdate).toEqual(on.projects[0].autoUpdate)
   })
 
   it('外すと一覧から消え、開いているプロジェクトは隣に移る', () => {

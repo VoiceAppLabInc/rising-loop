@@ -1,3 +1,4 @@
+import type { AutoUpdate } from './autoUpdate'
 // アプリの周り（main と画面）のあいだで受け渡す形。ループの中身はスキルと loops/ が持つので、ここには持たない。
 
 export interface Project {
@@ -11,6 +12,8 @@ export interface Project {
   ai?: AiKind
   /** コマンド実行の確認。ask: 確認する（使う人の claude / codex の設定のまま）／auto: すべて自動で許可（無ければ ask） */
   perm?: PermMode
+  /** 全ループの自動更新（無ければ、しない） */
+  autoUpdate?: AutoUpdate
   /** ループが無いときに、最初の依頼をチャットへ送った日時。プロジェクトごとに1回だけ送る */
   kickoffAt?: string
   /** 古い形を知らせた、その形（「1.5-1.7:1.6.1」など）。同じ形について知らせるのは1回だけ */

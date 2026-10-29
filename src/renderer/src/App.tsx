@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { autoUpdateLabel } from '@shared/autoUpdate'
 import { compareVersions } from '@shared/migrate'
 import type { ProjectsSnapshot } from '@shared/types'
 import { AiRows } from './AiSetup'
@@ -51,9 +52,25 @@ export function App() {
                 className="tab"
                 aria-selected={p.id === snap.currentId}
                 title={p.folder}
+                onPointerDown={() => window.rla.tip(null)}
                 onClick={() => void window.rla.selectProject(p.id).then(setSnap)}
               >
                 {p.name}
+                {/* 全ループの自動更新をするプロジェクトには、名前の右に時計を出す。乗せると、間隔と時刻の札をすぐ出す
+                    （ブラウザ標準の札は出るまで待たされるので、アプリの札の層に出す。title="" でタブのパスの札は出さない） */}
+                {p.autoUpdate?.on && (
+                  <span
+                    className="tab-clock"
+                    title=""
+                    onMouseEnter={(e) => {
+                      const r = e.currentTarget.getBoundingClientRect()
+                      window.rla.tip({ text: `全ループの自動更新：${autoUpdateLabel(p.autoUpdate!)}`, x: r.left, y: r.bottom })
+                    }}
+                    onMouseLeave={() => window.rla.tip(null)}
+                  >
+                    <Icon name="clock" />
+                  </span>
+                )}
               </button>
             ))}
           </div>

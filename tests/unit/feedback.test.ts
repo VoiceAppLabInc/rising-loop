@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { FEEDBACK_ENTRY, FEEDBACK_FORM, FEEDBACK_URL_MAX, envLine, feedbackUrl, parseFeedbackFile } from '../../src/shared/feedback'
+import { FEEDBACK_ENTRY, FEEDBACK_FORM, FEEDBACK_PAGE_URL_MAX, FEEDBACK_URL_MAX, envLine, feedbackPage, feedbackUrl, parseFeedbackFile } from '../../src/shared/feedback'
 
 const params = (u: string) => new URL(u).searchParams
 
 describe('feedbackUrl（答えを入れた状態で開くフォームの URL）', () => {
   it('種類・内容・環境を、それぞれの欄の番号で入れる', () => {
-    const u = feedbackUrl({ kind: 'Rising Loopへのフィードバック', body: '画面が新しくならない', env: 'アプリ v0.3.0' })
+    const { url: u, cut } = feedbackUrl({ kind: 'Rising Loopへのフィードバック', body: '画面が新しくならない', env: 'アプリ v0.3.0' })
+    expect(cut).toBe(false)
     expect(u.startsWith(FEEDBACK_FORM + '?')).toBe(true)
     const q = params(u)
     expect(q.get('usp')).toBe('pp_url')
@@ -15,12 +16,35 @@ describe('feedbackUrl（答えを入れた状態で開くフォームの URL）'
     expect(q.has(`entry.${FEEDBACK_ENTRY.email}`)).toBe(false)
   })
   it('選択肢に無い種類は入れない', () => {
-    expect(params(feedbackUrl({ kind: 'バグ' })).has(`entry.${FEEDBACK_ENTRY.kind}`)).toBe(false)
+    expect(params(feedbackUrl({ kind: 'バグ' }).url).has(`entry.${FEEDBACK_ENTRY.kind}`)).toBe(false)
   })
-  it('長すぎる内容は切って、上限の長さに収める', () => {
-    const u = feedbackUrl({ kind: 'Rising Loopへのフィードバック', body: 'あ'.repeat(3000), env: 'x' })
+  it('長すぎる内容は切って、上限の長さに収める（切ったことと、全文がクリップボードにあることを書き添える）', () => {
+    const { url: u, cut } = feedbackUrl({ kind: 'Rising Loopへのフィードバック', body: 'あ'.repeat(3000), env: 'x' })
+    expect(cut).toBe(true)
     expect(u.length).toBeLessThanOrEqual(FEEDBACK_URL_MAX)
-    expect(params(u).get(`entry.${FEEDBACK_ENTRY.body}`)).toMatch(/…（長いので切りました）$/)
+    expect(params(u).get(`entry.${FEEDBACK_ENTRY.body}`)).toMatch(/…（長いので切りました。全文はクリップボードに入っています）$/)
+  })
+  it('上限を渡せば、その長さまで切らずに入れる（日本語 800 字は、PC の中のページ経由の上限なら切らない）', () => {
+    const body = 'あ'.repeat(800)
+    expect(feedbackUrl({ body }).cut).toBe(true)
+    const { url: u, cut } = feedbackUrl({ body }, FEEDBACK_PAGE_URL_MAX)
+    expect(cut).toBe(false)
+    expect(u.length).toBeLessThanOrEqual(FEEDBACK_PAGE_URL_MAX)
+    expect(params(u).get(`entry.${FEEDBACK_ENTRY.body}`)).toBe(body)
+  })
+})
+
+describe('feedbackPage（長い URL へ移るだけの、PC の中のページ）', () => {
+  it('開くとすぐ URL へ移り、移れないときのためのリンクも置く', () => {
+    const { url } = feedbackUrl({ body: '「<script>」&"引用"' })
+    const html = feedbackPage(url)
+    expect(html).toMatch(/^<!doctype html>/)
+    expect(html).toContain('<meta charset="utf-8">')
+    const m = /location\.replace\((".*?")\)/.exec(html)
+    expect(JSON.parse(m![1].replace(/\\u003c/g, '<'))).toBe(url)
+    expect(html).toContain(`href="${url.replace(/&/g, '&amp;')}"`)
+    // URL は < を含まない（ページの中で script を閉じさせない）
+    expect(html.split('<script>').length).toBe(2)
   })
 })
 

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { accessSync, constants, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { BrowserWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, net, shell } from 'electron'
+import { BrowserWindow, Menu, WebContentsView, app, clipboard, dialog, ipcMain, net, powerMonitor, shell } from 'electron'
 import { isUpdateRequest, screenOfUrl } from '@shared/intercept'
 import { detectForm, formLabel, type LoopsForm } from '@shared/loopsForm'
 import { changelogSummary, planMigration, readTemplates, reworkInstruction, stageOf, type LoopsFiles, type Templates } from '@shared/migrate'
@@ -17,9 +17,11 @@ import { forgetCli, resolveCli, runProbe } from './aiCli'
 import { KICKOFF } from './launch'
 import { parseLedger, pendingWork, type Ledger, type PendingWork } from './ledger'
 import { applyPlan, backupLoops, pruneBackups, restoreLoops } from './migration'
-import { addProject, clearKickoff, loadState, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
+import { addProject, clearKickoff, loadState, markAutoUpdate, markKickoff, markNotice, removeProject, saveState, selectProject, setMigration, updateProject } from './projects'
 import { PANE_W, ProjectViews, TAB_H, hasLoops, type PaneOpen } from './views'
-import { envLine, feedbackUrl, parseFeedbackFile } from '@shared/feedback'
+import { createTip, type Tip } from './tip'
+import { FEEDBACK_PAGE_URL_MAX, envLine, feedbackPage, feedbackUrl, parseFeedbackFile } from '@shared/feedback'
+import { AUTO_UPDATE_TEXT, autoUpdateDue, type AutoUpdateSetting } from '@shared/autoUpdate'
 import { LSREGISTER, MAC_SWAP_SH, UPDATE_EVERY_MS, UPDATE_URL, bundleOf, checkUpdateNow, isWslPath, needsIconRefresh, readWithProgress, withStats, type Stats, type UpdateCheck } from './update'
 
 // データ置き場。テストでは一時フォルダ、開発版は Rising Loop Dev（普段使いのアプリと混ぜない）。前の名前の置き場があれば写して引き継ぐ
@@ -42,6 +44,8 @@ let win: BrowserWindow | null = null
 let views: ProjectViews | null = null
 /** ループの画面の上に浮かぶカードの層（透明。カードの大きさだけ）。ダイアログや設定のあいだは隠す */
 let overlay: WebContentsView | null = null
+/** タブの列の札（すぐ出る）。いちばん上の小さな層に描く */
+let tip: Tip | null = null
 let overlaySize = { w: 0, h: 0 }
 let covered = false
 /** 戻る・進むのスワイプは1回で続けて何回も届くので、このあいだに来た分は1回とみなす */
@@ -198,13 +202,37 @@ function snapshot(): ProjectsSnapshot {
 let update: AppUpdate | null = null
 /**
  * お問い合わせ・フィードバックのフォームを、いつものブラウザで開く。環境の欄（版・OS・AI・WSL か）はアプリが入れる。
- * 送るかどうかは、開いたフォームで使う人が決める（アプリからは送らない）
+ * 送るかどうかは、開いたフォームで使う人が決める（アプリからは送らない）。
+ * URL を直接渡すと Windows では 2081 文字までしか開けず、内容が 170 字ほどで切れる（2026-10-28 に本物の報告で起きた）。
+ * そこで、長い URL へ移るだけのページを一時フォルダに書いて開く。ページを開けなかったときだけ、短い URL を直接渡す。
+ * どちらでも入りきらないときは、切った内容をフォームに入れ、全文をクリップボードに入れる
  */
 function openFeedback(d: { kind?: string; body?: string }): void {
   const p = state ? current() : null
   const env = envLine({ app: app.getVersion(), skill: skillVersion(), platform: process.platform, arch: process.arch, ai: p ? aiOf(p) : '', wsl: !!p && isWslPath(p.folder) })
-  void shell.openExternal(feedbackUrl({ ...d, env }))
+  const direct = (): void => {
+    const { url, cut } = feedbackUrl({ ...d, env })
+    if (cut) clipboard.writeText((d.body ?? '').trim())
+    void shell.openExternal(url)
+  }
+  const { url, cut } = feedbackUrl({ ...d, env }, FEEDBACK_PAGE_URL_MAX)
+  const page = join(app.getPath('temp'), `rising-loop-feedback-${Date.now()}.html`)
+  try {
+    writeFileSync(page, feedbackPage(url))
+  } catch {
+    direct()
+    return
+  }
+  // 中身（報告の文）を残さないよう、ブラウザが読み終えたころに消す
+  setTimeout(() => rmSync(page, { force: true }), FEEDBACK_PAGE_KEEP_MS)
+  void shell.openPath(page).then((err) => {
+    if (err) return direct()
+    if (cut) clipboard.writeText((d.body ?? '').trim())
+  })
 }
+
+/** PC の中のページを消すまでの間（ミリ秒） */
+const FEEDBACK_PAGE_KEEP_MS = 60_000
 
 /** AI の報告を拾う間（ミリ秒）。書きかけを拾わないよう、最後に書いてから FEEDBACK_SETTLE_MS たったものだけ拾う */
 const FEEDBACK_SCAN_MS = 2000
@@ -237,6 +265,24 @@ function scanFeedback(): void {
     }
   }
 }
+
+/**
+ * 全ループの自動更新。する設定のプロジェクトで、決めた時刻を過ぎていて、まだ送っていなければ、一覧のチャットに［全ループ更新］と同じ指示文を送る。
+ * 1分ごとと、スリープから起きたときに確かめる（8時に寝ていて10時に起きたら、10時に1回だけ送る）。ループが無いプロジェクトには送らない
+ */
+function autoUpdateTick(): void {
+  if (!state) return
+  const now = new Date()
+  for (const p of state.projects) {
+    if (!autoUpdateDue(p.autoUpdate, now) || !hasLoops(p.folder)) continue
+    state = markAutoUpdate(state, p.id, now.toISOString())
+    saveState(projectsFile(), state)
+    chats.send(p, 's-list', aiOf(p), AUTO_UPDATE_TEXT)
+  }
+}
+
+/** 全ループの自動更新を確かめる間（ミリ秒） */
+const AUTO_UPDATE_CHECK_MS = 60_000
 
 /** 使い方の統計（匿名）。設定で止めていれば null。アプリごとの番号は初回に作って覚える */
 function statsNow(): Stats | null {
@@ -465,6 +511,7 @@ function createWindow(): void {
   })
   // ループの画面で画面が移ったら、戻る・進むの状態を送り直す
   views.onNavigated(() => broadcast(snapshot()))
+  tip = createTip(win)
   overlay = new WebContentsView({
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, sandbox: true, backgroundThrottling: !hidden }
   })
@@ -584,7 +631,7 @@ ipcMain.handle('loops:close-migrated', (_e, id: string) => {
  * フォルダが変われば名前もそのフォルダ名になり、前のフォルダの画面とチャットは捨てて新しいフォルダで開き直す。
  * フォルダはそのままで AI・確認のモードが変われば、同じ会話のままチャットを起動し直す
  */
-ipcMain.handle('projects:update', (_e, id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }) => {
+ipcMain.handle('projects:update', (_e, id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode; autoUpdate?: AutoUpdateSetting }) => {
   const before = state.projects.find((x) => x.id === id)
   if (!before) return snapshot()
   const moved = !!patch.folder && patch.folder.replace(/[\\/]+$/, '') !== before.folder
@@ -592,7 +639,7 @@ ipcMain.handle('projects:update', (_e, id: string, patch: { folder?: string; ai?
     views?.removeProject(id)
     chats.killProject(id)
   }
-  commit(updateProject(state, id, moved ? patch : { ai: patch.ai, perm: patch.perm }))
+  commit(updateProject(state, id, moved ? patch : { ai: patch.ai, perm: patch.perm, autoUpdate: patch.autoUpdate }))
   const after = state.projects.find((x) => x.id === id)!
   if (!moved && (aiOf(after) !== aiOf(before) || (after.perm ?? 'ask') !== (before.perm ?? 'ask'))) chats.restartProject(after, aiOf(after))
   // ループがまだ無いあいだに AI を切り替えたら、切り替えた先のチャットにも最初の依頼を送る（送っている途中なら、その文が新しい AI に届く）
@@ -773,6 +820,8 @@ ipcMain.on('nav:swipe', (_e, dir: unknown) => {
 ipcMain.handle('clip:read', () => clipboard.readText())
 // ループが無いときの見出しの高さ（画面が測って伝える）。全面のチャットをその下に置く
 ipcMain.on('ui:setup-head', (_e, h: number) => views?.setSetupHead(h))
+/** タブの列の札。乗せたらすぐ出し、離れたら隠す（null） */
+ipcMain.on('ui:tip', (_e, t: { text: string; x: number; y: number } | null) => (t ? tip?.show(t.text, t.x, t.y) : tip?.hide()))
 // カードの大きさ（カードの層が伝える）
 ipcMain.on('overlay:size', (_e, w: number, h: number) => {
   overlaySize = { w, h }
@@ -871,6 +920,9 @@ app.whenReady().then(() => {
   setInterval(() => void lookForUpdate(), UPDATE_EVERY_MS)
   // AI が書いた「開発者に送る」報告（loops/.feedback/*.md）を拾ってフォームを開く。OS の知らせが来ない場所（WSL）でも拾えるよう、見比べで
   setInterval(scanFeedback, FEEDBACK_SCAN_MS)
+  autoUpdateTick()
+  setInterval(autoUpdateTick, AUTO_UPDATE_CHECK_MS)
+  powerMonitor.on('resume', autoUpdateTick)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

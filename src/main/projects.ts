@@ -2,6 +2,7 @@
 // プロジェクトのフォルダ（loops/ を含む）には何も書かない。
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
+import type { AutoUpdateSetting } from '@shared/autoUpdate'
 import type { AiKind, Migration, PermMode, Project, ProjectsState } from '@shared/types'
 
 export function emptyState(): ProjectsState {
@@ -28,7 +29,12 @@ export function selectProject(s: ProjectsState, id: string): ProjectsState {
  * 設定画面で変えるもの。名前は常にフォルダ名にするので、フォルダを変えたら名前も変わる。
  * フォルダを変えたら、前のフォルダについての記録（新しい形にした・知らせた・最初の依頼）は消す
  */
-export function updateProject(s: ProjectsState, id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }): ProjectsState {
+export function updateProject(
+  s: ProjectsState,
+  id: string,
+  patch: { folder?: string; ai?: AiKind; perm?: PermMode; autoUpdate?: AutoUpdateSetting },
+  now = new Date().toISOString()
+): ProjectsState {
   if (!s.projects.some((p) => p.id === id)) return s
   return {
     ...s,
@@ -37,6 +43,12 @@ export function updateProject(s: ProjectsState, id: string, patch: { folder?: st
       let next: Project = { ...p }
       if (patch.ai) next.ai = patch.ai
       if (patch.perm) next.perm = patch.perm
+      if (patch.autoUpdate) {
+        // するのままなら、するにした時と送った記録を残す。しないにしたら消し、もう一度するにしたら、その時から数え直す
+        const { on, every, at } = patch.autoUpdate
+        const was = p.autoUpdate?.on ? p.autoUpdate : null
+        next.autoUpdate = !on ? { on, every, at } : was ? { on, every, at, since: was.since ?? now, ...(was.last ? { last: was.last } : {}) } : { on, every, at, since: now }
+      }
       if (patch.folder != null && trimSlash(patch.folder) !== p.folder) {
         const { migration: _m, noticedForm: _n, kickoffAt: _k, ...rest } = next
         const folder = trimSlash(patch.folder)
@@ -45,6 +57,11 @@ export function updateProject(s: ProjectsState, id: string, patch: { folder?: st
       return next
     })
   }
+}
+
+/** 全ループの自動更新を送った日時を覚える（次は、この日から間隔の日数後） */
+export function markAutoUpdate(s: ProjectsState, id: string, at: string): ProjectsState {
+  return { ...s, projects: s.projects.map((p) => (p.id === id && p.autoUpdate ? { ...p, autoUpdate: { ...p.autoUpdate, last: at } } : p)) }
 }
 
 /** アプリの一覧から外す（フォルダには触れない）。開いていたら、隣のプロジェクトを開く */

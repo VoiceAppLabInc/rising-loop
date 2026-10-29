@@ -116,7 +116,7 @@ jobs:
         env:
           V: ${{ inputs.version }}
         run: |
-          for n in "Rising-Loop-${V}-mac-arm64.dmg" "Rising-Loop-${V}-mac-x64.dmg" "Rising-Loop-win-x64.exe"; do
+          for n in "Rising-Loop-${V}-mac-arm64.dmg" "Rising-Loop-${V}-mac-x64.dmg" "Rising-Loop-${V}-win-x64.exe"; do
             gcloud storage ls "gs://${BUCKET}/releases/${V}/${n}" --project="${GCP_PROJECT}" >/dev/null || { echo "見つからない: releases/${V}/${n}"; exit 1; }
           done
       - name: copy to latest/
@@ -126,7 +126,8 @@ jobs:
           R="gs://${BUCKET}/releases/${V}"
           gcloud storage cp "${R}/Rising-Loop-${V}-mac-arm64.dmg" "gs://${BUCKET}/latest/Rising-Loop-mac-arm64.dmg" --cache-control="no-cache" --project="${GCP_PROJECT}"
           gcloud storage cp "${R}/Rising-Loop-${V}-mac-x64.dmg" "gs://${BUCKET}/latest/Rising-Loop-mac-x64.dmg" --cache-control="no-cache" --project="${GCP_PROJECT}"
-          gcloud storage cp "${R}/Rising-Loop-win-x64.exe" "gs://${BUCKET}/latest/Rising-Loop-win-x64.exe" --cache-control="no-cache" --project="${GCP_PROJECT}"
+          # LP のボタンの URL は版の無い名前のまま変えず、落としたときの名前に版を付ける（前に落とした古いものと取り違えないように）
+          gcloud storage cp "${R}/Rising-Loop-${V}-win-x64.exe" "gs://${BUCKET}/latest/Rising-Loop-win-x64.exe" --cache-control="no-cache" --content-disposition="attachment; filename=Rising-Loop-${V}-win-x64.exe" --project="${GCP_PROJECT}"
       # latest.json：アプリの更新確認と install-app.sh が読む。1行で書く（install-app.sh は grep で "mac-<arch>": "…" を拾う）
       - name: write latest.json
         env:
@@ -137,7 +138,7 @@ jobs:
             const V = process.env.V, base = `https://storage.googleapis.com/${process.env.BUCKET}/releases/${V}/`
             const notes = process.env.NOTES.replace(/\\n/g, "\n").trim()
             const m = { version: V, date: new Date().toISOString().slice(0, 10), notes,
-              files: { "mac-arm64": base + `Rising-Loop-${V}-mac-arm64.dmg`, "mac-x64": base + `Rising-Loop-${V}-mac-x64.dmg`, "win-x64": base + "Rising-Loop-win-x64.exe" },
+              files: { "mac-arm64": base + `Rising-Loop-${V}-mac-arm64.dmg`, "mac-x64": base + `Rising-Loop-${V}-mac-x64.dmg`, "win-x64": base + `Rising-Loop-${V}-win-x64.exe` },
               page: process.env.LP }
             require("fs").writeFileSync("latest.json", JSON.stringify(m))
           '

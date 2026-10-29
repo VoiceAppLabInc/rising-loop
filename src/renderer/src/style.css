@@ -56,6 +56,8 @@ body { background: #fff; }
   text-overflow: ellipsis;
   transition: background-color 0.12s, color 0.12s, transform 0.05s;
 }
+.tab-clock { display: inline-block; margin-left: 6px; }
+.tab .icon { width: 13px; height: 13px; vertical-align: -2px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .tab:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
 .tab:active { background: rgba(255, 255, 255, 0.1); transform: translateY(1px); }
 .tab:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
@@ -202,6 +204,8 @@ body.overlay, body.overlay #root { background: transparent; height: auto; overfl
 .settings .act.stack { flex-direction: column; align-items: flex-end; gap: 4px; }
 .settings .choice { display: inline-flex; align-items: center; gap: 6px; }
 /* 使い方の統計：チェックと「送る」は折り返さず、説明はその下の段に */
+.settings .auto-update-row select, .settings .auto-update-row input[type='time'] { height: 28px; padding: 0 6px; border: 1px solid #d6d6d3; border-radius: 6px; font: inherit; background: #fff; color: var(--fg); }
+.settings .auto-update-row select:disabled, .settings .auto-update-row input:disabled { opacity: 0.45; }
 .settings .stats-row .val { flex-direction: column; align-items: flex-start; gap: 2px; padding: 6px 0; }
 .settings .stats-row .choice { white-space: nowrap; }
 input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }

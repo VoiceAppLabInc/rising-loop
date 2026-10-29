@@ -11,8 +11,17 @@ export const FEEDBACK_ENTRY = { kind: '616376561', body: '964705820', email: '10
 export const FEEDBACK_KINDS = ['Rising Loopへのフィードバック', 'Rising Loopを商用で使いたい／相談したい', 'その他'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
-/** URL の長さの上限の目安（長すぎると開けないブラウザがある）。超えるときは内容を切る */
+/**
+ * URL の長さの上限。Windows の shell.openExternal は 2081 文字までしか開けない（Electron の説明）ので、
+ * いつものブラウザへ URL を直接渡すときはこれに収める。日本語なら内容は 170 字ほどしか入らない
+ */
 export const FEEDBACK_URL_MAX = 2000
+
+/**
+ * PC の中のページ（feedbackPage）を経由してブラウザの中で移るときの上限。Windows の上限はかからず、Google フォームの上限だけになる
+ * （2026-10-28 に確かめたら 8155 文字まで開けて、超えると 400。日本語なら内容は 890 字ほど）
+ */
+export const FEEDBACK_PAGE_URL_MAX = 8000
 
 export interface FeedbackDraft {
   kind?: string
@@ -20,8 +29,11 @@ export interface FeedbackDraft {
   env?: string
 }
 
-/** 答えを入れた状態で開く URL。種類は選択肢に無ければ入れない。内容が長すぎれば、末尾を切って「…（長いので切りました）」を付ける */
-export function feedbackUrl(d: FeedbackDraft): string {
+/**
+ * 答えを入れた状態で開く URL。種類は選択肢に無ければ入れない。内容が長すぎれば、末尾を切って「…（長いので切りました…）」を付け、cut を true にする
+ * （切ったときは、開く側が全文をクリップボードに入れる）
+ */
+export function feedbackUrl(d: FeedbackDraft, max = FEEDBACK_URL_MAX): { url: string; cut: boolean } {
   const build = (body: string) => {
     const q = new URLSearchParams({ usp: 'pp_url' })
     if (d.kind && (FEEDBACK_KINDS as readonly string[]).includes(d.kind)) q.set(`entry.${FEEDBACK_ENTRY.kind}`, d.kind)
@@ -31,12 +43,24 @@ export function feedbackUrl(d: FeedbackDraft): string {
   }
   let body = (d.body ?? '').trim()
   let url = build(body)
-  const cut = '\n…（長いので切りました）'
-  while (url.length > FEEDBACK_URL_MAX && body.length > 0) {
+  let cut = false
+  const tail = '\n…（長いので切りました。全文はクリップボードに入っています）'
+  while (url.length > max && body.length > 0) {
     body = body.slice(0, Math.max(0, Math.floor(body.length * 0.85)))
-    url = build(body + cut)
+    url = build(body + tail)
+    cut = true
   }
-  return url
+  return { url, cut }
+}
+
+/**
+ * 開くとすぐ url へ移るだけのページ。アプリはこれを PC の中のファイルにして開く（ファイルの場所は短いので Windows の上限に当たらない）。
+ * 移れないとき（スクリプトが止められているなど）のために、同じ URL のリンクも置く
+ */
+export function feedbackPage(url: string): string {
+  const js = JSON.stringify(url).replace(/</g, '\\u003c')
+  const href = url.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>Rising Loop お問い合わせ</title><script>location.replace(${js})</script></head><body><p><a href="${href}">お問い合わせのフォームを開く</a></p></body></html>\n`
 }
 
 /**

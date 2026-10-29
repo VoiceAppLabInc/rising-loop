@@ -1,13 +1,19 @@
 // 設定のダイアログ。プロジェクトごと（フォルダ・AI・コマンド実行の確認・外す）と、アプリ全体（claude / codex の状態・版）。
 // ほかのダイアログと同じく、ループの画面より上の透明な層（Overlay.tsx）に描き、後ろのループの画面を隠さない
 import { useEffect, useRef, useState } from 'react'
+import { AUTO_EVERY, AUTO_UPDATE_DEFAULT, type AutoEvery, type AutoUpdateSetting } from '@shared/autoUpdate'
 import type { AiKind, PermMode, Project, ProjectsSnapshot } from '@shared/types'
 import { AiRows } from './AiSetup'
 import { Button } from './Button'
 
 /** プロジェクトの設定の下書き。［OK］を押すまで適用しない */
-type Draft = { folder: string; ai: AiKind; perm: PermMode }
-const draftOf = (pr: Project | null): Draft | null => (pr ? { folder: pr.folder, ai: pr.ai ?? 'claude', perm: pr.perm ?? 'ask' } : null)
+type Draft = { folder: string; ai: AiKind; perm: PermMode; auto: AutoUpdateSetting }
+const draftOf = (pr: Project | null): Draft | null => {
+  if (!pr) return null
+  const a = pr.autoUpdate ?? AUTO_UPDATE_DEFAULT
+  return { folder: pr.folder, ai: pr.ai ?? 'claude', perm: pr.perm ?? 'ask', auto: { on: a.on, every: a.every, at: a.at } }
+}
+const sameAuto = (a: AutoUpdateSetting, b: AutoUpdateSetting) => a.on === b.on && a.every === b.every && a.at === b.at
 
 export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; onSnap: (s: ProjectsSnapshot) => void; onClose: () => void; onUpdate: () => void }) {
   const [busy, setBusy] = useState(false)
@@ -16,10 +22,16 @@ export function Settings(p: { project: Project | null; snap: ProjectsSnapshot; o
   const ok = () => {
     const pr = p.project
     const before = draftOf(pr)
-    if (!pr || !draft || !before || (draft.folder === before.folder && draft.ai === before.ai && draft.perm === before.perm)) return p.onClose()
+    if (!pr || !draft || !before || (draft.folder === before.folder && draft.ai === before.ai && draft.perm === before.perm && sameAuto(draft.auto, before.auto)))
+      return p.onClose()
     setBusy(true)
     void window.rla
-      .updateProject(pr.id, { folder: draft.folder !== before.folder ? draft.folder : undefined, ai: draft.ai, perm: draft.perm })
+      .updateProject(pr.id, {
+        folder: draft.folder !== before.folder ? draft.folder : undefined,
+        ai: draft.ai,
+        perm: draft.perm,
+        autoUpdate: sameAuto(draft.auto, before.auto) ? undefined : draft.auto
+      })
       .then(p.onSnap)
       .finally(() => {
         setBusy(false)
@@ -211,6 +223,29 @@ function ProjectSettings(p: {
         </span>
       </div>
       <p className="sub note">OK を押すと、このプロジェクトのチャットを起動し直します（会話は続きます）。</p>
+      {/* 全ループの自動更新。アプリが開いているあいだ、決めた時刻と間隔で、一覧のチャットに［全ループ更新］と同じ指示文を送る */}
+      <div className="row auto-update-row">
+        <span className="key">全ループの自動更新</span>
+        <span className="val">
+          <label className="choice">
+            <input type="checkbox" checked={d.auto.on} onChange={(e) => set({ auto: { ...d.auto, on: e.target.checked } })} />
+            する
+          </label>
+          <select aria-label="間隔" value={d.auto.every} disabled={!d.auto.on} onChange={(e) => set({ auto: { ...d.auto, every: Number(e.target.value) as AutoEvery } })}>
+            {AUTO_EVERY.map((x) => (
+              <option key={x.days} value={x.days}>
+                {x.label}
+              </option>
+            ))}
+          </select>
+          <input type="time" aria-label="時刻" value={d.auto.at} disabled={!d.auto.on} onChange={(e) => e.target.value && set({ auto: { ...d.auto, at: e.target.value } })} />
+        </span>
+      </div>
+      {d.auto.on && d.perm === 'ask' && (
+        <p className="sub note auto-update-note">
+          「コマンド実行の確認」が「確認する」のままだと、AI が途中で確認を求めて止まります。最後まで自動で進めるには「すべて自動で許可」にしてください。
+        </p>
+      )}
       <div className="danger">
         <div className="row">
           <div className="danger-text">

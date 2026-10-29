@@ -1,6 +1,7 @@
 // アプリの周りの画面（タブ・設定）用
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { AiKind, AiStatus, AskRequest, DialogRequest, PermMode, ProjectsSnapshot } from '@shared/types'
+import type { AutoUpdateSetting } from '@shared/autoUpdate'
 
 /** キーの決まりに使う OS。main に聞く（sandbox の preload には process.env が無い。テストでは main が Windows のふりをする） */
 const PLATFORM = String(ipcRenderer.sendSync('app:platform') || process.platform)
@@ -26,11 +27,13 @@ const api = {
   },
   /** ループが無いときの見出しの高さ。全面のチャットをその下に置く */
   setupHead: (h: number): void => ipcRenderer.send('ui:setup-head', h),
+  /** タブの列の札を出す（窓の中の左上の位置）。null で隠す */
+  tip: (t: { text: string; x: number; y: number } | null): void => ipcRenderer.send('ui:tip', t),
   migrate: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:migrate', id),
   rework: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:rework', id),
   undo: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:undo', id),
   closeMigrated: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('loops:close-migrated', id),
-  updateProject: (id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode }): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:update', id, patch),
+  updateProject: (id: string, patch: { folder?: string; ai?: AiKind; perm?: PermMode; autoUpdate?: AutoUpdateSetting }): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:update', id, patch),
   /** フォルダを選ぶだけ（選ばなければ null）。切り替えは updateProject で */
   chooseFolder: (): Promise<string | null> => ipcRenderer.invoke('projects:choose-folder'),
   removeProject: (id: string): Promise<ProjectsSnapshot> => ipcRenderer.invoke('projects:remove', id),
