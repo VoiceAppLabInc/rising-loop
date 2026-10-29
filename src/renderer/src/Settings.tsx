@@ -241,6 +241,8 @@ function ProjectSettings(p: {
           <input type="time" aria-label="時刻" value={d.auto.at} disabled={!d.auto.on} onChange={(e) => e.target.value && set({ auto: { ...d.auto, at: e.target.value } })} />
         </span>
       </div>
+      {/* 予約したら PC が勝手に送ると思われないよう、アプリを開いている時だけ送ることを書き添える */}
+      {d.auto.on && <p className="sub note auto-update-when">アプリを開いている時だけ送ります（スリープしていたら、次に開いたときに送ります）</p>}
       {d.auto.on && d.perm === 'ask' && (
         <p className="sub note auto-update-note">
           「コマンド実行の確認」が「確認する」のままだと、AI が途中で確認を求めて止まります。最後まで自動で進めるには「すべて自動で許可」にしてください。

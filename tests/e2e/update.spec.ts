@@ -106,3 +106,20 @@ test('配る場所の latest.json の形（0.3.0 から）でも、新しい版�
   await expect(dlg).toBeVisible()
   await expect(dlg).toContainText('- latest.json からのお知らせ')
 })
+
+test('版ごとのお知らせ（history）があれば、いまの版より後のものを、版の見出しを付けて新しい順に出す（何版か飛ばして上げる人に、あいだの変更も届ける）', async () => {
+  const file = join(root, 'manifest.json')
+  const history = [
+    { version: '98.0.0', date: '2026-10-29', notes: '- 98 のお知らせ' },
+    { version: '97.0.0', date: '2026-10-23', notes: '- 97 のお知らせ' },
+    { version: '0.0.1', date: '2026-01-01', notes: '- いまの版より前のお知らせ' }
+  ]
+  writeFileSync(file, JSON.stringify({ version: '98.0.0', notes: '- 98 のお知らせ', files: {}, page: 'https://rising-loop.web.app/', history }))
+  app = await launch(root, { RISING_LOOP_APP_UPDATE_URL: pathToFileURL(file).href })
+  win = await mainWindow(app)
+  const dlg = (await cardPage(app)).getByRole('dialog', { name: '新しい版 v98.0.0 があります' })
+  await expect(dlg).toBeVisible()
+  await expect(dlg.locator('.update-notes h3')).toHaveText(['v98.0.0', 'v97.0.0'])
+  await expect(dlg).toContainText('- 97 のお知らせ')
+  await expect(dlg).not.toContainText('いまの版より前')
+})

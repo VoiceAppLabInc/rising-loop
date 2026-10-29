@@ -27,7 +27,19 @@ export function UpdateDialog(p: { update: AppUpdate; appVersion: string; onLater
       <div className="dialog update" role="dialog" aria-modal="true" aria-labelledby="update-title">
         <h2 id="update-title">新しい版 v{p.update.version} があります</h2>
         <p className="sub">いまの版は v{p.appVersion} です。プロジェクトとループは、入れ替えてもそのまま使えます。</p>
-        {p.update.notes && <div className="update-notes">{p.update.notes}</div>}
+        {/* 何版か飛ばして上げる人には、あいだの版のお知らせも新しい順に、版の見出しを付けて出す */}
+        {p.update.notes.length > 0 && (
+          <div className="update-notes">
+            {p.update.notes.length === 1
+              ? p.update.notes[0].notes
+              : p.update.notes.map((n) => (
+                  <section key={n.version}>
+                    <h3>v{n.version}</h3>
+                    {n.notes}
+                  </section>
+                ))}
+          </div>
+        )}
         {mac ? (
           <p>［アップデート］を押すと、新しい版を落として入れ替え、開き直します（1分ほど）。右のチャットの会話は、開き直したあとも続きから使えます。</p>
         ) : (

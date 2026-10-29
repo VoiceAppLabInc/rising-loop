@@ -49,13 +49,17 @@ test('設定で、する・間隔・時刻を決めて［OK］で覚える。「
   const dialog = (await cardPage(app)).getByRole('dialog', { name: '設定' })
   const on = dialog.getByRole('checkbox', { name: 'する' })
   const note = dialog.getByText('「コマンド実行の確認」が「確認する」のままだと')
+  const when = dialog.getByText('アプリを開いている時だけ送ります（スリープしていたら、次に開いたときに送ります）')
   // はじめは、しない。間隔と時刻は選べない
   await expect(on).not.toBeChecked()
   await expect(dialog.getByRole('combobox', { name: '間隔' })).toBeDisabled()
   await expect(note).toHaveCount(0)
+  await expect(when).toHaveCount(0)
   await expect(win.getByRole('tab', { name: 'proj' }).locator('svg')).toHaveCount(0)
   await on.check()
   await expect(note).toBeVisible()
+  // するにしたら、アプリを開いている時だけ送ることを書き添える（予約したら PC が勝手に送ると思われないように）
+  await expect(when).toBeVisible()
   await dialog.getByRole('combobox', { name: '間隔' }).selectOption({ label: '2日ごと' })
   await dialog.getByLabel('時刻').fill('07:30')
   // 「すべて自動で許可」にすると、書き添えは消える

@@ -129,17 +129,30 @@ jobs:
           # LP のボタンの URL は版の無い名前のまま変えず、落としたときの名前に版を付ける（前に落とした古いものと取り違えないように）
           gcloud storage cp "${R}/Rising-Loop-${V}-win-x64.exe" "gs://${BUCKET}/latest/Rising-Loop-win-x64.exe" --cache-control="no-cache" --content-disposition="attachment; filename=Rising-Loop-${V}-win-x64.exe" --project="${GCP_PROJECT}"
       # latest.json：アプリの更新確認と install-app.sh が読む。1行で書く（install-app.sh は grep で "mac-<arch>": "…" を拾う）
+      # history：版ごとのお知らせ（新しい順）。前の latest.json から引き継いで積む。アプリはいまの版より後のものを全部見せる
+      # （何版か飛ばして上げる人にも、あいだの変更が届くように。0.3.12 から。それより前のアプリは notes だけを読む）
       - name: write latest.json
         env:
           V: ${{ inputs.version }}
           NOTES: ${{ inputs.notes }}
         run: |
+          # 読めなければ止める（空から書くと、それまでの一覧が消える）
+          gcloud storage cat "gs://${BUCKET}/latest.json" --project="${GCP_PROJECT}" > prev.json
           node -e '
             const V = process.env.V, base = `https://storage.googleapis.com/${process.env.BUCKET}/releases/${V}/`
             const notes = process.env.NOTES.replace(/\\n/g, "\n").trim()
-            const m = { version: V, date: new Date().toISOString().slice(0, 10), notes,
+            const date = new Date().toISOString().slice(0, 10)
+            const fs = require("fs"), prev = JSON.parse(fs.readFileSync("prev.json", "utf8"))
+            // 前の latest.json に一覧が無いとき（0.3.11 までの形）は、ログから取り戻した 0.3.1〜0.3.11 の一覧（release-notes-seed.json）から始める
+            const seed = fs.existsSync(".github/release-notes-seed.json") ? JSON.parse(fs.readFileSync(".github/release-notes-seed.json", "utf8")) : []
+            const old = Array.isArray(prev.history)
+              ? prev.history
+              : [...(prev.version ? [{ version: prev.version, date: prev.date, notes: prev.notes }] : []), ...seed.filter((h) => h.version !== prev.version)]
+            // 同じ版を出し直したときは、新しい文で置き換える
+            const history = [{ version: V, date, notes }, ...old.filter((h) => h && h.version !== V)]
+            const m = { version: V, date, notes,
               files: { "mac-arm64": base + `Rising-Loop-${V}-mac-arm64.dmg`, "mac-x64": base + `Rising-Loop-${V}-mac-x64.dmg`, "win-x64": base + `Rising-Loop-${V}-win-x64.exe` },
-              page: process.env.LP }
+              page: process.env.LP, history }
             require("fs").writeFileSync("latest.json", JSON.stringify(m))
           '
           cat latest.json

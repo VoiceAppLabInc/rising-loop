@@ -2,7 +2,7 @@
 // それまでは GitHub の Releases の最新を見ていた。その形も読めるようにしておく）。
 // 見に行くときに、使っている人の数を数えるための匿名の情報をクエリで付ける（statsQuery。設定で止められる）
 import { compareVersions } from '@shared/migrate'
-import type { AppUpdate } from '@shared/types'
+import type { AppUpdate, ReleaseNote } from '@shared/types'
 
 /** 見に行く先。RISING_LOOP_APP_UPDATE_URL で変えられる（off なら見に行かない。テストは file:// の見本を読む） */
 export const UPDATE_URL = 'https://storage.googleapis.com/rising-loop-dist/latest.json'
@@ -15,21 +15,38 @@ type Fetcher = (url: string) => Promise<{ ok: boolean; json: () => Promise<unkno
 const assetSuffix = (platform: string, arch: string): string | null =>
   platform === 'darwin' ? `-mac-${arch}.dmg` : platform === 'win32' ? `-win-${arch}.exe` : null
 
+/** 版の形（0.3.11 など）か */
+const isVersion = (v: unknown): v is string => typeof v === 'string' && /^\d+(\.\d+)*$/.test(v)
+
+/**
+ * いまの版より後のお知らせを、新しい順に並べる。最新の版が history に無ければ（0.3.11 までの latest.json）、notes を最新として足す。
+ * 文の無いもの・形の違うものは飛ばす
+ */
+function notesSince(history: unknown, version: string, notes: string, current: string): ReleaseNote[] {
+  const list = (Array.isArray(history) ? history : [])
+    .filter((h): h is { version: string; notes: string } => !!h && typeof h === 'object' && isVersion(h.version) && typeof h.notes === 'string' && !!h.notes.trim())
+    .map((h) => ({ version: h.version, notes: h.notes.trim() }))
+  if (notes && !list.some((h) => h.version === version)) list.push({ version, notes })
+  return list.filter((h) => compareVersions(h.version, current) > 0 && compareVersions(h.version, version) <= 0).sort((a, b) => compareVersions(b.version, a.version))
+}
+
 /**
  * 配る場所の latest.json から、いまより新しい版を読む。新しくなければ・読めなければ null。形：
- * { version: "0.3.0", notes: "- お知らせ", files: { "mac-arm64": url, "mac-x64": url, "win-x64": url }, page: LP の URL }
+ * { version: "0.3.0", notes: "- お知らせ", files: { "mac-arm64": url, "mac-x64": url, "win-x64": url }, page: LP の URL,
+ *   history: [{ version, date, notes }, …]（0.3.12 から。版ごとのお知らせ、新しい順） }
  * GitHub の Releases の最新の応答（tag_name・assets）も読む（0.2.x までの形。テストの見本もこの形がある）
  */
 export function updateFrom(json: unknown, current: string, platform: string, arch: string): AppUpdate | null {
   if (!json || typeof json !== 'object') return null
-  const m = json as { version?: unknown; notes?: unknown; files?: unknown; page?: unknown }
+  const m = json as { version?: unknown; notes?: unknown; files?: unknown; page?: unknown; history?: unknown }
   if (typeof m.version === 'string') {
     const version = m.version.replace(/^v/, '')
     if (!/^\d+(\.\d+)*$/.test(version) || compareVersions(version, current) <= 0 || typeof m.page !== 'string') return null
     const key = platform === 'darwin' ? `mac-${arch}` : platform === 'win32' ? `win-${arch}` : ''
     const files = m.files && typeof m.files === 'object' ? (m.files as Record<string, unknown>) : {}
     const file = key ? files[key] : undefined
-    return { version, notes: typeof m.notes === 'string' ? m.notes.trim() : '', download: typeof file === 'string' ? file : m.page, page: m.page }
+    const notes = notesSince(m.history, version, typeof m.notes === 'string' ? m.notes.trim() : '', current)
+    return { version, notes, download: typeof file === 'string' ? file : m.page, page: m.page }
   }
   const r = json as { tag_name?: unknown; body?: unknown; html_url?: unknown; draft?: unknown; prerelease?: unknown; assets?: unknown }
   if (typeof r.tag_name !== 'string' || typeof r.html_url !== 'string' || r.draft || r.prerelease) return null
@@ -40,7 +57,7 @@ export function updateFrom(json: unknown, current: string, platform: string, arc
   const asset = suffix ? assets.find((a) => typeof a.name === 'string' && a.name.endsWith(suffix)) : undefined
   return {
     version,
-    notes: typeof r.body === 'string' ? r.body.trim() : '',
+    notes: typeof r.body === 'string' && r.body.trim() ? [{ version, notes: r.body.trim() }] : [],
     download: typeof asset?.browser_download_url === 'string' ? asset.browser_download_url : r.html_url,
     page: r.html_url
   }

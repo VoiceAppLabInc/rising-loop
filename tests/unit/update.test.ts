@@ -21,7 +21,7 @@ describe('Releases の最新から、新しい版を読む', () => {
   it('いまより新しければ、版・説明・この OS と CPU 向けのファイル・リリースの頁を返す', () => {
     expect(updateFrom(release(), '0.1.0', 'darwin', 'arm64')).toEqual({
       version: '0.2.0',
-      notes: '- 新しいお知らせ\n- 直したこと',
+      notes: [{ version: '0.2.0', notes: '- 新しいお知らせ\n- 直したこと' }],
       download: 'https://example.com/arm64.dmg',
       page: 'https://github.com/VoiceAppLabInc/rising-loop/releases/tag/v0.2.0'
     })
@@ -44,7 +44,7 @@ describe('Releases の最新から、新しい版を読む', () => {
     expect(updateFrom(release(), '0.1.0', 'linux', 'x64')?.download).toBe('https://github.com/VoiceAppLabInc/rising-loop/releases/tag/v0.2.0')
   })
   it('説明が無ければ空、版の頭に v が無くても読む', () => {
-    expect(updateFrom(release({ tag_name: '0.3.0', body: null }), '0.1.0', 'darwin', 'arm64')).toMatchObject({ version: '0.3.0', notes: '' })
+    expect(updateFrom(release({ tag_name: '0.3.0', body: null }), '0.1.0', 'darwin', 'arm64')).toMatchObject({ version: '0.3.0', notes: [] })
   })
   it('形の違うもの（エラーの応答など）は null', () => {
     expect(updateFrom({ message: 'Not Found' }, '0.1.0', 'darwin', 'arm64')).toBeNull()
@@ -122,12 +122,39 @@ describe('配る場所の latest.json（0.3.0 から）', () => {
     ...o
   })
   it('いまより新しければ、版・説明・この OS と CPU 向けのファイル・LP を返す', () => {
-    expect(updateFrom(manifest(), '0.2.9', 'darwin', 'arm64')).toEqual({ version: '0.3.0', notes: '- 新しいお知らせ', download: 'https://storage.example/arm64.dmg', page: 'https://rising-loop.web.app/' })
+    expect(updateFrom(manifest(), '0.2.9', 'darwin', 'arm64')).toEqual({
+      version: '0.3.0',
+      notes: [{ version: '0.3.0', notes: '- 新しいお知らせ' }],
+      download: 'https://storage.example/arm64.dmg',
+      page: 'https://rising-loop.web.app/'
+    })
     expect(updateFrom(manifest(), '0.2.9', 'win32', 'x64')?.download).toBe('https://storage.example/setup.exe')
   })
   it('同じ版・古い版は null。この OS 向けのファイルが無ければ LP', () => {
     expect(updateFrom(manifest(), '0.3.0', 'darwin', 'arm64')).toBeNull()
     expect(updateFrom(manifest(), '0.2.9', 'linux', 'x64')?.download).toBe('https://rising-loop.web.app/')
+  })
+  it('版ごとのお知らせ（history）があれば、いまの版より後のものを新しい順に全部返す（何版か飛ばして上げる人にも、あいだの変更が届く）', () => {
+    const history = [
+      { version: '0.3.0', date: '2026-10-29', notes: '- 3つ目' },
+      { version: '0.2.11', date: '2026-10-23', notes: '- 2つ目' },
+      { version: '0.2.9', date: '2026-10-15', notes: '- 1つ目' },
+      { version: '0.2.8', date: '2026-10-14', notes: '- いまの版より前' }
+    ]
+    expect(updateFrom(manifest({ notes: '- 3つ目', history }), '0.2.9', 'darwin', 'arm64')?.notes).toEqual([
+      { version: '0.3.0', notes: '- 3つ目' },
+      { version: '0.2.11', notes: '- 2つ目' }
+    ])
+    // 並びが崩れていても新しい順にする。最新の版が history に無ければ、notes を最新として足す
+    expect(updateFrom(manifest({ notes: '- 最新', history: [history[2], history[1]] }), '0.2.8', 'darwin', 'arm64')?.notes).toEqual([
+      { version: '0.3.0', notes: '- 最新' },
+      { version: '0.2.11', notes: '- 2つ目' },
+      { version: '0.2.9', notes: '- 1つ目' }
+    ])
+  })
+  it('history の中の形の違うもの・文の無いものは飛ばす', () => {
+    const history = [{ version: '0.3.0', notes: '- 3つ目' }, { version: 'next', notes: '- 変な版' }, { version: '0.2.11', notes: '  ' }, 'x', null]
+    expect(updateFrom(manifest({ notes: '- 3つ目', history }), '0.2.9', 'darwin', 'arm64')?.notes).toEqual([{ version: '0.3.0', notes: '- 3つ目' }])
   })
   it('形が違えば null', () => {
     expect(updateFrom(manifest({ version: 'next' }), '0.2.9', 'darwin', 'arm64')).toBeNull()

@@ -255,7 +255,9 @@ input[type='radio'], input[type='checkbox'] { accent-color: var(--ink); }
 /* 新しい版のお知らせ */
 .dialog.update { width: 520px; max-width: calc(100vw - 32px); max-height: calc(100vh - 64px); overflow: auto; }
 .dialog.update .sub { color: var(--sub); }
-.update-notes { margin: 4px 0 12px; padding: 10px 12px; max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
+.update-notes { margin: 4px 0 12px; padding: 10px 12px; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
+.update-notes h3 { margin: 0 0 2px; font-size: 13px; font-weight: 700; }
+.update-notes section + section { margin-top: 10px; }
 
 /* プロジェクトが無いときの画面（初めての人の入口） */
 .welcome { position: absolute; inset: 0; overflow: auto; padding: 48px 24px; }

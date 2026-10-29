@@ -80,11 +80,17 @@ export interface ProjectsSnapshot extends ProjectsState {
   update: AppUpdate | null
 }
 
+/** 1つの版のお知らせ */
+export interface ReleaseNote {
+  version: string
+  notes: string
+}
+
 /** 新しい版のアプリ */
 export interface AppUpdate {
   version: string
-  /** Releases に書いた説明 */
-  notes: string
+  /** いまの版より後の、版ごとのお知らせ（新しい順。何版か飛ばして上げる人にも、あいだの変更を見せる） */
+  notes: ReleaseNote[]
   /** ［ダウンロード］で開く先。この OS・CPU 向けのファイルがあればそれ、無ければリリースの頁 */
   download: string
   /** リリースの頁 */
